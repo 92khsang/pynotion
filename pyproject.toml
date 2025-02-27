@@ -7,13 +7,13 @@ authors = [
 ]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
 keywords = ["notion", "pydantic", "httpx", "api", "integration"]
 
 dependencies = [
     "httpx >= 0.23.0,<1.0.0",
-    "pydantic >= 2.10.0,<3.0.0",
-    "pydantic-settings >= 2.8.0,<3.0.0",
+    "pydantic[email] >= 2.10.0,<3.0.0",
+    "pytest (>=8.3.4,<9.0.0)",
 ]
 
 [project.urls]
@@ -24,11 +24,44 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 black = { version = ">=25.1.0,<26.0.0", extras = ["d"] }
+pytest = ">=8.3.4,<9.0.0"
+pytest-cov = ">=6.0.0,<7.0.0"
 
 [tool.black]
 line-length = 88
-target-version = ['py310', 'py311', 'py312', 'py313']
+target-version = ['py311', 'py312', 'py313']
 skip-string-normalization = true
+fast = true
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | \.mypy_cache
+  | \.tox
+  | \.pytest_cache
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+addopts = "-ra --cov=pynotion --cov-report=term-missing --cov-report=html"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "INFO"
+
+[tool.coverage.run]
+source = ["pynotion"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true
+skip_covered = true
 
 [build-system]
 requires = ["poetry-core>=2.1.0,<3.0.0"]
