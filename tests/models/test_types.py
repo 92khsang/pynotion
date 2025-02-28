@@ -17,6 +17,7 @@ from pynotion.models.types import (
     NotionEquation,
     NotionDate,
 )
+from tests.models.model_test_utils import PydanticModelTester
 
 
 # --- Test Type Aliases ---
@@ -181,3 +182,37 @@ def test_notion_date(
         notion_date = NotionDate(start=start, time_zone=time_zone)
         assert notion_date.start == expected_start
         assert notion_date.time_zone == time_zone
+
+
+@pytest.mark.parametrize(
+    "clz,test_data",
+    [
+        (
+            NotionDate,
+            [
+                (NotionDate(start=datetime(2023, 5, 17)), {"start": "2023-05-17"}),
+                (
+                    NotionDate(
+                        start=datetime(
+                            2023, 5, 17, tzinfo=ZoneInfo("America/New_York")
+                        ),
+                        end=datetime(2023, 5, 18, tzinfo=ZoneInfo("America/New_York")),
+                        time_zone="America/New_York",
+                    ),
+                    {
+                        "start": "2023-05-17",
+                        "end": "2023-05-18",
+                        "time_zone": "America/New_York",
+                    },
+                ),
+            ],
+        ),
+        (
+            NotionEquation,
+            [(NotionEquation(expression="E = mc^2"), {"expression": "E = mc^2"})],
+        ),
+    ],
+    ids=["NotionDate", "NotionEquation"],
+)
+def test_models_serialization(clz: type, test_data: list[tuple[BaseModel, dict, ...]]):
+    PydanticModelTester(clz, test_data).run_all_tests()
