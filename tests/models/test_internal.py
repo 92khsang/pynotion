@@ -1,10 +1,10 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from enum import StrEnum
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 import pytest
-from black.trans import Literal
 
 from pynotion.models._internal import (
     validate_timezone,
