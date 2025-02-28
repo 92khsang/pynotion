@@ -1,39 +1,32 @@
 from __future__ import annotations as _annotations
 
-import uuid
 from datetime import datetime
 from enum import StrEnum
-from typing import TypeAlias, Optional
-from zoneinfo import available_timezones
+from typing import TypeAlias, Annotated, Optional, Union
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, HttpUrl, field_validator, model_serializer
+from pydantic import (
+    Field,
+    BeforeValidator,
+    UUID4,
+    EmailStr,
+)
 
+from ._internal import (
+    validate_timezone,
+    validate_datetime,
+    validate_url,
+    NotionBaseModel,
+)
 
-# ---------------------- BASE MODEL ---------------------- #
-class NotionBaseModel(BaseModel):
-    class Config:
-        extra = "forbid"
-        use_enum_values = True
-
-
-class NotionTypedModel(NotionBaseModel):
-    type: StrEnum
-    obj: NotionBaseModel | StrEnum | str
-
-    @model_serializer(mode="wrap")
-    def serialize_model(self, nxt):
-        data = nxt(self)
-        obj_value = data.pop("obj", None)
-        if obj_value is not None:
-            data[self.type] = obj_value
-        return data
-
-
-# ---------------------- Aliases ---------------------- #
-ObjectId: TypeAlias = uuid.UUID
+ObjectId: TypeAlias = UUID4
+NotionDatetime: TypeAlias = Annotated[
+    datetime | str, BeforeValidator(validate_datetime)
+]
+NotionEmail: TypeAlias = Annotated[str, EmailStr]
+NotionUrl: TypeAlias = Annotated[str, BeforeValidator(validate_url)]
 
 
-# ---------------------- ENUMS ---------------------- #
 class ObjectType(StrEnum):
     """Defines object types in Notion.
 
@@ -42,12 +35,14 @@ class ObjectType(StrEnum):
         DATABASE: database object type.
         PAGE: page object type.
         USER: user object type.
+        COMMENT: comment object type.
     """
 
     BLOCK = "block"
     DATABASE = "database"
     PAGE = "page"
     USER = "user"
+    COMMENT = "comment"
 
 
 class Color(StrEnum):
@@ -105,9 +100,6 @@ class BackgroundColor(StrEnum):
     YELLOW_BACKGROUND = "yellow_background"
 
 
-# ---------------------- Objets ---------------------- #
-
-
 class NotionLink(NotionBaseModel):
     """Represents a simple link in Notion.
 
@@ -115,7 +107,7 @@ class NotionLink(NotionBaseModel):
         url: The URL of the link.
     """
 
-    url: HttpUrl
+    url: NotionUrl = Field(description="The URL of the link")
 
 
 class NotionEquation(NotionBaseModel):
@@ -128,28 +120,112 @@ class NotionEquation(NotionBaseModel):
     expression: str
 
 
-class NotionDate(BaseModel):
-    start: datetime
-    end: Optional[datetime] = None
-    time_zone: Optional[str] = None
+class NotionDate(NotionBaseModel):
+    """Represents a date in Notion.
 
-    @field_validator("start", "end", mode="before")  # noqa
-    @classmethod
-    def parse_datetime(cls, v: Optional[str]) -> Optional[datetime]:
-        """Parse ISO 8601 datetime string into Python datetime object while preserving timezone info."""
-        if v is None:
-            return None
-        try:
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
-        except ValueError:
-            raise ValueError(f"Invalid ISO 8601 format: {v}")
+    Attributes:
+        start: The start datetime in ISO 8601 format.
+        end: The end datetime in ISO 8601 format (optional).
+        time_zone: The timezone of the date (optional).
 
-    @field_validator("time_zone")  # noqa
+    Notes:
+        - `start` and `end` must be in ISO 8601 format.
+        - If `time_zone` is provided, `start` and `end` must not contain UTC offsets.
+        - If `time_zone` is None, `start` and `end` can contain UTC offsets.
+    """
+
+    start: NotionDatetime = Field(description="The start datetime of the date.")
+    end: Optional[NotionDatetime] = Field(
+        default=None, description="The end datetime of the date."
+    )
+    time_zone: Optional[str] = Field(
+        default=None, description="The timezone of the date."
+    )
+
     @classmethod
-    def validate_timezone(cls, v: Optional[str]) -> Optional[str]:
-        """Ensure the time_zone is a valid time zone."""
-        if v is None:
-            return None
-        if v not in available_timezones():
-            raise ValueError(f"Invalid IANA timezone: {v}")
-        return v
+    def _validate_single_datetime(
+        cls, dt: Union[str, datetime], time_zone: Optional[str], dt_name: str
+    ) -> Union[str, datetime]:
+        """
+        Validate and process a single datetime value.
+
+        Args:
+            dt: Datetime to validate
+            time_zone: Timezone to validate against
+            dt_name: Name of the datetime field (for error messages)
+
+        Returns:
+            Validated and potentially timezone-adjusted datetime
+        """
+
+        def has_utc_offset(dt_str: str) -> bool:
+            """Check if the ISO string has a UTC offset."""
+            return "Z" in dt_str or "+" in dt_str
+
+        # Validate input type
+        if not isinstance(dt, (str, datetime)):
+            raise ValueError(
+                f"`{dt_name}` should be a datetime or a string in ISO 8601 format: {dt}"
+            )
+
+        # If timezone is provided, enforce timezone rules
+        if time_zone:
+            validate_timezone(time_zone)
+
+            # For string inputs
+            if isinstance(dt, str):
+                if has_utc_offset(dt):
+                    raise ValueError(
+                        f"`{dt_name}` should not have a UTC offset when `time_zone` is provided: {dt}"
+                    )
+
+                try:
+                    dt_obj = datetime.fromisoformat(dt)
+                except ValueError:
+                    raise ValueError(f"Invalid ISO 8601 format: {dt}")
+
+                # Localize the datetime
+                return dt_obj.replace(tzinfo=ZoneInfo(time_zone)).isoformat()
+
+            # For datetime inputs
+            if dt.tzinfo and dt.tzinfo != ZoneInfo(time_zone):
+                raise ValueError(f"`{dt_name}` should be in {time_zone} timezone: {dt}")
+
+        return dt
+
+    @classmethod
+    def validate_datetime_with_timezone(
+        cls,
+        start: Union[str, datetime],
+        end: Union[str, datetime, None],
+        time_zone: Optional[str],
+    ) -> tuple[Union[str, datetime], Union[str, datetime, None], Optional[str]]:
+        """
+        Ensures that `start` and `end` conform to timezone constraints.
+        """
+        # Validate start datetime
+        validated_start = cls._validate_single_datetime(start, time_zone, "start")
+
+        # Validate end datetime if provided
+        validated_end = (
+            cls._validate_single_datetime(end, time_zone, "end") if end else None
+        )
+
+        return validated_start, validated_end, time_zone
+
+    def __init__(self, **data):
+        # Validate and update datetime fields
+        checked_start, checked_end, checked_tz = self.validate_datetime_with_timezone(
+            data.get("start"), data.get("end"), data.get("time_zone")
+        )
+
+        # Update data with validated values
+        data.update(
+            {
+                "start": checked_start,
+                **({"end": checked_end} if checked_end is not None else {}),
+                **({"time_zone": checked_tz} if checked_tz is not None else {}),
+            }
+        )
+
+        super().__init__(**data)
