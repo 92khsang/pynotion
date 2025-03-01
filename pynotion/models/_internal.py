@@ -19,6 +19,7 @@ from pydantic import (
     model_validator,
     model_serializer,
     field_validator,
+    ConfigDict,
 )
 
 NotionType: TypeAlias = StrEnum
@@ -27,8 +28,7 @@ NotionType: TypeAlias = StrEnum
 class NotionBaseModel(BaseModel):
     """A base class for Notion-like models."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
 def validate_timezone(value: str) -> str:
