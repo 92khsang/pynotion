@@ -23,8 +23,11 @@ ObjectId: TypeAlias = UUID4
 NotionDatetime: TypeAlias = Annotated[
     datetime | str, BeforeValidator(validate_datetime)
 ]
-NotionEmail: TypeAlias = Annotated[str, EmailStr]
-NotionUrl: TypeAlias = Annotated[str, BeforeValidator(validate_url)]
+NotionEmail: TypeAlias = Annotated[str, Field(..., max_length=200), EmailStr]
+
+NotionUrl: TypeAlias = Annotated[
+    str, Field(..., max_length=2000), BeforeValidator(validate_url)
+]
 
 
 class ObjectType(StrEnum):

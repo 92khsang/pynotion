@@ -245,7 +245,7 @@ def test_user_model(object_id, user_type, name, avatar_url, type_data):
                         id=ObjectId("923ef3ea-cff1-423a-a5af-a24cfcb08f7c"),
                         type=UserType.BOT,
                         name="Test Bot",
-                        avatar_url=NotionUrl("https://example.com/bot.png"),
+                        avatar_url="https://example.com/bot.png",
                         type_data=Bot(
                             owner=BotOwner(type=BotOwnerType.WORKSPACE, type_data=True),
                             workspace_name="Bot Workspace",

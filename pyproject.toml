@@ -47,7 +47,7 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-addopts = "-ra --cov=pynotion --cov-report=term-missing --cov-report=html"
+addopts = "-ra --cov-report term-missing --cov=pynotion --cov-report=html"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
@@ -60,9 +60,9 @@ source = ["pynotion"]
 branch = true
 
 [tool.coverage.report]
-fail_under = 50
+fail_under = 90
 show_missing = true
-skip_covered = true
+skip_covered = false
 
 [build-system]
 requires = ["poetry-core>=2.1.0,<3.0.0"]

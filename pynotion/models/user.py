@@ -162,7 +162,7 @@ class User(NotionTypedModel):
     )
 
     if TYPE_CHECKING:
-        type: Annotated[Optional[str, UserType], ...]
+        type: Annotated[Optional[str, UserType], ...] = None
 
     @model_validator(mode="after")
     def validate_user_type(self):
