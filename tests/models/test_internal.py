@@ -14,6 +14,7 @@ from pynotion.models._internal import (
     NotionBaseModel,
     register_notion_type_enum,
     register_type_data,
+    validate_enum,
 )
 
 
@@ -233,3 +234,37 @@ def test_register_type_data_without_decorator():
         NotionTypedModel.__registry__[NotionSampleType][NotionSampleType.DATE]
         is CustomDateData
     )
+
+
+# --------------------------
+# ✅ Enum Validation
+# --------------------------
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("dummy", DummyType.DUMMY),
+        ("text", NotionSampleType.TEXT),
+        ("date", NotionSampleType.DATE),
+        (DummyType.DUMMY, DummyType.DUMMY),
+        (NotionSampleType.TEXT, NotionSampleType.TEXT),
+    ],
+)
+def test_validate_enum_valid(value, expected):
+    """Test that valid values return correct enum instances."""
+    assert validate_enum(value, (DummyType, NotionSampleType)) == expected
+
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    ["invalid", "notion", "DATE_WRONG", "123", "", None, 42, []],
+)
+def test_validate_enum_invalid(invalid_value):
+    """Test that invalid values raise ValueError."""
+    with pytest.raises(ValueError, match="Invalid value"):
+        validate_enum(invalid_value, (DummyType, NotionSampleType))
+
+
+def test_validate_enum_empty_enum_list():
+    """Test that an empty enum list raises ValueError."""
+    with pytest.raises(ValueError, match="Invalid value"):
+        validate_enum("dummy", ())

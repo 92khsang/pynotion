@@ -12,6 +12,7 @@ from typing import (
     overload,
     get_args,
     Literal,
+    Type,
 )
 
 from pydantic import (
@@ -29,6 +30,29 @@ class NotionBaseModel(BaseModel):
     """A base class for Notion-like models."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+
+def validate_enum(
+    value: str | NotionType, enum_types: tuple[Type[NotionType], ...]
+) -> NotionType:
+    """
+    Convert a string value to one of the provided StrEnum types.
+
+    - If `value` is already an instance of one of the provided enums, return it.
+    - If `value` is a string, attempt to convert it to one of the provided enums.
+    - Raise a `ValueError` if the string doesn't match any enum member.
+    """
+    if any(isinstance(value, enum_type) for enum_type in enum_types):
+        return value
+
+    for enum_type in enum_types:
+        try:
+            return enum_type(value)
+        except ValueError:
+            continue
+
+    valid_values = [item.value for enum_type in enum_types for item in enum_type]
+    raise ValueError(f"Invalid value '{value}'. Expected one of: {valid_values}")
 
 
 def validate_timezone(value: str) -> str:
