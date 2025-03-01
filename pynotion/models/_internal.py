@@ -240,12 +240,10 @@ class NotionTypedModel(NotionBaseModel):
         """
         type_value = data.get("type")
 
-        if (
-            type_value
-            and not data.get("type_data")
-            and (type_data := data.pop(str(type_value)))
-        ):
-            data["type_data"] = type_data
+        if type_value and not data.get("type_data"):
+            type_data = data.pop(str(type_value), None)
+            if type_data is not None:
+                data["type_data"] = type_data
 
         super().__init__(**data)
 
