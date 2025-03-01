@@ -13,6 +13,7 @@ from typing import (
     get_args,
     Literal,
     Type,
+    Iterable,
 )
 
 from pydantic import (
@@ -405,3 +406,33 @@ class NotionTypedModel(NotionBaseModel):
         if type_data is not None:
             data[self.type] = type_data
         return data
+
+    def __getattr__(self, item: str):
+        """
+        Overrides attribute access to return `type_data`
+            when `type` is accessed as an attribute.
+
+        If `type` is "person", then `instance.person` will return `type_data`.
+
+        Args:
+            item (str): The attribute name being accessed.
+
+        Returns:
+            The value of `type_data`
+                if `item` matches `type`, otherwise default behavior.
+
+        Raises:
+            AttributeError: If the requested attribute isn't found.
+        """
+        if item == str(self.type):
+            return self.type_data
+
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{item}'"
+        )
+
+    def __dir__(self):
+        base_attrs: Iterable[str] = super().__dir__()
+        if self.type:
+            return list(base_attrs) + [str(self.type)]
+        return base_attrs

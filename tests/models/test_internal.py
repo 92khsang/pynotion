@@ -268,3 +268,41 @@ def test_validate_enum_empty_enum_list():
     """Test that an empty enum list raises ValueError."""
     with pytest.raises(ValueError, match="Invalid value"):
         validate_enum("dummy", ())
+
+
+# --------------------------
+# ✅ __getattr__ Method
+# --------------------------
+def test_notion_typed_model_getattr():
+    """Test that accessing type as an attribute returns type_data."""
+    instance = NotionTypedModel(
+        type=NotionSampleType.TEXT,
+        type_data=TextData(content="Hello"),
+    )
+
+    assert instance.type_data == TextData(content="Hello")
+
+    assert instance.text == TextData(
+        content="Hello"
+    )  # instance.text should return type_data
+
+    with pytest.raises(AttributeError, match="object has no attribute 'invalid'"):
+        instance.invalid
+
+
+def test_notion_typed_model_dir():
+    """Test that __dir__ includes the type as an attribute."""
+    instance = NotionTypedModel(
+        type=NotionSampleType.TEXT,
+        type_data=TextData(content="Hello"),
+    )
+
+    # Ensure that the type name appears in dir(instance)
+    assert "text" in dir(instance)  # `text` should be in the list of attributes
+
+    # Ensure that an unrelated attribute doesn't exist
+    assert "invalid" not in dir(instance)
+
+    instance.type_data = None
+    instance.type = None
+    assert "text" not in dir(instance)
