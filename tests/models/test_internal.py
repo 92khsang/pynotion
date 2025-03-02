@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Union, Optional
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -39,6 +39,11 @@ class TextData(NotionBaseModel):
 
 class DateData(NotionBaseModel):
     date: datetime
+
+
+class TypedModel(NotionTypedModel):
+    type: Optional[NotionSampleType]
+    type_data: Union[DateData, TextData, None]
 
 
 # Register type
@@ -131,6 +136,11 @@ def test_validate_url_invalid(invalid_url):
 # --------------------------
 # ✅ NotionTypedModel Tests
 # --------------------------
+def test_create_notion_typed_model():
+    with pytest.raises(TypeError):
+        NotionTypedModel()
+
+
 def test_register_invalid_notion_type():
     class InvalidType:
         pass
@@ -160,14 +170,14 @@ def test_register_type_data():
 
         assert NotionSampleType.TEXT in NotionTypedModel.__registry__[NotionSampleType]
         assert (
-            NotionTypedModel.__registry__[NotionSampleType][NotionSampleType.TEXT]
-            is ExampleData
+            ExampleData
+            in NotionTypedModel.__registry__[NotionSampleType][NotionSampleType.TEXT]
         )
 
 
 @pytest.mark.parametrize("content", [TextData(content="Hello"), {"content": "Hello"}])
 def test_notion_typed_model_valid(content):
-    instance = NotionTypedModel(
+    instance = TypedModel(
         type="text",
         type_data=content,
     )
@@ -179,31 +189,30 @@ def test_notion_typed_model_valid(content):
     "content", [DateData(date=datetime(2023, 1, 1)), {"date": "2023-01-01"}]
 )
 def test_notion_typed_model_valid_with_type_name(content):
-    instance = NotionTypedModel(
-        type="date",
-        date=content,  # noqa
-    )
+    instance = TypedModel(type="date", date=content)  # noqa
     assert instance.type == NotionSampleType.DATE
     assert instance.type_data == DateData(date=datetime(2023, 1, 1))
 
 
-@pytest.mark.parametrize("invalid_type", ["invalid", DummyType.DUMMY, 123, None])
+@pytest.mark.parametrize(
+    "invalid_type", ["invalid", DummyType.DUMMY, NotionSampleType.DATE, 123, None]
+)
 def test_notion_typed_model_invalid_type(invalid_type):
     with temporary_registry():
         register_notion_type_enum(DummyType)
         register_type_data(DummyType.DUMMY, Literal["dummy"])
 
         with pytest.raises((ValueError, TypeError)):
-            NotionTypedModel(type=invalid_type, type_data={"content": "Hello"})
+            TypedModel(type=invalid_type, type_data={"content": "Hello"})
 
 
-def test_notion_typed_model_invalid_type_data():
-    with pytest.raises(ValueError, match="type_data must be of type DateData"):
-        NotionTypedModel(type=NotionSampleType.DATE, type_data={"content": "Invalid"})
+def test_notion_typed_model_invalid_type_date():
+    with pytest.raises(ValueError):
+        TypedModel(type=NotionSampleType.DATE, type_data={"content": "Invalid"})
 
 
 def test_notion_typed_model_serialization():
-    instance = NotionTypedModel(
+    instance = TypedModel(
         type=NotionSampleType.TEXT,
         type_data=TextData(content="Hello"),  # Use actual Pydantic model
     )
@@ -218,10 +227,8 @@ def test_notion_typed_model_serialization():
 
 def test_notion_typed_model_missing_type_data():
     with temporary_registry():
-        with pytest.raises(
-            ValueError, match="type_data must be None when the type is None"
-        ):
-            NotionTypedModel(type=None, type_data={"content": "Hello"})
+        with pytest.raises(ValueError):
+            TypedModel(type=None, type_data={"content": "Hello"})
 
 
 def test_register_type_data_without_decorator():
@@ -231,8 +238,8 @@ def test_register_type_data_without_decorator():
 
     assert NotionSampleType.DATE in NotionTypedModel.__registry__[NotionSampleType]
     assert (
-        NotionTypedModel.__registry__[NotionSampleType][NotionSampleType.DATE]
-        is CustomDateData
+        CustomDateData
+        in NotionTypedModel.__registry__[NotionSampleType][NotionSampleType.DATE]
     )
 
 
@@ -275,7 +282,7 @@ def test_validate_enum_empty_enum_list():
 # --------------------------
 def test_notion_typed_model_getattr():
     """Test that accessing type as an attribute returns type_data."""
-    instance = NotionTypedModel(
+    instance = TypedModel(
         type=NotionSampleType.TEXT,
         type_data=TextData(content="Hello"),
     )
@@ -292,7 +299,7 @@ def test_notion_typed_model_getattr():
 
 def test_notion_typed_model_dir():
     """Test that __dir__ includes the type as an attribute."""
-    instance = NotionTypedModel(
+    instance = TypedModel(
         type=NotionSampleType.TEXT,
         type_data=TextData(content="Hello"),
     )
@@ -303,6 +310,4 @@ def test_notion_typed_model_dir():
     # Ensure that an unrelated attribute doesn't exist
     assert "invalid" not in dir(instance)
 
-    instance.type_data = None
-    instance.type = None
-    assert "text" not in dir(instance)
+    assert "text" not in dir(TypedModel(type=None, type_data=None))

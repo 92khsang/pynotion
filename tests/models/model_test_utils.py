@@ -27,6 +27,10 @@ class PydanticModelTester:
                 # Verify model
                 assert test_model == model
 
+            except Exception as e:
+                pytest.fail(f"Failed to create valid model {test_dict}: {e}")
+
+            try:
                 # Verify JSON serialization
                 json_data = model.model_dump_json()
                 reconstructed_model = self.model_class.model_validate_json(json_data)

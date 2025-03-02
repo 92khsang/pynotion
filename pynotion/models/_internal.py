@@ -1,5 +1,6 @@
 from __future__ import annotations as _annotations
 
+import types
 from datetime import datetime
 from enum import StrEnum
 from typing import (
@@ -9,11 +10,12 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Optional,
-    overload,
     get_args,
     Literal,
     Type,
     Iterable,
+    get_type_hints,
+    get_origin,
 )
 
 from pydantic import (
@@ -154,15 +156,7 @@ def register_notion_type_enum(cls: type[NotionType]):
     return cls
 
 
-@overload
-def register_type_data(notion_type: NotionType, type_data_cls: type): ...
-
-
-@overload
-def register_type_data(notion_type: NotionType): ...
-
-
-def register_type_data(notion_type: NotionType, type_data_cls: Optional[type] = None):
+def register_type_data(main_type: NotionType, type_data_cls: Optional[type] = None):
     """
     Registers a type data class with the given Notion type.
 
@@ -173,7 +167,7 @@ def register_type_data(notion_type: NotionType, type_data_cls: Optional[type] = 
     decorated type data class with the given Notion type.
 
     Args:
-        notion_type: The Notion type to register with.
+        main_type: The Notion type to register with.
         type_data_cls: The type data class to register.
 
     Returns:
@@ -182,10 +176,10 @@ def register_type_data(notion_type: NotionType, type_data_cls: Optional[type] = 
         type data class.
     """
     if type_data_cls:
-        return NotionTypedModel.register_type_data(notion_type, type_data_cls)
+        return NotionTypedModel.register_type_data(main_type, type_data_cls)
 
     def wrapper(cls: type):
-        NotionTypedModel.register_type_data(notion_type, cls)
+        NotionTypedModel.register_type_data(main_type, cls)
         return cls
 
     return wrapper
@@ -195,60 +189,78 @@ class NotionTypedModel(NotionBaseModel):
     """
     A base model for handling Notion-like typed data structures.
 
-    This class supports dynamic registration and validation of Notion type enums and their
-    corresponding data classes. It ensures that each instance has a valid `type` associated
-    with a registered `type_data`.
+    This class provides dynamic registration and validation for Notion type enums
+    and their corresponding data classes. It ensures each instance has a valid
+    `type` mapped to an appropriate registered `type_data`.
 
-    Attributes
-        __slots__ (tuple):
-            Defines `("type", "type_data")` to limit memory usage and prevent
-            accidental attribute assignment.
-        __registry__ (dict):
-            A class-level registry that maps NotionType enums to their associated
-            data classes. Structure:
-            ```python
-            {
-                NotionTypeEnum: {"enum_value": TypeDataClass}
-            }
-            ```
-        type (Optional[StrEnum]):
-            The Notion type associated with this instance. Must be a registered `StrEnum` value.
+    Attributes:
+        type (Optional[NotionType]):
+            The Notion type associated with this instance. It must be a registered
+            NotionType value.
         type_data (Any):
-            The corresponding data for the given Notion type. Must match the registered
-            data type for the given `type`.
+            The corresponding data for the given Notion type. It must match one of
+            the registered data classes for the type.
+        __registry__ (dict[type[NotionType], dict[NotionType, list[type]]]):
+            A class-level registry that maps NotionType enums to a list of associated
+            data classes. The structure is::
 
-    Methods
-        _check_notion_type_registration(notion_type_cls):
-            Ensures that the given Notion type enum class is registered.
+                {
+                    NotionTypeEnum: {
+                        notion_type_value: [TypeDataClass1, TypeDataClass2, ...]
+                    }
+                }
 
-        _get_registered_data_type(notion_type):
-            Retrieves the registered data type for a given Notion type.
+    Methods:
+        _extract_type_hint() -> type:
+            Extracts the expected NotionType enum from the class's type hint.
 
-        register_notion_type_enum(notion_type_cls):
+        _convert_to_enum(value: Union[str, NotionType]) -> Optional[NotionType]:
+            Converts a given string or NotionType to a registered NotionType enum.
+
+        _check_notion_type_registration(notion_type: NotionType) -> None:
+            Ensures the given Notion type is registered.
+
+        _convert_type_data(notion_type: NotionType, type_data: Any) -> Any:
+            Converts the given `type_data` to an instance of the appropriate
+            registered data class.
+
+        register_notion_type_enum(notion_type_cls: type[NotionType]) -> None:
             Registers a Notion type enum class.
 
-        register_type_data(notion_type, type_data_cls):
-            Registers a specific Notion type with an associated data class.
+        register_type_data(notion_type: NotionType, type_data_cls: type) -> None:
+            Registers a Notion type value with one or more associated data classes.
 
-        validate_type(v):
-            Validates the `type` field to ensure it corresponds to a registered Notion type.
+        validate_type(v: Optional[Union[str, NotionType]]) -> Optional[NotionType]:
+            Validates and converts the `type` field, ensuring it corresponds
+            to a registered Notion type.
 
-        validate_model():
-            Ensures that the `type` and `type_data` fields are correctly associated and valid.
+        validate_model() -> NotionTypedModel:
+            Ensures that the `type` and `type_data` fields are correctly associated
+            and valid.
 
-        serialize_model(nxt):
-            Custom serializer to ensure `type_data` is properly nested under its associated `type`.
+        serialize_model(nxt) -> dict:
+            Custom serializer to ensure `type_data` is properly nested under
+            its associated type.
+
+        __getattr__(item: str) -> Any:
+            Allows accessing `type_data` using the string representation of
+            the `type` attribute.
     """
 
     __slots__ = ("type", "type_data")
 
-    __registry__: dict[type[NotionType], dict[str, type]] = {}
+    __registry__: dict[type[NotionType], dict[NotionType, list[type]]] = {}
 
-    type: Optional[StrEnum]
+    type: Optional[NotionType]
     type_data: Any
 
     if TYPE_CHECKING:
         type: Annotated[Union[str, NotionType, None], ...]
+
+    def __new__(cls, *args, **kwargs):
+        if cls is NotionTypedModel:
+            raise TypeError(f"{cls.__name__} cannot be instantiated directly")
+        return super().__new__(cls)
 
     def __init__(self, **data):
         """
@@ -273,6 +285,35 @@ class NotionTypedModel(NotionBaseModel):
         super().__init__(**data)
 
     @classmethod
+    def _extract_type_hint(cls) -> type:
+        type_field = get_type_hints(cls)["type"]
+
+        if get_origin(type_field) in {Union, types.UnionType}:
+            actual_type = [
+                t
+                for t in get_args(type_field)
+                if isinstance(t, type) and issubclass(t, NotionType)
+            ][0]
+        else:
+            actual_type = type_field
+
+        return actual_type
+
+    @classmethod
+    def _convert_to_enum(cls, value: str | NotionType) -> NotionType | None:
+        type_hint = cls._extract_type_hint()
+
+        if isinstance(value, NotionType):
+            result = value
+        elif isinstance(value, str):
+            if type_hint not in cls.__registry__:
+                raise ValueError(f"Type '{type_hint}' is not registered")
+            result = type_hint(value)
+        else:
+            raise ValueError(f"Invalid type: {type(value)} for {type_hint}")
+        return result
+
+    @classmethod
     def _check_notion_type_registration(cls, notion_type: NotionType):
         """
         Checks if a given Notion type enum class is registered.
@@ -287,22 +328,43 @@ class NotionTypedModel(NotionBaseModel):
             raise ValueError(f"Type '{type(notion_type).__name__}' is not registered")
 
     @classmethod
-    def _get_registered_data_type(cls, notion_type: NotionType) -> type:
+    def _convert_type_data(cls, notion_type: NotionType, type_data: Any) -> Any:
         """
         Retrieves the registered data type for a given Notion type.
 
         Args:
-            notion_type: The Notion type to look up.
+            notion_type: The Notion type to retrieve the data type for.
+            type_data: The data to convert.
 
         Returns:
             The registered data type class.
 
         Raises:
-            ValueError: If the type isn't registered.
+            ValueError: If no matching data type is found.
         """
         cls._check_notion_type_registration(notion_type)
 
-        return cls.__registry__[type(notion_type)][notion_type]
+        type_classes: list[type] = cls.__registry__[type(notion_type)][notion_type]
+        for type_class in type_classes:
+            try:
+                if (
+                    hasattr(type_class, '__origin__')
+                    and getattr(type_class, '__origin__') is Literal
+                ):
+                    if type_data not in get_args(type_class):
+                        continue
+                    else:
+                        return type_data
+                elif isinstance(type_data, type_class):
+                    return type_data
+                else:
+                    return type_class(**type_data)
+            except TypeError:
+                continue
+
+        raise ValueError(
+            f"Failed to convert type_data: '{type_data}' when type is '{notion_type}'"
+        )
 
     @classmethod
     def register_notion_type_enum(cls, notion_type_cls: type[NotionType]):
@@ -326,7 +388,12 @@ class NotionTypedModel(NotionBaseModel):
         """
         cls._check_notion_type_registration(notion_type)
 
-        cls.__registry__[type(notion_type)][notion_type] = type_data_cls
+        type_classes_registry = cls.__registry__[type(notion_type)]
+
+        prev_types = set(type_classes_registry.get(notion_type, []))
+        prev_types.add(type_data_cls)
+
+        type_classes_registry[notion_type] = list(prev_types)
 
     @field_validator('type', mode='before')  # noqa
     @classmethod
@@ -347,17 +414,9 @@ class NotionTypedModel(NotionBaseModel):
 
         if v is not None:
             try:
-                if isinstance(v, NotionType):
-                    enum_val = v
-                elif isinstance(v, str):
-                    for enum_cls in cls.__registry__.keys():
-                        try:
-                            enum_val = enum_cls(v)
-                            break
-                        except ValueError:
-                            continue
-                    if enum_val is None:
-                        raise ValueError(f"No matching StrEnum found for type: {v}")
+                enum_val = cls._convert_to_enum(v)
+                if enum_val is None:
+                    raise ValueError(f"No matching StrEnum found for type: {v}")
 
                 cls._check_notion_type_registration(enum_val)
             except ValueError as e:
@@ -377,20 +436,10 @@ class NotionTypedModel(NotionBaseModel):
             raise ValueError("type_data must be None when the type is None.")
 
         if self.type and self.type_data:
-            data_type = self._get_registered_data_type(self.type)
-            if hasattr(data_type, '__origin__') and data_type.__origin__ is Literal:
-                if self.type_data not in get_args(data_type):
-                    raise ValueError(
-                        f"type_data must be one of {get_args(data_type)} when type is {self.type}"
-                    )
-            elif not isinstance(self.type_data, data_type):
-                try:
-                    self.type_data = data_type(**self.type_data)
-                except Exception as e:
-                    raise ValueError(
-                        f"type_data must be of type {data_type.__name__} when type is {self.type}",
-                        e,
-                    )
+            object.__setattr__(
+                self, "type_data", self._convert_type_data(self.type, self.type_data)
+            )
+
         return self
 
     @model_serializer(mode="wrap")
