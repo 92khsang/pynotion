@@ -19,8 +19,8 @@ from .types import (
     NotionLink,
     NotionUrl,
     NotionDate,
-    ObjectId,
     PartialUser,
+    IdLinkObject,
 )
 
 
@@ -106,7 +106,7 @@ class Annotations(NotionBaseModel):
     underline: bool = Field(default=False)
     code: bool = Field(default=False)
     color: Annotated[
-        Union[Color, BackgroundColor | str],
+        Union[Color, BackgroundColor, str],
         BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
     ] = Color.DEFAULT
 
@@ -139,17 +139,6 @@ register_type_data(RichTextType.EQUATION, Equation)
 
 
 # ---------------------- Mentions ---------------------- #
-@register_type_data(MentionType.PAGE)
-@register_type_data(MentionType.DATABASE)
-class MentionObjectId(NotionBaseModel):
-    """Wrapper class for ObjectId.
-
-    Attributes:
-        id: The ObjectId. It's a UUID format.
-
-    """
-
-    id: ObjectId
 
 
 @register_type_data(MentionType.TEMPLATE_MENTION)
@@ -207,7 +196,9 @@ class MentionDatabase(NotionTypedModel):
     """
 
     type: MentionType = Field(default=MentionType.DATABASE, frozen=True)
-    type_data: MentionObjectId
+    type_data: IdLinkObject
+
+    register_type_data(MentionType.DATABASE, IdLinkObject)
 
 
 @register_type_data(RichTextType.MENTION)
@@ -264,7 +255,9 @@ class MentionPage(NotionTypedModel):
     """
 
     type: MentionType = Field(default=MentionType.PAGE, frozen=True)
-    type_data: MentionObjectId
+    type_data: IdLinkObject
+
+    register_type_data(MentionType.PAGE, IdLinkObject)
 
 
 @register_type_data(RichTextType.MENTION)
@@ -358,7 +351,8 @@ class RichText(NotionTypedModel):
         description="The information is used to style the rich text object. Refer to the annotation object section below for details.",
     )
 
-    plain_text: str = Field(
+    plain_text: Optional[str] = Field(
+        default=None,
         description="The plain text without annotations.",
         examples=["Some words "],
         max_length=2000,

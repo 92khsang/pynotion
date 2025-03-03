@@ -16,7 +16,6 @@ from pynotion.models.rich_text import (
     MentionDate,
     MentionDateTemplate,
     MentionUserTemplate,
-    MentionObjectId,
     TemplateMentionDate,
     TemplateMentionUser,
     RichText,
@@ -27,6 +26,7 @@ from pynotion.models.types import (
     NotionDate,
     Color,
     PartialUser,
+    IdLinkObject,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -106,7 +106,7 @@ def test_invalid_text_model():
         (
             MentionDatabase,
             MentionType.DATABASE,
-            MentionObjectId(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "database",
                 "database": {"id": "d7db80bd-b3e3-4394-b134-a21b05412c7c"},
@@ -127,7 +127,7 @@ def test_invalid_text_model():
         (
             MentionPage,
             MentionType.PAGE,
-            MentionObjectId(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            IdLinkObject(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "page",
                 "page": {"id": "a7db80bd-b3e3-4394-b134-a21b05412c7c"},
@@ -184,7 +184,7 @@ def test_mentions(mention_class, type_value, type_data, type_asdict):
 @pytest.mark.parametrize(
     "type_data",
     [
-        MentionObjectId(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+        IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
         NotionDate(start="2022-01-01", end="2022-01-31"),
         NotionLink(url="https://notion.so"),
         TemplateMentionDate(type_data="today"),
@@ -195,10 +195,10 @@ def test_mentions(mention_class, type_value, type_data, type_asdict):
 def test_invalid_mentions(type_data):
     """Test invalid Mention-based models."""
     mention_classes: list[tuple[type, type]] = [
-        (MentionDatabase, MentionObjectId),
+        (MentionDatabase, IdLinkObject),
         (MentionDate, NotionDate),
         (MentionLinkPreview, NotionLink),
-        (MentionPage, MentionObjectId),
+        (MentionPage, IdLinkObject),
         (MentionDateTemplate, TemplateMentionDate),
         (MentionUser, PartialUser),
     ]
@@ -242,7 +242,7 @@ def test_invalid_mentions(type_data):
             "Test Page",
             None,
             MentionPage(
-                type_data=MentionObjectId(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_data=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -251,7 +251,7 @@ def test_invalid_mentions(type_data):
             "Test Database",
             None,
             MentionDatabase(
-                type_data=MentionObjectId(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_data=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (

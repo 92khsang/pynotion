@@ -20,6 +20,7 @@ from ._internal import (
     register_notion_type_enum,
     register_type_data,
     NotionTypedModel,
+    validate_enum,
 )
 
 ObjectId: TypeAlias = UUID4
@@ -123,10 +124,16 @@ class ParentType(StrEnum):
     WORKSPACE = "workspace"
 
 
-register_type_data(ParentType.DATABASE_ID, ObjectId)
-register_type_data(ParentType.PAGE_ID, ObjectId)
-register_type_data(ParentType.BLOCK_ID, ObjectId)
-register_type_data(ParentType.WORKSPACE, bool)
+@register_notion_type_enum
+class FileType(StrEnum):
+    FILE = "file"
+    EXTERNAL = "external"
+
+
+@register_notion_type_enum
+class EmojiType(StrEnum):
+    EMOJI = "emoji"
+    CUSTOM_EMOJI = "custom_emoji"
 
 
 class NotionLink(NotionBaseModel):
@@ -272,7 +279,7 @@ class NotionDate(NotionBaseModel):
         super().__init__(**data)
 
 
-class Parent(NotionTypedModel):
+class NotionParent(NotionTypedModel):
     """Represents a parent object in Notion.
 
     Attributes:
@@ -285,6 +292,63 @@ class Parent(NotionTypedModel):
 
     type: ParentType
     type_data: Union[ObjectId, bool]
+
+    register_type_data(ParentType.DATABASE_ID, ObjectId)
+    register_type_data(ParentType.PAGE_ID, ObjectId)
+    register_type_data(ParentType.BLOCK_ID, ObjectId)
+    register_type_data(ParentType.WORKSPACE, bool)
+
+
+class NotionFile(NotionTypedModel):
+    """Represents a file in Notion.
+
+    Attributes:
+        type: The type of the file.
+        type_data: The data related to this particular file.
+
+    References:
+        https://developers.notion.com/reference/file-object
+    """
+
+    type: Annotated[
+        Union[FileType, str],
+        Field(description="The type of the file."),
+        BeforeValidator(lambda v: validate_enum(v, (FileType,))),
+    ]
+
+    type_data: Union[NotionHostedFile, NotionLink] = Field(
+        ..., description="The data related to this particular file."
+    )
+
+    register_type_data(FileType.FILE, NotionHostedFile)
+    register_type_data(FileType.EXTERNAL, NotionLink)
+
+
+class CustomEmoji(NotionBaseModel):
+    id: UUID4 = Field(..., description="The ID of the custom emoji.")
+    name: str = Field(..., description="The name of the custom emoji.")
+    url: NotionUrl = Field(..., description="The URL of the custom emoji.")
+
+
+class NotionEmoji(NotionTypedModel):
+    type: EmojiType = Field(..., description="The type of the emoji.")
+    type_data: Union[CustomEmoji, str] = Field(
+        ..., description="The data related to this particular emoji."
+    )
+
+    register_type_data(EmojiType.EMOJI, str)
+    register_type_data(EmojiType.CUSTOM_EMOJI, CustomEmoji)
+
+
+class IdLinkObject(NotionBaseModel):
+    """
+    Represents a link to an ObjectId in Notion.
+
+    Attributes:
+        id: The ObjectId.
+    """
+
+    id: ObjectId
 
 
 class PartialUser(NotionBaseModel):
@@ -330,7 +394,7 @@ class NotionObject(NotionBaseModel):
         ..., description="Unique identifier for this object.", frozen=True
     )
 
-    parent: Optional[Parent] = Field(
+    parent: Optional[NotionParent] = Field(
         default=None, description="The parent object of this object."
     )
 
