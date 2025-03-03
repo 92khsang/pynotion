@@ -26,8 +26,8 @@ from pynotion.models.types import (
     NotionLink,
     NotionDate,
     Color,
+    PartialUser,
 )
-from pynotion.models.user import User
 from tests.models.model_test_utils import PydanticModelTester
 
 
@@ -160,7 +160,7 @@ def test_invalid_text_model():
         (
             MentionUser,
             MentionType.USER,
-            User(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "user",
                 "user": {
@@ -189,7 +189,7 @@ def test_mentions(mention_class, type_value, type_data, type_asdict):
         NotionLink(url="https://notion.so"),
         TemplateMentionDate(type_data="today"),
         TemplateMentionUser(),
-        User(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+        PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
     ],
 )
 def test_invalid_mentions(type_data):
@@ -200,7 +200,7 @@ def test_invalid_mentions(type_data):
         (MentionLinkPreview, NotionLink),
         (MentionPage, MentionObjectId),
         (MentionDateTemplate, TemplateMentionDate),
-        (MentionUser, User),
+        (MentionUser, PartialUser),
     ]
 
     for mention_class, mention_data_class in mention_classes:
@@ -232,7 +232,9 @@ def test_invalid_mentions(type_data):
             Annotations(),
             "Test User",
             None,
-            MentionUser(type_data=User(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")),
+            MentionUser(
+                type_data=PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
+            ),
         ),
         (
             RichTextType.MENTION,
@@ -388,7 +390,9 @@ def test_rich_text_validation_errors(invalid_data):
                     RichText(
                         type=RichTextType.MENTION,
                         type_data=MentionUser(
-                            type_data=User(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
+                            type_data=PartialUser(
+                                id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
+                            )
                         ),
                         annotations=Annotations(
                             bold=False,

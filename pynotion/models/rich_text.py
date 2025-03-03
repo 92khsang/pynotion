@@ -20,8 +20,8 @@ from .types import (
     NotionUrl,
     NotionDate,
     ObjectId,
+    PartialUser,
 )
-from .user import User
 
 
 # ---------------------- ENUMS ---------------------- #
@@ -165,7 +165,7 @@ class TemplateMentionDate(NotionTypedModel):
     """
 
     type: TemplateMentionType = Field(
-        default=TemplateMentionType.TEMPLATE_MENTION_DATE, frozen=True, init=False
+        default=TemplateMentionType.TEMPLATE_MENTION_DATE, frozen=True
     )
     type_data: Literal["today", "now"]
 
@@ -187,9 +187,9 @@ class TemplateMentionUser(NotionTypedModel):
     """
 
     type: TemplateMentionType = Field(
-        default=TemplateMentionType.TEMPLATE_MENTION_USER, frozen=True, init=False
+        default=TemplateMentionType.TEMPLATE_MENTION_USER, frozen=True
     )
-    type_data: Literal["me"] = Field(default="me", frozen=True, init=False)
+    type_data: Literal["me"] = Field(default="me", frozen=True)
 
     register_type_data(TemplateMentionType.TEMPLATE_MENTION_USER, Literal["me"])
 
@@ -206,7 +206,7 @@ class MentionDatabase(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#database-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.DATABASE, frozen=True, init=False)
+    type: MentionType = Field(default=MentionType.DATABASE, frozen=True)
     type_data: MentionObjectId
 
 
@@ -222,7 +222,7 @@ class MentionDate(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#date-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.DATE, frozen=True, init=False)
+    type: MentionType = Field(default=MentionType.DATE, frozen=True)
     type_data: NotionDate
 
     register_type_data(MentionType.DATE, NotionDate)
@@ -240,7 +240,7 @@ class MentionLinkPreview(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#link-preview-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.LINK_PREVIEW, frozen=True, init=False)
+    type: MentionType = Field(default=MentionType.LINK_PREVIEW, frozen=True)
     type_data: Annotated[
         Union[str, NotionLink],
         BeforeValidator(
@@ -263,7 +263,7 @@ class MentionPage(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#page-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.PAGE, frozen=True, init=False)
+    type: MentionType = Field(default=MentionType.PAGE, frozen=True)
     type_data: MentionObjectId
 
 
@@ -279,9 +279,7 @@ class MentionDateTemplate(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: MentionType = Field(
-        default=MentionType.TEMPLATE_MENTION, frozen=True, init=False
-    )
+    type: MentionType = Field(default=MentionType.TEMPLATE_MENTION, frozen=True)
     type_data: TemplateMentionDate
 
 
@@ -297,11 +295,9 @@ class MentionUserTemplate(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: MentionType = Field(
-        default=MentionType.TEMPLATE_MENTION, frozen=True, init=False
-    )
+    type: MentionType = Field(default=MentionType.TEMPLATE_MENTION, frozen=True)
     type_data: TemplateMentionUser = Field(
-        default_factory=TemplateMentionUser, frozen=True, init=False
+        default_factory=TemplateMentionUser, frozen=True
     )
 
 
@@ -317,10 +313,10 @@ class MentionUser(NotionTypedModel):
         https://developers.notion.com/reference/rich-text#user-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.USER, frozen=True, init=False)
-    type_data: User
+    type: MentionType = Field(default=MentionType.USER, frozen=True)
+    type_data: PartialUser
 
-    register_type_data(MentionType.USER, User)
+    register_type_data(MentionType.USER, PartialUser)
 
 
 Mention = Union[

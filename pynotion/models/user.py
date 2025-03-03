@@ -12,10 +12,9 @@ from ._internal import (
     register_type_data,
 )
 from .types import (
-    ObjectType,
-    ObjectId,
     NotionEmail,
     NotionUrl,
+    PartialUser,
 )
 
 
@@ -119,7 +118,7 @@ class Bot(NotionBaseModel):
         return self
 
 
-class User(NotionTypedModel):
+class User(PartialUser, NotionTypedModel):
     """Represents a user in Notion.
 
     Attributes:
@@ -133,15 +132,6 @@ class User(NotionTypedModel):
     References:
         https://developers.notion.com/reference/user#all-users
     """
-
-    object: ObjectType = Field(
-        default=ObjectType.USER,
-        description="Always 'user', ensuring consistency",
-        frozen=True,
-        init=False,
-    )
-
-    id: ObjectId = Field(..., description="Unique identifier for this user.")
 
     type: Optional[UserType] = Field(
         default=None,

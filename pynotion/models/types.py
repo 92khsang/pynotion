@@ -17,6 +17,9 @@ from ._internal import (
     validate_datetime,
     validate_url,
     NotionBaseModel,
+    register_notion_type_enum,
+    register_type_data,
+    NotionTypedModel,
 )
 
 ObjectId: TypeAlias = UUID4
@@ -103,6 +106,29 @@ class BackgroundColor(StrEnum):
     YELLOW_BACKGROUND = "yellow_background"
 
 
+@register_notion_type_enum
+class ParentType(StrEnum):
+    """Defines the possible types of parents in Notion.
+
+    Attributes:
+        DATABASE_ID: Parent is a database.
+        PAGE_ID: Parent is a page.
+        BLOCK_ID: Parent is a block.
+        WORKSPACE: Parent is a workspace.
+    """
+
+    DATABASE_ID = "database_id"
+    PAGE_ID = "page_id"
+    BLOCK_ID = "block_id"
+    WORKSPACE = "workspace"
+
+
+register_type_data(ParentType.DATABASE_ID, ObjectId)
+register_type_data(ParentType.PAGE_ID, ObjectId)
+register_type_data(ParentType.BLOCK_ID, ObjectId)
+register_type_data(ParentType.WORKSPACE, bool)
+
+
 class NotionLink(NotionBaseModel):
     """Represents a simple link in Notion.
 
@@ -111,6 +137,18 @@ class NotionLink(NotionBaseModel):
     """
 
     url: NotionUrl = Field(description="The URL of the link")
+
+
+class NotionHostedFile(NotionLink):
+    """Represents a hosted file in Notion.
+
+    Attributes:
+        expiry_time: The expiry time of the hosted file.
+    """
+
+    expiry_time: NotionDatetime = Field(
+        ..., description="The expiry time of the hosted file."
+    )
 
 
 class NotionEquation(NotionBaseModel):
@@ -232,3 +270,100 @@ class NotionDate(NotionBaseModel):
         )
 
         super().__init__(**data)
+
+
+class Parent(NotionTypedModel):
+    """Represents a parent object in Notion.
+
+    Attributes:
+        type: The type of the parent object.
+        type_data: The data related to this particular parent object.
+
+    References:
+        https://developers.notion.com/reference/parent-object
+    """
+
+    type: ParentType
+    type_data: Union[ObjectId, bool]
+
+
+class PartialUser(NotionBaseModel):
+    """
+    Partial user data from Notion.
+
+    Attributes:
+        object: Always 'user', ensuring consistency.
+        id: Unique identifier for this user.
+    """
+
+    object: ObjectType = Field(
+        default=ObjectType.USER,
+        description="Always 'user', ensuring consistency",
+        frozen=True,
+        init=False,
+    )
+
+    id: Optional[ObjectId] = Field(
+        ..., description="Unique identifier for this object.", frozen=True
+    )
+
+
+class NotionObject(NotionBaseModel):
+    """Represents a generic object in Notion.
+
+    Attributes:
+        object: The type of the object.
+            except for user object.
+        id: Unique identifier for this object.
+        parent: The parent object of this object.
+        created_time: The creation time of the object.
+        last_edited_time: The last edited time of the object.
+        created_by: The creator of the object.
+        last_edited_by: The last editor of the object.
+        archived: Whether the object is archived.
+        in_trash: Whether the object is in the trash.
+    """
+
+    object: ObjectType = Field(..., description="The type of the object.")
+
+    id: Optional[ObjectId] = Field(
+        ..., description="Unique identifier for this object.", frozen=True
+    )
+
+    parent: Optional[Parent] = Field(
+        default=None, description="The parent object of this object."
+    )
+
+    created_time: Optional[NotionDatetime] = Field(
+        default=None,
+        description="The creation time of the object.",
+        frozen=True,
+    )
+
+    last_edited_time: Optional[NotionDatetime] = Field(
+        default=None,
+        description="The last edited time of the object.",
+        frozen=True,
+    )
+
+    created_by: Optional[PartialUser] = Field(
+        default=None, description="The creator of the object.", frozen=True
+    )
+
+    last_edited_by: Optional[PartialUser] = Field(
+        default=None,
+        description="The last editor of the object.",
+        frozen=True,
+    )
+
+    archived: bool = Field(
+        default=False,
+        description="Whether the object is archived.",
+        frozen=True,
+    )
+
+    in_trash: bool = Field(
+        default=False,
+        description="Whether the object is in the trash.",
+        frozen=True,
+    )
