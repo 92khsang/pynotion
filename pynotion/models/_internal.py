@@ -1,49 +1,141 @@
 from __future__ import annotations as _annotations
 
-import types
 from datetime import datetime
 from enum import StrEnum
 from typing import (
     Union,
     TypeAlias,
     Any,
-    TYPE_CHECKING,
-    Annotated,
     Optional,
     get_args,
     Literal,
     Type,
-    Iterable,
-    get_type_hints,
     get_origin,
+    ClassVar,
 )
+from uuid import UUID
 
 from pydantic import (
-    BaseModel,
     model_validator,
     model_serializer,
-    field_validator,
     ConfigDict,
+    UUID4,
+    BaseModel,
+    PrivateAttr,
+    Field,
 )
+from pydantic_core import ArgsKwargs
 
+# Type aliases
 NotionType: TypeAlias = StrEnum
 
 
-class NotionBaseModel(BaseModel):
-    """A base class for Notion-like models."""
+def create_read_only_alias(field_name: str) -> str:
+    """Generates alias by removing 'read_only_' prefix if present."""
+    return field_name.removeprefix("read_only_")
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+def remove_read_only_prefix(field_name: str) -> str:
+    """Removes 'read_only_' prefix if present."""
+    return field_name.removeprefix("read_only_")
+
+
+class BaseNotionModel(BaseModel):
+    """Base class for Notion-like models with special read-only field handling."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        validate_default=True,
+        populate_by_name=True,
+        alias_generator=create_read_only_alias,
+    )
+
+    # Class variable for serializable private attributes
+    __serializable_private_attrs__: ClassVar[dict] = {}
+
+    @staticmethod
+    def _remove_read_only_prefix(data: dict) -> dict:
+        """Transforms field names by removing 'read_only_' prefix."""
+        return {remove_read_only_prefix(k): v for k, v in data.items()}
+
+    @classmethod
+    def _get_all_annotation(cls) -> dict:
+        """Returns a list of all annotations for the class."""
+        all_annotations = {}
+        for clz in reversed(cls.__mro__):
+            if hasattr(clz, '__annotations__'):
+                all_annotations.update(clz.__annotations__)
+
+        return all_annotations
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, nxt) -> dict:
+        """Ensures private attributes are included and field order is preserved."""
+        data = nxt(self)
+
+        # Get private attributes that should be serialized
+        private_attrs = {
+            attr: getattr(self, attr)
+            for attr in self.__serializable_private_attrs__
+            if attr in self.__private_attributes__
+        }
+
+        # Maintain field declaration order
+        all_annotations = self._get_all_annotation()
+
+        # Use the collected fields for ordering
+        declared_fields = list(all_annotations.keys())
+        ordered_data = {}
+
+        # Process fields in their declaration order
+        for field in declared_fields:
+            if field in private_attrs:
+                alias = self.__serializable_private_attrs__[field]
+                ordered_data[alias] = private_attrs.pop(field)
+            elif field in data:
+                ordered_data[field] = data[field]
+            else:
+                no_prefix_field = remove_read_only_prefix(field)
+                if no_prefix_field in data:
+                    ordered_data[field] = data[no_prefix_field]
+
+                    # Add any remaining private attributes
+        ordered_data.update(
+            {
+                self.__serializable_private_attrs__[k]: v
+                for k, v in private_attrs.items()
+                if k not in ordered_data
+            }
+        )
+
+        return self._remove_read_only_prefix(ordered_data)
+
+
+def validate_uuid4(value: Union[UUID, str, bytes, int]) -> UUID:
+    """
+    Converts various types to a UUID4-compatible value.
+    """
+    if isinstance(value, UUID):
+        return UUID4(value.hex)
+    if isinstance(value, str):
+        return UUID4(value)
+    if isinstance(value, bytes):
+        return UUID4(UUID(bytes=value).hex)
+    if isinstance(value, int):
+        return UUID4(UUID(int=value).hex)
+    raise ValueError(f"Cannot convert {type(value)} to UUID4")
 
 
 def validate_enum(
-    value: str | NotionType, enum_types: tuple[Type[NotionType], ...]
+    value: Union[str, NotionType], enum_types: tuple[Type[NotionType], ...]
 ) -> NotionType:
     """
     Convert a string value to one of the provided StrEnum types.
 
-    - If `value` is already an instance of one of the provided enums, return it.
-    - If `value` is a string, attempt to convert it to one of the provided enums.
-    - Raise a `ValueError` if the string doesn't match any enum member.
+    - If value is already an instance of a provided enum, return it.
+    - If value is a string, attempt to convert it to one of the provided enums.
+    - Raise ValueError if the string doesn't match any enum member.
     """
     if any(isinstance(value, enum_type) for enum_type in enum_types):
         return value
@@ -58,18 +150,36 @@ def validate_enum(
     raise ValueError(f"Invalid value '{value}'. Expected one of: {valid_values}")
 
 
+def validate_enum_value(
+    actual_val: Union[str, NotionType], expected_values: set[NotionType]
+) -> NotionType:
+    """
+    Validates that 'actual_val' matches one of the NotionTypes in 'expected_values'.
+    If 'actual_val' is a string, attempts to convert it via 'validate_enum'.
+    """
+    if isinstance(actual_val, str):
+        actual_val = validate_enum(
+            actual_val, tuple([type(ev) for ev in expected_values])
+        )
+
+    if actual_val not in expected_values:
+        raise ValueError(f"Invalid value '{actual_val}'. Expected '{expected_values}'")
+
+    return actual_val
+
+
+def validate_allowed_value(value: Any, allowed_values: set[Any]) -> Any:
+    """
+    Checks if 'value' is within the set of 'allowed_values'; raises ValueError otherwise.
+    """
+    if value not in allowed_values:
+        raise ValueError(f"Invalid value '{value}'. Expected one of: {allowed_values}")
+    return value
+
+
 def validate_timezone(value: str) -> str:
     """
     Validates that the given timezone string is a valid IANA timezone.
-
-    Args:
-        value: The timezone string to validate.
-
-    Returns:
-        The input value if it is a valid IANA timezone.
-
-    Raises:
-        ValueError: If the input value is not a valid IANA timezone.
     """
     from zoneinfo import available_timezones
 
@@ -78,18 +188,10 @@ def validate_timezone(value: str) -> str:
     return value
 
 
-def validate_datetime(value: str | datetime) -> datetime:
+def validate_datetime(value: Union[str, datetime]) -> datetime:
     """
     Validates and converts a given value to a datetime object.
-
-    Args:
-        value: A string in ISO 8601 format or a datetime object.
-
-    Returns:
-        A datetime object representing the input value.
-
-    Raises:
-        ValueError: If the input string isn't in a valid ISO 8601 format.
+    Accepts a string in ISO 8601 format or a datetime object.
     """
     if isinstance(value, datetime):
         return value
@@ -103,385 +205,247 @@ def validate_datetime(value: str | datetime) -> datetime:
 
 def validate_url(url: str) -> str:
     """
-    Validates and returns a given URL.
-
-    Args:
-        url: The URL to validate.
-
-    Returns:
-        The input URL if it's valid.
-
-    Raises:
-        ValueError: If the input URL is invalid.
+    Validates and returns a given URL. Only 'http' or 'https' schemes are allowed.
     """
     if not url:
         raise ValueError("URL can't be None or empty")
 
-    try:
-        from urllib.parse import urlparse
+    from urllib.parse import urlparse
 
-        parsed = urlparse(url)
+    parsed = urlparse(url)
+    if parsed.scheme not in ['http', 'https']:
+        raise ValueError(
+            f"Invalid URL scheme. Only http and https are allowed. Got: {parsed.scheme}"
+        )
+    if not parsed.netloc:
+        raise ValueError("URL must contain a valid domain")
 
-        if parsed.scheme not in ['http', 'https']:
-            raise ValueError(
-                f"Invalid URL scheme. Only http and https are allowed. Got: {parsed.scheme}"
-            )
-
-        if not parsed.netloc:
-            raise ValueError("URL must contain a valid domain")
-
-        return url
-
-    except ValueError:
-        raise
+    return url
 
 
-def register_notion_type_enum(cls: type[NotionType]):
-    """
-    Registers a `NotionType` enum class with the Notion API.
+class TypeObjectModel(BaseNotionModel):
 
-    Args:
-        cls: The `NotionType` enum class to register.
-
-    Raises:
-        ValueError: If `cls` isn't a subclass of `StrEnum`.
-
-    Returns:
-        The registered class.
-    """
-    if not issubclass(cls, NotionType):
-        raise ValueError(f"{cls.__name__} is not a subclass of StrEnum.")
-
-    NotionTypedModel.register_notion_type_enum(cls)
-    return cls
-
-
-def register_type_data(main_type: NotionType, type_data_cls: Optional[type] = None):
-    """
-    Registers a type data class with the given Notion type.
-
-    If `type_data_cls` is given, it registers the given type data class with the
-    given Notion type.
-
-    If `type_data_cls` isn't given, it returns a decorator that registers the
-    decorated type data class with the given Notion type.
-
-    Args:
-        main_type: The Notion type to register with.
-        type_data_cls: The type data class to register.
-
-    Returns:
-        If `type_data_cls` is given, the registered type data class.
-        If `type_data_cls` isn't given, a decorator that registers the decorated
-        type data class.
-    """
-    if type_data_cls:
-        return NotionTypedModel.register_type_data(main_type, type_data_cls)
-
-    def wrapper(cls: type):
-        NotionTypedModel.register_type_data(main_type, cls)
-        return cls
-
-    return wrapper
-
-
-class NotionTypedModel(NotionBaseModel):
-    """
-    A base model for handling Notion-like typed data structures.
-
-    This class provides dynamic registration and validation for Notion type enums
-    and their corresponding data classes. It ensures each instance has a valid
-    `type` mapped to an appropriate registered `type_data`.
-
-    Attributes:
-        type (Optional[NotionType]):
-            The Notion type associated with this instance. It must be a registered
-            NotionType value.
-        type_data (Any):
-            The corresponding data for the given Notion type. It must match one of
-            the registered data classes for the type.
-        __registry__ (dict[type[NotionType], dict[NotionType, list[type]]]):
-            A class-level registry that maps NotionType enums to a list of associated
-            data classes. The structure is::
-
-                {
-                    NotionTypeEnum: {
-                        notion_type_value: [TypeDataClass1, TypeDataClass2, ...]
-                    }
-                }
-
-    Methods:
-        _extract_type_hint() -> type:
-            Extracts the expected NotionType enum from the class's type hint.
-
-        _convert_to_enum(value: Union[str, NotionType]) -> Optional[NotionType]:
-            Converts a given string or NotionType to a registered NotionType enum.
-
-        _check_notion_type_registration(notion_type: NotionType) -> None:
-            Ensures the given Notion type is registered.
-
-        _convert_type_data(notion_type: NotionType, type_data: Any) -> Any:
-            Converts the given `type_data` to an instance of the appropriate
-            registered data class.
-
-        register_notion_type_enum(notion_type_cls: type[NotionType]) -> None:
-            Registers a Notion type enum class.
-
-        register_type_data(notion_type: NotionType, type_data_cls: type) -> None:
-            Registers a Notion type value with one or more associated data classes.
-
-        validate_type(v: Optional[Union[str, NotionType]]) -> Optional[NotionType]:
-            Validates and converts the `type` field, ensuring it corresponds
-            to a registered Notion type.
-
-        validate_model() -> NotionTypedModel:
-            Ensures that the `type` and `type_data` fields are correctly associated
-            and valid.
-
-        serialize_model(nxt) -> dict:
-            Custom serializer to ensure `type_data` is properly nested under
-            its associated type.
-
-        __getattr__(item: str) -> Any:
-            Allows accessing `type_data` using the string representation of
-            the `type` attribute.
-    """
-
-    __slots__ = ("type", "type_data")
-
-    __registry__: dict[type[NotionType], dict[NotionType, list[type]]] = {}
-
-    type: Optional[NotionType]
-    type_data: Any
-
-    if TYPE_CHECKING:
-        type: Annotated[Union[str, NotionType, None], ...]
+    __type_object_map__: dict[NotionType, Union[Type, set[Type]]] = {}
+    __type_field_set__ = ("type", "type_object")
 
     def __new__(cls, *args, **kwargs):
-        if cls is NotionTypedModel:
+        if cls is TypeObjectModel:
             raise TypeError(f"{cls.__name__} cannot be instantiated directly")
         return super().__new__(cls)
 
-    def __init__(self, **data):
-        """
-        Initializes a NotionTypedModel instance.
-
-        If the `type` field is provided and matches a key in `data`, the corresponding
-        value is moved to `type_data`.
-
-        Args:
-            **data: Keyword arguments representing model fields.
-
-        Raises:
-            ValueError: If the provided `type` isn't registered.
-        """
-        type_value = data.get("type")
-
-        if type_value and not data.get("type_data"):
-            type_data = data.pop(str(type_value), None)
-            if type_data is not None:
-                data["type_data"] = type_data
-
-        super().__init__(**data)
-
     @classmethod
-    def _extract_type_hint(cls) -> type:
-        type_field = get_type_hints(cls)["type"]
-
-        if get_origin(type_field) in {Union, types.UnionType}:
-            actual_type = [
-                t
-                for t in get_args(type_field)
-                if isinstance(t, type) and issubclass(t, NotionType)
-            ][0]
-        else:
-            actual_type = type_field
-
-        return actual_type
-
-    @classmethod
-    def _convert_to_enum(cls, value: str | NotionType) -> NotionType | None:
-        type_hint = cls._extract_type_hint()
-
-        if isinstance(value, NotionType):
-            result = value
-        elif isinstance(value, str):
-            if type_hint not in cls.__registry__:
-                raise ValueError(f"Type '{type_hint}' is not registered")
-            result = type_hint(value)
-        else:
-            raise ValueError(f"Invalid type: {type(value)} for {type_hint}")
-        return result
-
-    @classmethod
-    def _check_notion_type_registration(cls, notion_type: NotionType):
-        """
-        Checks if a given Notion type enum class is registered.
-
-        Args:
-            notion_type: The Notion type enum class to check.
-
-        Raises:
-            ValueError: If the class isn't registered.
-        """
-        if type(notion_type) not in cls.__registry__:
-            raise ValueError(f"Type '{type(notion_type).__name__}' is not registered")
-
-    @classmethod
-    def _convert_type_data(cls, notion_type: NotionType, type_data: Any) -> Any:
-        """
-        Retrieves the registered data type for a given Notion type.
-
-        Args:
-            notion_type: The Notion type to retrieve the data type for.
-            type_data: The data to convert.
-
-        Returns:
-            The registered data type class.
-
-        Raises:
-            ValueError: If no matching data type is found.
-        """
-        cls._check_notion_type_registration(notion_type)
-
-        type_classes: list[type] = cls.__registry__[type(notion_type)][notion_type]
-        for type_class in type_classes:
-            try:
-                if (
-                    hasattr(type_class, '__origin__')
-                    and getattr(type_class, '__origin__') is Literal
-                ):
-                    if type_data not in get_args(type_class):
-                        continue
-                    else:
-                        return type_data
-                elif isinstance(type_data, type_class):
-                    return type_data
-                else:
-                    return type_class(**type_data)
-            except TypeError:
-                continue
-
-        raise ValueError(
-            f"Failed to convert type_data: '{type_data}' when type is '{notion_type}'"
-        )
-
-    @classmethod
-    def register_notion_type_enum(cls, notion_type_cls: type[NotionType]):
-        """
-        Registers a Notion type enum class.
-
-        Args:
-            notion_type_cls: The Notion type enum class to register.
-        """
-        if notion_type_cls not in cls.__registry__:
-            cls.__registry__[notion_type_cls] = {}
-
-    @classmethod
-    def register_type_data(cls, notion_type: NotionType, type_data_cls: type):
-        """
-        Registers a Notion type with its associated data class.
-
-        Args:
-            notion_type: The Notion type value.
-            type_data_cls: The corresponding data class.
-        """
-        cls._check_notion_type_registration(notion_type)
-
-        type_classes_registry = cls.__registry__[type(notion_type)]
-
-        prev_types = set(type_classes_registry.get(notion_type, []))
-        prev_types.add(type_data_cls)
-
-        type_classes_registry[notion_type] = list(prev_types)
-
-    @field_validator('type', mode='before')  # noqa
-    @classmethod
-    def validate_type(cls, v: Optional[Union[str, NotionType]]) -> Optional[NotionType]:
-        """
-        Validates and converts the `type` field.
-
-        Args:
-            v: A string or NotionType value.
-
-        Returns:
-            The corresponding NotionType value if valid.
-
-        Raises:
-            ValueError: If no matching enum value is found.
-        """
-        enum_val = None
-
-        if v is not None:
-            try:
-                enum_val = cls._convert_to_enum(v)
-                if enum_val is None:
-                    raise ValueError(f"No matching StrEnum found for type: {v}")
-
-                cls._check_notion_type_registration(enum_val)
-            except ValueError as e:
-                raise ValueError(f"Invalid type: {v}", e)
-
-        return enum_val
-
-    @model_validator(mode="after")
-    def validate_model(self):
-        """
-        Ensures the integrity of the `type` and `type_data` fields.
-
-        Raises:
-            ValueError: If `type_data` is missing or invalid for the given `type`.
-        """
-        if self.type is None and self.type_data is not None:
-            raise ValueError("type_data must be None when the type is None.")
-
-        if self.type and self.type_data:
-            object.__setattr__(
-                self, "type_data", self._convert_type_data(self.type, self.type_data)
+    def _validate_subclass(cls):
+        type_set = {type(t) for t in cls.__type_object_map__}
+        if len(type_set) > 1:
+            raise ValueError(
+                f"TypeObjectModel is registered with multiple Notion types: {type_set}"
             )
 
+        declared_fields = set(cls._get_all_annotation())
+        type_field = cls._get_type_field()
+        type_object_field = cls._get_type_object_field()
+
+        missing_fields = [
+            f for f in (type_field, type_object_field) if f not in declared_fields
+        ]
+        if missing_fields:
+            raise ValueError(
+                f"TypeObjectModel is missing fields: {', '.join(map(repr, missing_fields))}"
+            )
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        super().__pydantic_init_subclass__(**kwargs)
+        cls._validate_subclass()
+
+    @classmethod
+    def _get_type_field(cls) -> str:
+        return cls.__type_field_set__[0]
+
+    @classmethod
+    def _get_type_object_field(cls) -> str:
+        return cls.__type_field_set__[1]
+
+    @staticmethod
+    def _extract_kwargs(values: Any) -> dict | None:
+        """Extracts keyword arguments from input values."""
+        if isinstance(values, dict):
+            return values
+        elif isinstance(values, ArgsKwargs):
+            return values.kwargs
+        return None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _pre_init(cls, values: Any) -> Any:
+        """Pre-processes input values to handle type and type_object fields."""
+        data = cls._extract_kwargs(values)
+        if not data:
+            return values
+
+            # Find type value
+        type_value = None
+        type_field_name = None
+        for field in {cls._get_type_field(), "type"}:
+            if field in data:
+                type_field_name = field
+                type_value = data[field]
+                break
+
+        if type_value is not None:
+            # Validate type
+            type_value = validate_enum_value(
+                type_value, set(cls.__type_object_map__.keys())
+            )
+
+            # Handle type_object from a type-specific field
+            if cls._get_type_object_field() not in data:
+                type_str = str(type_value)
+                if type_str in data:
+                    data[cls._get_type_object_field()] = data.pop(type_str)
+
+                    # Update type field
+            data.pop(type_field_name)
+            data[cls._get_type_field()] = type_value
+
+        return values
+
+    @classmethod
+    def _check_notion_type_registration(cls, notion_type: NotionType) -> None:
+        """Checks that a type is registered in the type-object map."""
+        if notion_type not in cls.__type_object_map__:
+            raise ValueError(f"Type '{notion_type}' is not registered")
+
+    @classmethod
+    def _convert_type_object(cls, notion_type: NotionType, type_object: Any) -> Any:
+        """Converts a type object to the right class based on the notion type."""
+        cls._check_notion_type_registration(notion_type)
+        type_classes = cls.__type_object_map__[notion_type]
+
+        if not isinstance(type_classes, set):
+            type_classes = {type_classes}
+
+        for type_class in type_classes:
+            # Handle Literal types
+            if get_origin(type_class) is Literal:
+                if type_object in get_args(type_class):
+                    return type_object
+                continue
+
+            # Object is already of the right type
+            if type(type_object) is type_class:
+                return type_object
+
+            # Try to convert dict to object
+            if isinstance(type_object, dict):
+                try:
+                    return type_class(**type_object)
+                except TypeError:
+                    continue
+
+        raise ValueError(
+            f"Failed to convert type_object: '{type_object}' for type '{notion_type}'"
+        )
+
+    @model_validator(mode="after")
+    def _validate_model(self) -> "TypeObjectModel":
+        """Validates type and type_object consistency after initialization."""
+        _type = getattr(self, self._get_type_field(), None)
+        _type_object = getattr(self, self._get_type_object_field(), None)
+
+        if _type is None and _type_object is not None:
+            raise ValueError("type_object must be None when type is None")
+
+        if _type and _type_object:
+            object.__setattr__(
+                self,
+                self._get_type_object_field(),
+                self._convert_type_object(_type, _type_object),
+            )
         return self
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, nxt):
-        """
-        Custom serialization logic to ensure `type_data` is nested correctly.
+    def serialize_model(self, nxt) -> dict:
+        """Customizes serialization to transform type_object to type-specific field."""
+        data = super().serialize_model(nxt)
+        type_field = remove_read_only_prefix(self._get_type_field())
+        type_object_field = remove_read_only_prefix(self._get_type_object_field())
 
-        Returns:
-            A dictionary representation of the model.
-        """
-        data = nxt(self)
-        type_data = data.pop("type_data", None)
-        if type_data is not None:
-            data[self.type] = type_data
+        if type_object_field in data:
+            _type = data.get(type_field)
+            if _type:
+                data[str(_type)] = data.pop(type_object_field)
+
         return data
 
-    def __getattr__(self, item: str):
-        """
-        Overrides attribute access to return `type_data`
-            when `type` is accessed as an attribute.
-
-        If `type` is "person", then `instance.person` will return `type_data`.
-
-        Args:
-            item (str): The attribute name being accessed.
-
-        Returns:
-            The value of `type_data`
-                if `item` matches `type`, otherwise default behavior.
-
-        Raises:
-            AttributeError: If the requested attribute isn't found.
-        """
-        if item == str(self.type):
-            return self.type_data
+    def __getattr__(self, item: str) -> Any:
+        """Enables access to type_object via the type name."""
+        if self._get_type_field() in self.__dict__:
+            type_value = self.__dict__.get(self._get_type_field())
+            if type_value and item == str(type_value):
+                return self.__dict__[self._get_type_object_field()]
 
         raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{item}'"
+            f"{type(self).__name__!r} object has no attribute {item!r}"
         )
 
-    def __dir__(self):
-        base_attrs: Iterable[str] = super().__dir__()
-        if self.type:
-            return list(base_attrs) + [str(self.type)]
-        return base_attrs
+
+class ReadOnlyTypeObjectModel(TypeObjectModel):
+    """Type object model with read-only type fields."""
+
+    __type_field_set__ = ("read_only_type", "read_only_type_object")
+
+    read_only_type: Union[None, str, NotionType] = Field(default=None, frozen=True)
+    read_only_type_object: Optional[Any] = Field(default=None, frozen=True)
+
+    @property
+    def type(self) -> NotionType:
+        """Accessor for read_only_type."""
+        return self.read_only_type
+
+    @property
+    def type_object(self) -> Optional[Any]:
+        """Accessor for read_only_type_object."""
+        return self.read_only_type_object
+
+
+class FixedTypeObjectModel(TypeObjectModel):
+    """Type object model with a fixed type stored as a private attribute."""
+
+    __type_field_set__ = ("_type", "type_object")
+    __serializable_private_attrs__ = {"_type": "type"}
+
+    _type: NotionType = PrivateAttr()
+    type_object: Any
+
+    def __init__(self, /, **data):
+        """Initialize with a fixed type."""
+        # Get a default type
+        default_value = self.__private_attributes__.get("_type").default
+
+        # Extract and validate type
+        _type = data.pop("type", None) or default_value
+        _type = validate_enum_value(_type, {default_value})
+
+        super().__init__(**data)
+        object.__setattr__(self, "_type", _type)
+
+    def __getattr__(self, item: str) -> Any:
+        """Special attribute access for fixed type models."""
+        private_attr = self.__private_attributes__.get("_type")
+        if private_attr:
+            private_attr_default = private_attr.default
+
+            if item == "_type":
+                return private_attr_default
+            elif item == str(private_attr_default):
+                return self.type_object
+
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {item!r}"
+        )
+
+    @property
+    def type(self) -> NotionType:
+        """Accessor for the private _type attribute."""
+        return self._type
