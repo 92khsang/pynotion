@@ -1,5 +1,6 @@
 from __future__ import annotations as _annotations
 
+from collections import OrderedDict
 from datetime import datetime
 from enum import StrEnum
 from typing import (
@@ -55,9 +56,12 @@ class BaseNotionModel(BaseModel):
     __serializable_private_attrs__: ClassVar[dict] = {}
 
     @staticmethod
-    def _remove_read_only_prefix(data: dict) -> dict:
+    def _remove_read_only_prefix(data: dict) -> OrderedDict:
         """Transforms field names by removing 'read_only_' prefix."""
-        return {remove_read_only_prefix(k): v for k, v in data.items()}
+        new_data = OrderedDict()
+        for k, v in data.items():
+            new_data[remove_read_only_prefix(k)] = v
+        return new_data
 
     @classmethod
     def _get_all_annotation(cls) -> dict:
@@ -70,7 +74,7 @@ class BaseNotionModel(BaseModel):
         return all_annotations
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, nxt) -> dict:
+    def serialize_model(self, nxt) -> OrderedDict:
         """Ensures private attributes are included and field order is preserved."""
         data = nxt(self)
 
@@ -86,7 +90,7 @@ class BaseNotionModel(BaseModel):
 
         # Use the collected fields for ordering
         declared_fields = list(all_annotations.keys())
-        ordered_data = {}
+        ordered_data = OrderedDict()
 
         # Process fields in their declaration order
         for field in declared_fields:
@@ -100,7 +104,7 @@ class BaseNotionModel(BaseModel):
                 if no_prefix_field in data:
                     ordered_data[field] = data[no_prefix_field]
 
-                    # Add any remaining private attributes
+        # Add any remaining private attributes
         ordered_data.update(
             {
                 self.__serializable_private_attrs__[k]: v
@@ -372,14 +376,18 @@ class TypeObjectModel(BaseNotionModel):
     @model_serializer(mode="wrap")
     def serialize_model(self, nxt) -> dict:
         """Customizes serialization to transform type_object to type-specific field."""
-        data = super().serialize_model(nxt)
+        data: OrderedDict = super().serialize_model(nxt)
         type_field = remove_read_only_prefix(self._get_type_field())
         type_object_field = remove_read_only_prefix(self._get_type_object_field())
 
         if type_object_field in data:
             _type = data.get(type_field)
             if _type:
-                data[str(_type)] = data.pop(type_object_field)
+                new_data = OrderedDict()
+                for k, v in data.items():
+                    new_key = k if k != type_object_field else str(_type)
+                    new_data[new_key] = v
+                data = new_data
 
         return data
 
