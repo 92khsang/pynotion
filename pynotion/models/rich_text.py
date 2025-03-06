@@ -1,16 +1,15 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Optional, Literal, Union, TypeAlias, Annotated
+from typing import Optional, Literal, Union, TypeAlias, Annotated, get_args
 
-from pydantic import Field, BeforeValidator
+from pydantic import Field, BeforeValidator, PrivateAttr
 
 from ._internal import (
-    NotionBaseModel,
-    NotionTypedModel,
-    register_notion_type_enum,
-    register_type_data,
+    BaseNotionModel,
+    TypeObjectModel,
     validate_enum,
+    FixedTypeObjectModel,
 )
 from .types import (
     NotionEquation,
@@ -25,7 +24,6 @@ from .types import (
 
 
 # ---------------------- ENUMS ---------------------- #
-@register_notion_type_enum
 class RichTextType(StrEnum):
     """Defines rich text types in Notion.
 
@@ -43,7 +41,6 @@ class RichTextType(StrEnum):
     MENTION = "mention"
 
 
-@register_notion_type_enum
 class MentionType(StrEnum):
     """Defines mention types in Notion.
 
@@ -67,7 +64,6 @@ class MentionType(StrEnum):
     USER = "user"
 
 
-@register_notion_type_enum
 class TemplateMentionType(StrEnum):
     """Defines template mention types in Notion.
 
@@ -84,7 +80,7 @@ class TemplateMentionType(StrEnum):
 
 
 # ---------------------- Annotations ---------------------- #
-class Annotations(NotionBaseModel):
+class Annotations(BaseNotionModel):
     """
     Annotations for rich text.
 
@@ -112,8 +108,7 @@ class Annotations(NotionBaseModel):
 
 
 # ---------------------- Text ---------------------- #
-@register_type_data(RichTextType.TEXT)
-class Text(NotionBaseModel):
+class Text(BaseNotionModel):
     """Represents a text type and optional link.
 
     Attributes:
@@ -135,181 +130,180 @@ class Text(NotionBaseModel):
 
 # ---------------------- Equation ---------------------- #
 Equation: TypeAlias = NotionEquation
-register_type_data(RichTextType.EQUATION, Equation)
 
 
 # ---------------------- Mentions ---------------------- #
-
-
-@register_type_data(MentionType.TEMPLATE_MENTION)
-class TemplateMentionDate(NotionTypedModel):
+class TemplateMentionDate(FixedTypeObjectModel):
     """Represents a template mention for a date.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: TemplateMentionType = Field(
-        default=TemplateMentionType.TEMPLATE_MENTION_DATE, frozen=True
+    __type_object_map__ = {
+        TemplateMentionType.TEMPLATE_MENTION_DATE: Literal["today", "now"]
+    }
+
+    _type: TemplateMentionType = PrivateAttr(
+        default=TemplateMentionType.TEMPLATE_MENTION_DATE
     )
-    type_data: Literal["today", "now"]
 
-    register_type_data(
-        TemplateMentionType.TEMPLATE_MENTION_DATE, Literal["today", "now"]
-    )
+    type_object: Literal["today", "now"]
 
 
-@register_type_data(MentionType.TEMPLATE_MENTION)
-class TemplateMentionUser(NotionTypedModel):
+class TemplateMentionUser(FixedTypeObjectModel):
     """Represents a template mention for a user.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: TemplateMentionType = Field(
-        default=TemplateMentionType.TEMPLATE_MENTION_USER, frozen=True
+    __type_object_map__ = {TemplateMentionType.TEMPLATE_MENTION_USER: Literal["me"]}
+
+    _type: TemplateMentionType = PrivateAttr(
+        default=TemplateMentionType.TEMPLATE_MENTION_USER
     )
-    type_data: Literal["me"] = Field(default="me", frozen=True)
 
-    register_type_data(TemplateMentionType.TEMPLATE_MENTION_USER, Literal["me"])
+    type_object: Literal["me"]
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionDatabase(NotionTypedModel):
+class MentionDatabase(FixedTypeObjectModel):
     """Represents a database mention.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#database-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.DATABASE, frozen=True)
-    type_data: IdLinkObject
+    __type_object_map__ = {MentionType.DATABASE: IdLinkObject}
 
-    register_type_data(MentionType.DATABASE, IdLinkObject)
+    _type: MentionType = PrivateAttr(default=MentionType.DATABASE)
+
+    type_object: IdLinkObject
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionDate(NotionTypedModel):
+class MentionDate(FixedTypeObjectModel):
     """Represents a date mention.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#date-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.DATE, frozen=True)
-    type_data: NotionDate
+    __type_object_map__ = {MentionType.DATE: NotionDate}
 
-    register_type_data(MentionType.DATE, NotionDate)
+    _type: MentionType = PrivateAttr(default=MentionType.DATE)
+
+    type_object: NotionDate
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionLinkPreview(NotionTypedModel):
+class MentionLinkPreview(FixedTypeObjectModel):
     """Represents a link preview mention.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#link-preview-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.LINK_PREVIEW, frozen=True)
-    type_data: Annotated[
+    __type_object_map__ = {MentionType.LINK_PREVIEW: NotionLink}
+
+    _type: MentionType = PrivateAttr(default=MentionType.LINK_PREVIEW)
+
+    type_object: Annotated[
         Union[str, NotionLink],
         BeforeValidator(
             lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
         ),
     ]
 
-    register_type_data(MentionType.LINK_PREVIEW, NotionLink)
 
-
-@register_type_data(RichTextType.MENTION)
-class MentionPage(NotionTypedModel):
+class MentionPage(FixedTypeObjectModel):
     """Represents a page mention.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#page-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.PAGE, frozen=True)
-    type_data: IdLinkObject
+    __type_object_map__ = {MentionType.PAGE: IdLinkObject}
 
-    register_type_data(MentionType.PAGE, IdLinkObject)
+    _type: MentionType = PrivateAttr(default=MentionType.PAGE)
+
+    type_object: IdLinkObject
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionDateTemplate(NotionTypedModel):
+class MentionDateTemplate(FixedTypeObjectModel):
     """Represents a template mention for a date.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.TEMPLATE_MENTION, frozen=True)
-    type_data: TemplateMentionDate
+    __type_object_map__ = {MentionType.TEMPLATE_MENTION: TemplateMentionDate}
+
+    _type: MentionType = PrivateAttr(default=MentionType.TEMPLATE_MENTION)
+
+    type_object: TemplateMentionDate
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionUserTemplate(NotionTypedModel):
+class MentionUserTemplate(FixedTypeObjectModel):
     """Represents a template mention for a user.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#template-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.TEMPLATE_MENTION, frozen=True)
-    type_data: TemplateMentionUser = Field(
-        default_factory=TemplateMentionUser, frozen=True
-    )
+    __type_object_map__ = {MentionType.TEMPLATE_MENTION: TemplateMentionUser}
+
+    _type: MentionType = PrivateAttr(default=MentionType.TEMPLATE_MENTION)
+
+    type_object: TemplateMentionUser = Field(frozen=True)
 
 
-@register_type_data(RichTextType.MENTION)
-class MentionUser(NotionTypedModel):
+class MentionUser(FixedTypeObjectModel):
     """Represents a user mention.
 
     Attributes:
         type: The type of the mention.
-        type_data: The data related to this particularly mentioned instance.
+        type_object: The data related to this particularly mentioned instance.
 
     References:
         https://developers.notion.com/reference/rich-text#user-mention-type-object
     """
 
-    type: MentionType = Field(default=MentionType.USER, frozen=True)
-    type_data: PartialUser
+    __type_object_map__ = {MentionType.USER: PartialUser}
 
-    register_type_data(MentionType.USER, PartialUser)
+    _type: MentionType = PrivateAttr(default=MentionType.USER)
+
+    type_object: PartialUser
 
 
 Mention = Union[
@@ -324,12 +318,12 @@ Mention = Union[
 
 
 # ---------------------- RichText ---------------------- #
-class RichText(NotionTypedModel):
+class RichText(TypeObjectModel):
     """Represents a rich text object.
 
     Attributes:
         type: The type of the rich text object.
-        type_data: The data related to this particular rich text object.
+        type_object: The data related to this particular rich text object.
         annotations: The information is used to style the rich text object.
         plain_text: The plain text without annotations.
         href: The URL of any link or Notion mentioned in this text, if any.
@@ -338,11 +332,17 @@ class RichText(NotionTypedModel):
         https://developers.notion.com/reference/rich-text
     """
 
+    __type_object_map__ = {
+        RichTextType.TEXT: Text,
+        RichTextType.EQUATION: Equation,
+        RichTextType.MENTION: set(get_args(Mention)),
+    }
+
     type: RichTextType = Field(
         description='The type of this rich text object. Possible type values are: "text", "mention", "equation".'
     )
 
-    type_data: Union[Text, Equation, Mention] = Field(
+    type_object: Union[Text, Equation, Mention] = Field(
         description="An object containing type-specific configuration. Refer to the rich text type objects section below for details on type-specific values."
     )
 
@@ -351,15 +351,23 @@ class RichText(NotionTypedModel):
         description="The information is used to style the rich text object. Refer to the annotation object section below for details.",
     )
 
-    plain_text: Optional[str] = Field(
+    read_only_plain_text: Optional[str] = Field(
         default=None,
         description="The plain text without annotations.",
         examples=["Some words "],
         max_length=2000,
     )
 
-    href: Optional[NotionUrl] = Field(
+    read_only_href: Optional[NotionUrl] = Field(
         default=None,
         description="The URL of any link or Notion mentioned in this text, if any.",
         examples=["https://www.notion.so/Avocado-d093f1d200464ce78b36e58a3f0d8043"],
     )
+
+    @property
+    def plain_text(self) -> Optional[str]:
+        return self.read_only_plain_text
+
+    @property
+    def href(self) -> Optional[NotionUrl]:
+        return self.read_only_href

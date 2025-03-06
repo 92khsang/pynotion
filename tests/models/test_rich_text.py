@@ -1,4 +1,4 @@
-import uuid
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError, BaseModel
@@ -27,14 +27,10 @@ from pynotion.models.types import (
     Color,
     PartialUser,
     IdLinkObject,
+    BackgroundColor,
+    ObjectType,
 )
 from tests.models.model_test_utils import PydanticModelTester
-
-
-# ------------------ FIXTURES ------------------ #
-@pytest.fixture(scope="module")
-def sample_uuid():
-    return str(uuid.uuid4())
 
 
 # ------------------ ENUM TESTS ------------------ #
@@ -101,7 +97,7 @@ def test_invalid_text_model():
 
 
 @pytest.mark.parametrize(
-    "mention_class, type_value, type_data, type_asdict",
+    "mention_class, type_value, type_object, type_asdict",
     [
         (
             MentionDatabase,
@@ -136,24 +132,24 @@ def test_invalid_text_model():
         (
             MentionDateTemplate,
             MentionType.TEMPLATE_MENTION,
-            TemplateMentionDate(type_data="today"),
+            TemplateMentionDate(type_object="today"),
             {
                 "type": "template_mention",
                 "template_mention": {
                     "type": "template_mention_date",
-                    "type_data": "today",
+                    "type_object": "today",
                 },
             },
         ),
         (
             MentionUserTemplate,
             MentionType.TEMPLATE_MENTION,
-            TemplateMentionUser(),
+            TemplateMentionUser(type_object="me"),
             {
                 "type": "template_mention",
                 "template_mention": {
                     "type": "template_mention_user",
-                    "type_data": "me",
+                    "type_object": "me",
                 },
             },
         ),
@@ -171,28 +167,28 @@ def test_invalid_text_model():
         ),
     ],
 )
-def test_mentions(mention_class, type_value, type_data, type_asdict):
+def test_mentions(mention_class, type_value, type_object, type_asdict):
     """Test Mention-based models."""
-    mention_data = mention_class(type_data=type_data)
+    mention_data = mention_class(type_object=type_object)
     assert mention_data.type == type_value
-    assert mention_data.type_data == type_data
-    assert getattr(mention_data, type_value) == type_data
-    assert eval(f"mention_data.{type_value}") == type_data
+    assert mention_data.type_object == type_object
+    assert getattr(mention_data, type_value) == type_object
+    assert eval(f"mention_data.{type_value}") == type_object
     assert mention_data == mention_class.model_validate(type_asdict)
 
 
 @pytest.mark.parametrize(
-    "type_data",
+    "type_object",
     [
         IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
         NotionDate(start="2022-01-01", end="2022-01-31"),
         NotionLink(url="https://notion.so"),
-        TemplateMentionDate(type_data="today"),
-        TemplateMentionUser(),
+        TemplateMentionDate(type_object="today"),
+        TemplateMentionUser(type_object="me"),
         PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
     ],
 )
-def test_invalid_mentions(type_data):
+def test_invalid_mentions(type_object):
     """Test invalid Mention-based models."""
     mention_classes: list[tuple[type, type]] = [
         (MentionDatabase, IdLinkObject),
@@ -204,14 +200,14 @@ def test_invalid_mentions(type_data):
     ]
 
     for mention_class, mention_data_class in mention_classes:
-        if mention_data_class != type(type_data):
+        if mention_data_class != type(type_object):
             with pytest.raises((ValueError, TypeError)):
-                mention_class(type_data=type_data)
+                mention_class(type_object=type_object)
 
 
 # ------------------ RICH TEXT TESTS ------------------ #
 @pytest.mark.parametrize(
-    "rich_text_type, annotations, plain_text, href, type_data",
+    "rich_text_type, annotations, plain_text, href, type_object",
     [
         (
             RichTextType.TEXT,
@@ -233,7 +229,7 @@ def test_invalid_mentions(type_data):
             "Test User",
             None,
             MentionUser(
-                type_data=PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -242,7 +238,7 @@ def test_invalid_mentions(type_data):
             "Test Page",
             None,
             MentionPage(
-                type_data=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -251,7 +247,7 @@ def test_invalid_mentions(type_data):
             "Test Database",
             None,
             MentionDatabase(
-                type_data=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -259,21 +255,21 @@ def test_invalid_mentions(type_data):
             Annotations(),
             "Test Date",
             None,
-            MentionDate(type_data=NotionDate(start="2022-01-01", end="2022-01-31")),
+            MentionDate(type_object=NotionDate(start="2022-01-01", end="2022-01-31")),
         ),
         (
             RichTextType.MENTION,
             Annotations(),
             "Test Link Preview",
             None,
-            MentionLinkPreview(type_data=NotionLink(url="https://notion.so")),
+            MentionLinkPreview(type_object=NotionLink(url="https://notion.so")),
         ),
         (
             RichTextType.MENTION,
             Annotations(),
             "Test Template",
             None,
-            MentionDateTemplate(type_data=TemplateMentionDate(type_data="today")),
+            MentionDateTemplate(type_object=TemplateMentionDate(type_object="today")),
         ),
     ],
     ids=[
@@ -287,18 +283,18 @@ def test_invalid_mentions(type_data):
         "rich_text_mention_date_template",
     ],
 )
-def test_rich_text(rich_text_type, annotations, plain_text, href, type_data):
+def test_rich_text(rich_text_type, annotations, plain_text, href, type_object):
     """Test RichText model with a text type."""
     rich_text = RichText(
         type=rich_text_type,
-        type_data=type_data,
+        type_object=type_object,
         annotations=annotations,
         plain_text=plain_text,
         href=href,
     )
 
     assert rich_text.type == rich_text_type
-    assert rich_text.type_data == type_data
+    assert rich_text.type_object == type_object
     assert rich_text.annotations == annotations
     assert rich_text.plain_text == plain_text
     assert rich_text.href == href
@@ -308,8 +304,8 @@ def test_rich_text(rich_text_type, annotations, plain_text, href, type_data):
 @pytest.mark.parametrize(
     "invalid_data",
     [
-        {"type": "text", "type_data": {"invalid_field": "value"}},
-        {"type": "mention", "type_data": {"type": "invalid_type"}},
+        {"type": "text", "type_object": {"invalid_field": "value"}},
+        {"type": "mention", "type_object": {"type": "invalid_type"}},
     ],
 )
 def test_rich_text_validation_errors(invalid_data):
@@ -324,176 +320,243 @@ def test_rich_text_validation_errors(invalid_data):
     [
         (
             RichText,
-            [
-                (
-                    RichText(
-                        type=RichTextType.TEXT,
-                        type_data=Text(content="Test Text", link="https://notion.so"),
-                        annotations=Annotations(),
-                        plain_text="Test Text",
-                        href="https://notion.so",
-                    ),
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": "Test Text",
-                            "link": "https://notion.so",
+            (
+                {
+                    "type": RichTextType.TEXT,
+                    "type_object": Text(content="Test Text", link="https://notion.so"),
+                    "annotations": Annotations(bold=True),
+                    "read_only_plain_text": "Test Text",
+                    "read_only_href": "https://notion.so",
+                },
+                {
+                    "type": RichTextType.TEXT,
+                    "text": {
+                        "content": "Test Text",
+                        "link": {
+                            "url": "https://notion.so",
                         },
-                        "annotations": {
-                            "bold": False,
-                            "italic": False,
-                            "strikethrough": False,
-                            "underline": False,
-                            "code": False,
-                            "color": "default",
-                        },
-                        "plain_text": "Test Text",
-                        "href": "https://notion.so",
                     },
-                ),
-            ],
+                    "annotations": {
+                        "bold": True,
+                        "italic": False,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": False,
+                        "color": Color.DEFAULT,
+                    },
+                    "plain_text": "Test Text",
+                    "href": "https://notion.so",
+                },
+                {
+                    "type": "text",
+                    "text": {
+                        "content": "Test Text",
+                        "link": {"url": "https://notion.so"},
+                    },
+                    "annotations": {"bold": True},
+                    "plain_text": "Test Text",
+                    "href": "https://notion.so",
+                },
+            ),
         ),
         (
             RichText,
-            [
-                (
-                    RichText(
-                        type=RichTextType.EQUATION,
-                        type_data=NotionEquation(expression="E = mc^2"),
-                        annotations=Annotations(),
-                        plain_text="E = mc^2",
-                        href=None,
-                    ),
-                    {
-                        "type": "equation",
-                        "equation": {
-                            "expression": "E = mc^2",
-                        },
-                        "annotations": {
-                            "bold": False,
-                            "italic": False,
-                            "strikethrough": False,
-                            "underline": False,
-                            "code": False,
-                            "color": "default",
-                        },
-                        "plain_text": "E = mc^2",
-                        "href": None,
+            (
+                {
+                    "type": RichTextType.EQUATION,
+                    "type_object": NotionEquation(expression="E = mc^2"),
+                    "annotations": Annotations(bold=True, italic=True, color=Color.RED),
+                    "read_only_plain_text": "E = mc^2",
+                    "read_only_href": None,
+                },
+                {
+                    "type": RichTextType.EQUATION,
+                    "equation": {
+                        "expression": "E = mc^2",
                     },
-                ),
-            ],
+                    "annotations": {
+                        "bold": True,
+                        "italic": True,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": False,
+                        "color": Color.RED,
+                    },
+                    "plain_text": "E = mc^2",
+                },
+                {
+                    "type": "equation",
+                    "equation": {
+                        "expression": "E = mc^2",
+                    },
+                    "annotations": {
+                        "bold": True,
+                        "italic": True,
+                        "color": "red",
+                    },
+                    "plain_text": "E = mc^2",
+                },
+            ),
         ),
         (
             RichText,
-            [
-                (
-                    RichText(
-                        type=RichTextType.MENTION,
-                        type_data=MentionUser(
-                            type_data=PartialUser(
-                                id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
-                            )
-                        ),
-                        annotations=Annotations(
-                            bold=False,
-                            italic=True,
-                            strikethrough=False,
-                            underline=True,
-                            code=False,
-                            color=Color.BLUE,
-                        ),
-                        plain_text="Test User",
-                        href=None,
+            (
+                {
+                    "type": RichTextType.MENTION,
+                    "type_object": MentionUser(
+                        type_object=PartialUser(
+                            id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
+                        )
                     ),
-                    {
-                        "type": "mention",
-                        "mention": {
-                            "type": "user",
-                            "user": {
-                                "object": "user",
-                                "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
-                            },
+                    "annotations": Annotations(
+                        bold=True,
+                        italic=False,
+                        strikethrough=True,
+                        underline=False,
+                        code=True,
+                        color=BackgroundColor.RED_BACKGROUND,
+                    ),
+                    "read_only_plain_text": "Test User",
+                },
+                {
+                    "type": RichTextType.MENTION,
+                    "mention": {
+                        "type": MentionType.USER,
+                        "user": {
+                            "object": ObjectType.USER,
+                            "id": UUID("a7db80bd-b3e3-4394-b134-a21b05412c7c"),
                         },
-                        "annotations": {
-                            "bold": False,
-                            "italic": True,
-                            "strikethrough": False,
-                            "underline": True,
-                            "code": False,
-                            "color": "blue",
-                        },
-                        "plain_text": "Test User",
                     },
-                ),
-            ],
+                    "annotations": {
+                        "bold": True,
+                        "italic": False,
+                        "strikethrough": True,
+                        "underline": False,
+                        "code": True,
+                        "color": BackgroundColor.RED_BACKGROUND,
+                    },
+                    "plain_text": "Test User",
+                },
+                {
+                    "type": "mention",
+                    "mention": {
+                        "type": MentionType.USER.value,
+                        "user": {
+                            "object": ObjectType.USER.value,
+                            "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
+                        },
+                    },
+                    "annotations": {
+                        "bold": True,
+                        "strikethrough": True,
+                        "code": True,
+                        "color": BackgroundColor.RED_BACKGROUND.value,
+                    },
+                    "plain_text": "Test User",
+                },
+            ),
         ),
         (
             RichText,
-            [
-                (
-                    RichText(
-                        type=RichTextType.MENTION,
-                        type_data=MentionDateTemplate(
-                            type_data=TemplateMentionDate(type_data="now")
-                        ),
-                        annotations=Annotations(),
-                        plain_text="now",
-                        href=None,
+            (
+                {
+                    "type": RichTextType.MENTION,
+                    "type_object": MentionDateTemplate(
+                        type_object=TemplateMentionDate(type_object="now")
                     ),
-                    {
-                        "type": "mention",
-                        "mention": {
-                            "type": "template_mention",
-                            "template_mention": {
-                                "type": "template_mention_date",
-                                "template_mention_date": "now",
-                            },
+                    "annotations": Annotations(
+                        italic=True, underline=True, color=Color.YELLOW
+                    ),
+                    "read_only_plain_text": "now",
+                    "read_only_href": None,
+                },
+                {
+                    "type": RichTextType.MENTION,
+                    "mention": {
+                        "type": MentionType.TEMPLATE_MENTION,
+                        "template_mention": {
+                            "type": TemplateMentionType.TEMPLATE_MENTION_DATE,
+                            "template_mention_date": "now",
                         },
-                        "annotations": {
-                            "bold": False,
-                            "italic": False,
-                            "strikethrough": False,
-                            "underline": False,
-                            "code": False,
-                            "color": "default",
-                        },
-                        "plain_text": "now",
                     },
-                )
-            ],
+                    "annotations": {
+                        "bold": False,
+                        "italic": True,
+                        "strikethrough": False,
+                        "underline": True,
+                        "code": False,
+                        "color": Color.YELLOW,
+                    },
+                    "plain_text": "now",
+                },
+                {
+                    "type": RichTextType.MENTION.value,
+                    "mention": {
+                        "type": MentionType.TEMPLATE_MENTION.value,
+                        "template_mention": {
+                            "type": TemplateMentionType.TEMPLATE_MENTION_DATE.value,
+                            "template_mention_date": "now",
+                        },
+                    },
+                    "annotations": {
+                        "italic": True,
+                        "underline": True,
+                        "color": Color.YELLOW.value,
+                    },
+                    "plain_text": "now",
+                },
+            ),
         ),
         (
             RichText,
-            [
-                (
-                    RichText(
-                        type=RichTextType.MENTION,
-                        type_data=MentionUserTemplate(),
-                        annotations=Annotations(),
-                        plain_text="now",
-                        href=None,
+            (
+                {
+                    "type": RichTextType.MENTION,
+                    "type_object": MentionUserTemplate(
+                        type_object=TemplateMentionUser(type_object="me")
                     ),
-                    {
-                        "type": "mention",
-                        "mention": {
-                            "type": "template_mention",
-                            "template_mention": {
-                                "type": "template_mention_user",
-                                "template_mention_user": "me",
-                            },
+                    "annotations": Annotations(
+                        strikethrough=True, code=True, color=Color.PURPLE
+                    ),
+                    "read_only_plain_text": "now",
+                    "read_only_href": None,
+                },
+                {
+                    "type": RichTextType.MENTION,
+                    "mention": {
+                        "type": MentionType.TEMPLATE_MENTION,
+                        "template_mention": {
+                            "type": TemplateMentionType.TEMPLATE_MENTION_USER,
+                            "template_mention_user": "me",
                         },
-                        "annotations": {
-                            "bold": False,
-                            "italic": False,
-                            "strikethrough": False,
-                            "underline": False,
-                            "code": False,
-                            "color": "default",
-                        },
-                        "plain_text": "now",
                     },
-                )
-            ],
+                    "annotations": {
+                        "bold": False,
+                        "italic": False,
+                        "strikethrough": True,
+                        "underline": False,
+                        "code": True,
+                        "color": Color.PURPLE,
+                    },
+                    "plain_text": "now",
+                },
+                {
+                    "type": RichTextType.MENTION.value,
+                    "mention": {
+                        "type": MentionType.TEMPLATE_MENTION.value,
+                        "template_mention": {
+                            "type": TemplateMentionType.TEMPLATE_MENTION_USER.value,
+                            "template_mention_user": "me",
+                        },
+                    },
+                    "annotations": {
+                        "strikethrough": True,
+                        "code": True,
+                        "color": Color.PURPLE.value,
+                    },
+                    "plain_text": "now",
+                },
+            ),
         ),
     ],
     ids=[
@@ -504,5 +567,5 @@ def test_rich_text_validation_errors(invalid_data):
         "RichTextMentionTemplateUser",
     ],
 )
-def test_models_serialization(clz: type, test_data: list[tuple[BaseModel, dict, ...]]):
+def test_models_serialization(clz: type[BaseModel], test_data: tuple[dict, dict, dict]):
     PydanticModelTester(clz, test_data).run_all_tests()
