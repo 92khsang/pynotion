@@ -64,7 +64,7 @@ class BaseNotionModel(BaseModel):
         return new_data
 
     @classmethod
-    def _get_all_annotation(cls) -> dict:
+    def _collect_all_annotation(cls) -> dict:
         """Returns a list of all annotations for the class."""
         all_annotations = {}
         for clz in reversed(cls.__mro__):
@@ -86,7 +86,7 @@ class BaseNotionModel(BaseModel):
         }
 
         # Maintain field declaration order
-        all_annotations = self._get_all_annotation()
+        all_annotations = self._collect_all_annotation()
 
         # Use the collected fields for ordering
         declared_fields = list(all_annotations.keys())
@@ -250,7 +250,7 @@ class TypeObjectModel(BaseNotionModel):
                 f"TypeObjectModel is registered with multiple Notion types: {type_set}"
             )
 
-        declared_fields = set(cls._get_all_annotation())
+        declared_fields = set(cls._collect_all_annotation())
         type_field = cls._get_type_field()
         type_object_field = cls._get_type_object_field()
 
@@ -381,7 +381,7 @@ class TypeObjectModel(BaseNotionModel):
         type_object_field = remove_read_only_prefix(self._get_type_object_field())
 
         if type_object_field in data:
-            _type = data.get(type_field)
+            _type = data.get(type_field) or object.__getattribute__(self, type_field)
             if _type:
                 new_data = OrderedDict()
                 for k, v in data.items():
@@ -432,7 +432,7 @@ class FixedTypeObjectModel(TypeObjectModel):
     """Type object model with a fixed type stored as a private attribute."""
 
     __type_field_set__ = ("_type", "type_object")
-    _serializable_private_attrs__ = {"_type": "type"}
+    __serializable_private_attrs__ = {"_type": "type"}
 
     _type: NotionType = PrivateAttr()
     type_object: Any
