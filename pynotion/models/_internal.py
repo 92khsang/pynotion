@@ -234,6 +234,11 @@ class TypeObjectModel(BaseNotionModel):
         return super().__new__(cls)
 
     @classmethod
+    def _validate_type_object_map(cls):
+        if not cls.__type_object_map__:
+            raise ValueError(f"TypeObjectModel is not registered with any Notion types")
+
+    @classmethod
     def _validate_subclass(cls):
         type_set = {type(t) for t in cls.__type_object_map__}
         if len(type_set) > 1:
@@ -398,6 +403,12 @@ class ReadOnlyTypeObjectModel(TypeObjectModel):
     read_only_type: Union[None, str, NotionType] = Field(default=None, frozen=True)
     read_only_type_object: Optional[Any] = Field(default=None, frozen=True)
 
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        cls._validate_type_object_map()
+
+        super().__pydantic_init_subclass__(**kwargs)
+
     @property
     def type(self) -> NotionType:
         """Accessor for read_only_type."""
@@ -413,7 +424,7 @@ class FixedTypeObjectModel(TypeObjectModel):
     """Type object model with a fixed type stored as a private attribute."""
 
     __type_field_set__ = ("_type", "type_object")
-    __serializable_private_attrs__ = {"_type": "type"}
+    _serializable_private_attrs__ = {"_type": "type"}
 
     _type: NotionType = PrivateAttr()
     type_object: Any
@@ -430,16 +441,50 @@ class FixedTypeObjectModel(TypeObjectModel):
         super().__init__(**data)
         object.__setattr__(self, "_type", _type)
 
+    @classmethod
+    def _validate_type_exists(cls) -> None:
+        private_attr = cls.__private_attributes__.get("_type")
+        if not private_attr:
+            raise ValueError("_type must be defined by PrivateAttr")
+
+        if not private_attr.default:
+            raise ValueError("_type must have a default value")
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        cls._validate_type_object_map()
+        cls._validate_type_exists()
+
+        super().__pydantic_init_subclass__(**kwargs)
+
+    @classmethod
+    def _get_default_type(cls) -> NotionType:
+        return cls.__private_attributes__.get("_type").default
+
+    @model_validator(mode="before")
+    @classmethod
+    def _pre_init(cls, values: Any) -> Any:
+        """Pre-processes input values to handle type and type_object fields."""
+        data = cls._extract_kwargs(values)
+        if not data:
+            return values
+
+        # Handle type_object from a type-specific field
+        if "type_object" not in data:
+            type_str = str(cls._get_default_type())
+            if type_str in data:
+                data["type_object"] = data.pop(type_str)
+
+        return values
+
     def __getattr__(self, item: str) -> Any:
         """Special attribute access for fixed type models."""
-        private_attr = self.__private_attributes__.get("_type")
-        if private_attr:
-            private_attr_default = private_attr.default
+        private_attr_default = self._get_default_type()
 
-            if item == "_type":
-                return private_attr_default
-            elif item == str(private_attr_default):
-                return self.type_object
+        if item == "_type":
+            return private_attr_default
+        elif item == str(private_attr_default):
+            return self.type_object
 
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {item!r}"
