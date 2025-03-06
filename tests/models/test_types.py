@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
-from pydantic import ValidationError, BaseModel
+from pydantic import ValidationError, BaseModel, UUID4
 
 from pynotion.models.types import (
     ObjectId,
@@ -16,6 +16,16 @@ from pynotion.models.types import (
     NotionLink,
     NotionEquation,
     NotionDate,
+    NotionHostedFile,
+    ParentType,
+    NotionParent,
+    FileType,
+    NotionFile,
+    EmojiType,
+    CustomEmoji,
+    NotionEmoji,
+    NotionObject,
+    PartialUser,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -26,7 +36,10 @@ from tests.models.model_test_utils import PydanticModelTester
     [str(uuid4()), uuid4().hex],
 )
 def test_object_id(test_input):
-    assert ObjectId(test_input) == UUID(test_input)
+    class ObjectIdModel(BaseModel):
+        object_id: ObjectId
+
+    assert ObjectIdModel(object_id=test_input).object_id == UUID4(test_input)
 
 
 @pytest.mark.parametrize(
@@ -163,6 +176,7 @@ def test_notion_equation(expression):
         ),
         # ❌ Invalid formats
         ("2023/05/17", None, None, True),
+        ("06-03-2024", "America/New_York", None, True),
         (12345, None, None, True),
         ("2023-05-17T15:30:00+00:00", "America/New_York", None, True),
         ("2023-05-17T15:30:00.123456", "Invalid Timezone", None, True),
@@ -184,35 +198,389 @@ def test_notion_date(
         assert notion_date.time_zone == time_zone
 
 
+# --- Test NotionHostedFile ---
 @pytest.mark.parametrize(
-    "clz,test_data",
+    "url, expiry_time, should_raise",
+    [
+        ("https://valid-url.com/file.png", "2024-05-17T15:30:00Z", False),
+        (
+            "https://valid-url.com/file.png",
+            datetime(2024, 5, 17, 15, 30, tzinfo=timezone.utc),
+            False,
+        ),
+        ("invalid-url", "2024-05-17T15:30:00Z", True),  # Invalid URL
+        (
+            "https://valid-url.com/file.png",
+            "invalid-datetime",
+            True,
+        ),  # Invalid datetime
+    ],
+)
+def test_notion_hosted_file(url, expiry_time, should_raise):
+    if should_raise:
+        with pytest.raises(ValidationError):
+            NotionHostedFile(url=url, expiry_time=expiry_time)
+    else:
+        notion_file = NotionHostedFile(url=url, expiry_time=expiry_time)
+        assert notion_file.url == url
+        assert (
+            notion_file.expiry_time == expiry_time
+            if isinstance(expiry_time, datetime)
+            else datetime.fromisoformat(expiry_time)
+        )
+
+
+@pytest.mark.parametrize(
+    "parent_type, type_object, should_raise",
+    [
+        (ParentType.DATABASE_ID, uuid4(), False),
+        (ParentType.PAGE_ID, uuid4(), False),
+        (ParentType.BLOCK_ID, uuid4(), False),
+        (ParentType.WORKSPACE, True, False),
+        (ParentType.WORKSPACE, False, False),
+        (ParentType.WORKSPACE, uuid4(), True),  # Invalid: should be bool
+        (ParentType.PAGE_ID, "invalid-id", True),  # Invalid UUID
+    ],
+)
+def test_notion_parent(parent_type, type_object, should_raise):
+    if should_raise:
+        with pytest.raises(ValidationError):
+            NotionParent(type=parent_type, type_object=type_object)
+    else:
+        parent = NotionParent(type=parent_type, type_object=type_object)
+        assert parent.type == parent_type
+        assert parent.type_object == type_object
+
+
+@pytest.mark.parametrize(
+    "file_type, type_object, should_raise",
     [
         (
-            NotionDate,
-            [
-                (NotionDate(start=datetime(2023, 5, 17)), {"start": "2023-05-17"}),
-                (
-                    NotionDate(
-                        start=datetime(
-                            2023, 5, 17, tzinfo=ZoneInfo("America/New_York")
-                        ),
-                        end=datetime(2023, 5, 18, tzinfo=ZoneInfo("America/New_York")),
-                        time_zone="America/New_York",
-                    ),
-                    {
-                        "start": "2023-05-17",
-                        "end": "2023-05-18",
-                        "time_zone": "America/New_York",
-                    },
+            FileType.FILE,
+            NotionHostedFile(
+                url="https://valid-url.com", expiry_time="2024-05-17T15:30:00Z"
+            ),
+            False,
+        ),
+        (FileType.EXTERNAL, NotionLink(url="https://external.com"), False),
+        (
+            FileType.FILE,
+            NotionLink(url="https://external.com"),
+            True,
+        ),  # Wrong type_object for FILE
+        (
+            FileType.EXTERNAL,
+            NotionHostedFile(
+                url="https://valid-url.com", expiry_time="2024-05-17T15:30:00Z"
+            ),
+            True,
+        ),  # Wrong type_object for EXTERNAL
+        (
+            "invalid-type",
+            NotionLink(url="https://valid-url.com"),
+            True,
+        ),  # Invalid file type
+    ],
+)
+def test_notion_file(file_type, type_object, should_raise):
+    if should_raise:
+        with pytest.raises(ValueError):
+            NotionFile(type=file_type, type_object=type_object)
+    else:
+        notion_file = NotionFile(type=file_type, type_object=type_object)
+        assert notion_file.type == file_type
+        assert (
+            notion_file.expiry_time == datetime.fromisoformat(type_object)
+            if isinstance(type_object, str)
+            else type_object
+        )
+
+
+@pytest.mark.parametrize(
+    "emoji_type, type_object, should_raise",
+    [
+        (EmojiType.EMOJI, "🔥", False),
+        (
+            EmojiType.CUSTOM_EMOJI,
+            CustomEmoji(id=uuid4(), name="custom", url="https://valid-url.com"),
+            False,
+        ),
+        (
+            EmojiType.EMOJI,
+            CustomEmoji(id=uuid4(), name="custom", url="https://valid-url.com"),
+            True,
+        ),  # Invalid type_object
+        (EmojiType.CUSTOM_EMOJI, "🔥", True),  # Invalid type_object
+    ],
+)
+def test_notion_emoji(emoji_type, type_object, should_raise):
+    if should_raise:
+        with pytest.raises(ValidationError):
+            NotionEmoji(type=emoji_type, type_object=type_object)
+    else:
+        notion_emoji = NotionEmoji(type=emoji_type, type_object=type_object)
+        assert notion_emoji.type == emoji_type
+        assert notion_emoji.type_object == type_object
+
+
+def test_partial_user():
+    with pytest.raises(ValueError, match="Invalid object type: page"):
+        PartialUser(object=ObjectType.PAGE)
+
+    valid_partial = PartialUser(id=uuid4())
+
+    assert valid_partial.object == ObjectType.USER
+
+
+@pytest.mark.parametrize(
+    "input_dict, expected_dict, should_raise",
+    [
+        (
+            {
+                "object": "block",
+                "id": "c02fc1d3-db8b-45c5-a222-27595b15aea7",
+                "parent": {
+                    "type": "page_id",
+                    "page_id": "59833787-2cf9-4fdf-8782-e53db20768a5",
+                },
+                "created_time": "2022-03-01T19:05:00.000Z",
+                "last_edited_time": "2022-07-06T19:41:00.000Z",
+                "created_by": {
+                    "object": "user",
+                    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4",
+                },
+                "archived": False,
+                "in_trash": False,
+            },
+            {
+                "object": ObjectType.BLOCK,
+                "id": UUID("c02fc1d3-db8b-45c5-a222-27595b15aea7"),
+                "parent": NotionParent(
+                    type=ParentType.PAGE_ID,
+                    type_object=UUID("59833787-2cf9-4fdf-8782-e53db20768a5"),
                 ),
-            ],
+                "created_time": datetime(2022, 3, 1, 19, 5, tzinfo=timezone.utc),
+                "last_edited_time": datetime(2022, 7, 6, 19, 41, tzinfo=timezone.utc),
+                "created_by": PartialUser(
+                    id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
+                ),
+                "last_edited_by": PartialUser(
+                    id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
+                ),
+                "archived": False,
+                "in_trash": False,
+            },
+            False,
+        ),
+        (
+            {
+                "object": "database",
+                "id": "59833787-2cf9-4fdf-8782-e53db20768a5",
+                "parent": {
+                    "type": "workspace",
+                    "workspace": True,
+                },
+            },
+            {
+                "object": ObjectType.DATABASE,
+                "id": UUID("59833787-2cf9-4fdf-8782-e53db20768a5"),
+                "parent": NotionParent(
+                    type=ParentType.WORKSPACE,
+                    type_object=True,
+                ),
+                "created_time": None,
+                "last_edited_time": None,
+                "created_by": None,
+                "last_edited_by": None,
+                "archived": None,
+                "in_trash": None,
+            },
+            False,
+        ),
+        (
+            {
+                "object": "database",
+                "id": "ee5f0f84-409a-440f-983a-a53151c6e4",
+            },
+            None,
+            True,
+        ),
+        (
+            {
+                "object": "user",
+                "id": "ee5f0f84-409a-440f-983a-a5315961c6e4",
+            },
+            None,
+            True,
+        ),
+    ],
+)
+def test_notion_object(input_dict, expected_dict, should_raise):
+    if should_raise:
+        with pytest.raises(ValueError):
+            NotionObject(**input_dict)
+    else:
+        notion_obj = NotionObject(**input_dict)
+        for key, value in expected_dict.items():
+            assert getattr(notion_obj, key) == value
+
+
+def test_invalid_initializer():
+    with pytest.raises(
+        TypeError,
+        match="takes 1 positional argument but 3 were given",
+    ):
+        NotionObject(ObjectType.BLOCK, UUID("c02fc1d3-db8b-45c5-a222-27595b15aea7"))
+
+    for obj in ["user", "comment", "unknown"]:
+        with pytest.raises(ValueError):
+            NotionObject(object=obj)
+
+
+@pytest.mark.parametrize(
+    "model_class, test_data",
+    [
+        (
+            NotionLink,
+            (
+                {"url": "https://notion.so"},
+                {"url": "https://notion.so"},
+                {"url": "https://notion.so"},
+            ),
+        ),
+        (
+            NotionHostedFile,
+            (
+                {
+                    "url": "https://notion.so",
+                    "expiry_time": "2024-05-17T15:30:00Z",
+                },
+                {
+                    "url": "https://notion.so",
+                    "expiry_time": datetime(2024, 5, 17, 15, 30, tzinfo=timezone.utc),
+                },
+                {
+                    "url": "https://notion.so",
+                    "expiry_time": "2024-05-17T15:30:00Z",
+                },
+            ),
         ),
         (
             NotionEquation,
-            [(NotionEquation(expression="E = mc^2"), {"expression": "E = mc^2"})],
+            (
+                {"expression": "E = mc^2"},
+                {"expression": "E = mc^2"},
+                {"expression": "E = mc^2"},
+            ),
+        ),
+        (
+            NotionDate,
+            (
+                {
+                    "start": "2024-05-17",
+                    "end": "2024-05-17T15:30:00",
+                    "time_zone": "America/New_York",
+                },
+                {
+                    "start": datetime(2024, 5, 17, tzinfo=ZoneInfo("America/New_York")),
+                    "end": datetime(
+                        2024, 5, 17, 15, 30, tzinfo=ZoneInfo("America/New_York")
+                    ),
+                    "time_zone": "America/New_York",
+                },
+                {
+                    "start": "2024-05-17T00:00:00-04:00",
+                    "end": "2024-05-17T15:30:00-04:00",
+                    "time_zone": "America/New_York",
+                },
+            ),
+        ),
+        (
+            NotionParent,
+            (
+                {
+                    "type": "page_id",
+                    "page_id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
+                },
+                {
+                    "type": ParentType.PAGE_ID,
+                    "page_id": UUID("f4de14e1-0cff-4497-835f-29d6d04d62c1"),
+                },
+                {"type": "page_id", "page_id": "f4de14e1-0cff-4497-835f-29d6d04d62c1"},
+            ),
+        ),
+        (
+            NotionFile,
+            (
+                {
+                    "type": FileType.EXTERNAL,
+                    "type_object": {"url": "https://example.com"},
+                },
+                {
+                    "type": "external",
+                    "external": {"url": "https://example.com"},
+                },
+                {
+                    "type": "external",
+                    "external": {"url": "https://example.com"},
+                },
+            ),
+        ),
+        (
+            NotionEmoji,
+            (
+                {
+                    "type": "custom_emoji",
+                    "custom_emoji": {
+                        "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
+                        "name": "smile",
+                        "url": "https://example.com/emoji.png",
+                    },
+                },
+                {
+                    "type": EmojiType.CUSTOM_EMOJI,
+                    "custom_emoji": {
+                        "id": UUID("f4de14e1-0cff-4497-835f-29d6d04d62c1"),
+                        "name": "smile",
+                        "url": "https://example.com/emoji.png",
+                    },
+                },
+                {
+                    "type": "custom_emoji",
+                    "custom_emoji": {
+                        "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
+                        "name": "smile",
+                        "url": "https://example.com/emoji.png",
+                    },
+                },
+            ),
+        ),
+        (
+            NotionObject,
+            (
+                {
+                    "object": "page",
+                    "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
+                    "created_time": "2024-05-17T15:30:00Z",
+                },
+                {
+                    "object": ObjectType.PAGE,
+                    "id": UUID("f4de14e1-0cff-4497-835f-29d6d04d62c1"),
+                    "created_time": datetime(2024, 5, 17, 15, 30, tzinfo=timezone.utc),
+                },
+                {
+                    "object": "page",
+                    "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
+                    "created_time": "2024-05-17T15:30:00Z",
+                },
+            ),
         ),
     ],
-    ids=["NotionDate", "NotionEquation"],
 )
-def test_models_serialization(clz: type, test_data: list[tuple[BaseModel, dict, ...]]):
-    PydanticModelTester(clz, test_data).run_all_tests()
+def test_pydantic_models(model_class, test_data):
+    tester = PydanticModelTester(model_class, test_data)
+    tester.run_all_tests()
