@@ -481,6 +481,8 @@ class PartialUser(BaseNotionModel):
         object: Always 'user', confirming this is a user reference.
     """
 
+    __serializable_private_attrs__ = {"_object": "object"}
+
     _object: ObjectType = PrivateAttr(default=ObjectType.USER)
 
     id: ObjectId
