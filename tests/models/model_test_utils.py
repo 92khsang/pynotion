@@ -72,7 +72,7 @@ class PydanticModelTester:
         """Validate JSON serialization of the model."""
         try:
             json_data = TypeAdapter(self.model_class).dump_json(
-                self.model_instance, exclude_none=True
+                self.model_instance, exclude_none=True, exclude_defaults=True
             )
             assert (
                 json.loads(json_data) == self.expected_json
