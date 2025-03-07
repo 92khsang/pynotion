@@ -1,18 +1,16 @@
 from __future__ import annotations as _annotations
 
+from abc import ABC
 from collections import OrderedDict
 from datetime import datetime
 from enum import StrEnum
 from typing import (
-    Union,
     TypeAlias,
     Any,
-    Optional,
     get_args,
     Literal,
     Type,
     get_origin,
-    ClassVar,
 )
 from uuid import UUID
 
@@ -41,7 +39,7 @@ def remove_read_only_prefix(field_name: str) -> str:
     return field_name.removeprefix("read_only_")
 
 
-class BaseNotionModel(BaseModel):
+class BaseNotionModel(BaseModel, ABC):
     """Base class for Notion-like models with special read-only field handling."""
 
     model_config = ConfigDict(
@@ -53,7 +51,12 @@ class BaseNotionModel(BaseModel):
     )
 
     # Class variable for serializable private attributes
-    __serializable_private_attrs__: ClassVar[dict] = {}
+    __serializable_private_attrs__: dict = {}
+
+    def __new__(cls, *args, **kwargs):
+        if cls is BaseNotionModel:
+            raise TypeError(f"{cls.__name__} cannot be instantiated directly")
+        return super().__new__(cls)
 
     @staticmethod
     def _remove_read_only_prefix(data: dict) -> OrderedDict:
@@ -116,7 +119,7 @@ class BaseNotionModel(BaseModel):
         return self._remove_read_only_prefix(ordered_data)
 
 
-def validate_uuid4(value: Union[UUID, str, bytes, int]) -> UUID:
+def validate_uuid4(value: UUID | str | bytes | int) -> UUID:
     """
     Converts various types to a UUID4-compatible value.
     """
@@ -132,7 +135,7 @@ def validate_uuid4(value: Union[UUID, str, bytes, int]) -> UUID:
 
 
 def validate_enum(
-    value: Union[str, NotionType], enum_types: tuple[Type[NotionType], ...]
+    value: str | NotionType, enum_types: tuple[Type[NotionType], ...]
 ) -> NotionType:
     """
     Convert a string value to one of the provided StrEnum types.
@@ -155,7 +158,7 @@ def validate_enum(
 
 
 def validate_enum_value(
-    actual_val: Union[str, NotionType], expected_values: set[NotionType]
+    actual_val: str | NotionType, expected_values: set[NotionType]
 ) -> NotionType:
     """
     Validates that 'actual_val' matches one of the NotionTypes in 'expected_values'.
@@ -192,7 +195,7 @@ def validate_timezone(value: str) -> str:
     return value
 
 
-def validate_datetime(value: Union[str, datetime]) -> datetime:
+def validate_datetime(value: str | datetime) -> datetime:
     """
     Validates and converts a given value to a datetime object.
     Accepts a string in ISO 8601 format or a datetime object.
@@ -227,9 +230,9 @@ def validate_url(url: str) -> str:
     return url
 
 
-class TypeObjectModel(BaseNotionModel):
+class TypeObjectModel(BaseNotionModel, ABC):
 
-    __type_object_map__: dict[NotionType, Union[Type, set[Type]]] = {}
+    __type_object_map__: dict[NotionType, Type | set[Type]] = {}
     __type_field_set__ = ("type", "type_object")
 
     def __new__(cls, *args, **kwargs):
@@ -403,13 +406,18 @@ class TypeObjectModel(BaseNotionModel):
         )
 
 
-class ReadOnlyTypeObjectModel(TypeObjectModel):
+class ReadOnlyTypeObjectModel(TypeObjectModel, ABC):
     """Type object model with read-only type fields."""
 
     __type_field_set__ = ("read_only_type", "read_only_type_object")
 
-    read_only_type: Union[None, str, NotionType] = Field(default=None, frozen=True)
-    read_only_type_object: Optional[Any] = Field(default=None, frozen=True)
+    read_only_type: str | NotionType | None = Field(default=None, frozen=True)
+    read_only_type_object: Any | None = Field(default=None, frozen=True)
+
+    def __new__(cls, *args, **kwargs):
+        if cls is ReadOnlyTypeObjectModel:
+            raise TypeError(f"{cls.__name__} cannot be instantiated directly")
+        return super().__new__(cls)
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs):
@@ -423,12 +431,12 @@ class ReadOnlyTypeObjectModel(TypeObjectModel):
         return self.read_only_type
 
     @property
-    def type_object(self) -> Optional[Any]:
+    def type_object(self) -> Any | None:
         """Accessor for read_only_type_object."""
         return self.read_only_type_object
 
 
-class FixedTypeObjectModel(TypeObjectModel):
+class FixedTypeObjectModel(TypeObjectModel, ABC):
     """Type object model with a fixed type stored as a private attribute."""
 
     __type_field_set__ = ("_type", "type_object")
@@ -436,6 +444,11 @@ class FixedTypeObjectModel(TypeObjectModel):
 
     _type: NotionType = PrivateAttr()
     type_object: Any
+
+    def __new__(cls, *args, **kwargs):
+        if cls is FixedTypeObjectModel:
+            raise TypeError(f"{cls.__name__} cannot be instantiated directly")
+        return super().__new__(cls)
 
     def __init__(self, /, **data):
         """Initialize with a fixed type."""

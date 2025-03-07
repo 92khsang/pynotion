@@ -332,6 +332,12 @@ def test_partial_user():
     assert valid_partial.object == ObjectType.USER
 
 
+def test_frozen_object():
+    with pytest.raises(ValidationError, match="Field is frozen"):
+        emoji_object = NotionEmoji(type=EmojiType.EMOJI, type_object="🔥")
+        emoji_object.__setattr__("type", EmojiType.CUSTOM_EMOJI)
+
+
 @pytest.mark.parametrize(
     "input_dict, expected_dict, should_raise",
     [

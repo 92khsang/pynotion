@@ -1,4 +1,3 @@
-from typing import Optional
 from uuid import uuid4
 
 import pytest
@@ -104,7 +103,7 @@ def test_bot_model_valid(sample_bot: Bot, expected_values: tuple):
     ],
 )
 def test_bot_model_invalid_workspace_name(
-    owner_type: BotOwnerType, workspace_name: Optional[str], expected_error: str
+    owner_type: BotOwnerType, workspace_name: str | None, expected_error: str
 ):
     """Test Bot model validation rules for workspace_name based on an owner type."""
     owner = BotOwner(

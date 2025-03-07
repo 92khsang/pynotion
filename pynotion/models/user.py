@@ -1,7 +1,7 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Optional, Union, Literal, Any, Annotated
+from typing import Literal, Any, Annotated
 
 from pydantic import Field, model_validator, PrivateAttr, BeforeValidator
 
@@ -11,13 +11,13 @@ from ._internal import (
     validate_enum_value,
     validate_enum,
     ReadOnlyTypeObjectModel,
-    validate_uuid4,
 )
 from .types import (
     NotionEmail,
     NotionUrl,
     ObjectType,
     ObjectId,
+    AnnotatedObjectId,
 )
 
 
@@ -84,14 +84,12 @@ class BotOwner(TypeObjectModel):
     }
 
     type: Annotated[
-        Union[str, BotOwnerType],
+        str | BotOwnerType,
         BeforeValidator(lambda v: validate_enum(v, (BotOwnerType,))),
         Field(frozen=True),
     ]
 
-    type_object: Union[None, Literal[True]] = Field(
-        default=None, description="Indicates if the bot belongs to a workspace"
-    )
+    type_object: Literal[True] | None = Field(default=None, frozen=True)
 
 
 class Bot(BaseNotionModel):
@@ -108,9 +106,7 @@ class Bot(BaseNotionModel):
 
     owner: BotOwner
 
-    workspace_name: Optional[str] = Field(
-        None, description="Workspace name if the bot belongs to a workspace"
-    )
+    workspace_name: str | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_workspace_name(self):
@@ -158,25 +154,20 @@ class User(ReadOnlyTypeObjectModel):
 
     _object: ObjectType = PrivateAttr(default=ObjectType.USER)
 
-    read_only_id: Annotated[
-        Union[None, ObjectId],
-        BeforeValidator(lambda v: validate_uuid4(v) if v else v),
-        Field(frozen=True),
-    ] = None
+    read_only_id: AnnotatedObjectId | None = Field(default=None, frozen=True)
 
-    read_only_type: Annotated[
-        Union[None, str, UserType],
-        BeforeValidator(lambda v: validate_enum(v, (UserType,)) if v else v),
-        Field(frozen=True),
-    ] = None
+    read_only_type: (
+        Annotated[
+            str | UserType, BeforeValidator(lambda v: validate_enum(v, (UserType,)))
+        ]
+        | None
+    ) = Field(default=None, frozen=True)
 
-    read_only_name: Optional[str] = Field(default=None, frozen=True)
+    read_only_name: str | None = Field(default=None, frozen=True)
 
-    read_only_avatar_url: Optional[NotionUrl] = Field(default=None, frozen=True)
+    read_only_avatar_url: NotionUrl | None = Field(default=None, frozen=True)
 
-    read_only_type_object: Annotated[Union[None, Person, Bot], Field(frozen=True)] = (
-        None
-    )
+    read_only_type_object: Person | Bot | None = Field(default=None, frozen=True)
 
     @model_validator(mode="after")
     def validate_user_type(self):
@@ -229,7 +220,7 @@ class User(ReadOnlyTypeObjectModel):
         return self.read_only_id
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         """The user's name.
 
         Returns:
@@ -238,7 +229,7 @@ class User(ReadOnlyTypeObjectModel):
         return self.read_only_name
 
     @property
-    def avatar_url(self) -> Optional[NotionUrl]:
+    def avatar_url(self) -> NotionUrl | None:
         """The URL of the user's avatar image.
 
         Returns:
@@ -247,7 +238,7 @@ class User(ReadOnlyTypeObjectModel):
         return self.read_only_avatar_url
 
     @property
-    def type(self) -> Union[UserType, None]:
+    def type(self) -> UserType | None:
         """The type of user (person or bot).
 
         Returns:
@@ -256,7 +247,7 @@ class User(ReadOnlyTypeObjectModel):
         return self.read_only_type
 
     @property
-    def type_object(self) -> Union[Person, Bot, None]:
+    def type_object(self) -> Person | Bot | None:
         """The type-specific object for this user.
 
         Returns:

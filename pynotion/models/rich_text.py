@@ -1,7 +1,7 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Optional, Literal, Union, TypeAlias, Annotated, get_args
+from typing import Literal, Union, TypeAlias, Annotated, get_args
 
 from pydantic import Field, BeforeValidator, PrivateAttr
 
@@ -102,7 +102,7 @@ class Annotations(BaseNotionModel):
     underline: bool = Field(default=False)
     code: bool = Field(default=False)
     color: Annotated[
-        Union[Color, BackgroundColor, str],
+        Color | BackgroundColor | str,
         BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
     ] = Color.DEFAULT
 
@@ -120,12 +120,15 @@ class Text(BaseNotionModel):
     """
 
     content: Annotated[str, Field(max_length=2000, description="The text content.")]
-    link: Annotated[
-        Union[str, NotionLink, None],
-        BeforeValidator(
-            lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
-        ),
-    ] = None
+    link: (
+        Annotated[
+            str | NotionLink,
+            BeforeValidator(
+                lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
+            ),
+        ]
+        | None
+    ) = None
 
 
 # ---------------------- Equation ---------------------- #
@@ -227,7 +230,7 @@ class MentionLinkPreview(FixedTypeObjectModel):
     _type: MentionType = PrivateAttr(default=MentionType.LINK_PREVIEW)
 
     type_object: Annotated[
-        Union[str, NotionLink],
+        str | NotionLink,
         BeforeValidator(
             lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
         ),
@@ -338,36 +341,25 @@ class RichText(TypeObjectModel):
         RichTextType.MENTION: set(get_args(Mention)),
     }
 
-    type: RichTextType = Field(
-        description='The type of this rich text object. Possible type values are: "text", "mention", "equation".'
-    )
+    type: (
+        Annotated[str, BeforeValidator(lambda v: validate_enum(v, (RichTextType,)))]
+        | RichTextType
+    ) = Field(frozen=True)
 
-    type_object: Union[Text, Equation, Mention] = Field(
+    type_object: Text | Equation | Mention = Field(
         description="An object containing type-specific configuration. Refer to the rich text type objects section below for details on type-specific values."
     )
 
-    annotations: Annotations = Field(
-        default_factory=Annotations,
-        description="The information is used to style the rich text object. Refer to the annotation object section below for details.",
-    )
+    annotations: Annotations = Field(default_factory=Annotations)
 
-    read_only_plain_text: Optional[str] = Field(
-        default=None,
-        description="The plain text without annotations.",
-        examples=["Some words "],
-        max_length=2000,
-    )
+    read_only_plain_text: str | None = Field(default=None, frozen=True)
 
-    read_only_href: Optional[NotionUrl] = Field(
-        default=None,
-        description="The URL of any link or Notion mentioned in this text, if any.",
-        examples=["https://www.notion.so/Avocado-d093f1d200464ce78b36e58a3f0d8043"],
-    )
+    read_only_href: NotionUrl | None = Field(default=None, frozen=True)
 
     @property
-    def plain_text(self) -> Optional[str]:
+    def plain_text(self) -> str | None:
         return self.read_only_plain_text
 
     @property
-    def href(self) -> Optional[NotionUrl]:
+    def href(self) -> NotionUrl | None:
         return self.read_only_href

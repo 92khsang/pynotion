@@ -63,3 +63,5 @@ pytest_cache/
 
 # Caches
 __pypackages__/
+
+local

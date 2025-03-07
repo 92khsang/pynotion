@@ -1,9 +1,10 @@
 from __future__ import annotations as _annotations
 
 import uuid
+from abc import ABC
 from datetime import datetime
 from enum import StrEnum
-from typing import TypeAlias, Annotated, Optional, Union, Any, Literal
+from typing import TypeAlias, Annotated, Any, Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import (
@@ -27,18 +28,16 @@ from ._internal import (
     validate_enum_value,
 )
 
-# Type aliases for the Notion API object identifiers
 ObjectId: TypeAlias = uuid.UUID
 
-
 AnnotatedObjectId: TypeAlias = Annotated[
-    Union[str, uuid.UUID, int, bytes], BeforeValidator(validate_uuid4)
+    str | uuid.UUID | int | bytes, BeforeValidator(validate_uuid4)
 ]
 
-# Type aliases with validation for common Notion data types
 NotionDatetime: TypeAlias = Annotated[
-    Union[datetime, str], BeforeValidator(validate_datetime)
+    datetime | str, BeforeValidator(validate_datetime)
 ]
+
 NotionEmail: TypeAlias = Annotated[str, Field(..., max_length=200), EmailStr]
 
 NotionUrl: TypeAlias = Annotated[
@@ -223,13 +222,13 @@ class NotionDate(BaseNotionModel):
     """
 
     start: NotionDatetime
-    end: Optional[NotionDatetime] = Field(default=None)
-    time_zone: Optional[str] = Field(default=None)
+    end: NotionDatetime | None = Field(default=None)
+    time_zone: str | None = Field(default=None)
 
     @classmethod
     def _validate_single_datetime(
-        cls, dt: Union[str, datetime], time_zone: Optional[str], dt_name: str
-    ) -> Union[str, datetime]:
+        cls, dt: str | datetime, time_zone: str | None, dt_name: str
+    ) -> str | datetime:
         """
         Validate and process a single datetime value according to Notion's datetime rules.
 
@@ -249,14 +248,13 @@ class NotionDate(BaseNotionModel):
             """Check if the ISO string has a UTC offset (Z, + or - notation)."""
             return "Z" in dt_str or "+" in dt_str
 
-            # Validate input type
-
+        # Validate input type
         if not isinstance(dt, (str, datetime)):
             raise ValueError(
                 f"`{dt_name}` should be a datetime or a string in ISO 8601 format: {dt}"
             )
 
-            # If timezone is provided, enforce timezone rules
+        # If timezone is provided, enforce timezone rules
         if time_zone:
             validate_timezone(time_zone)
 
@@ -272,10 +270,10 @@ class NotionDate(BaseNotionModel):
                 except ValueError:
                     raise ValueError(f"Invalid ISO 8601 format: {dt}")
 
-                    # Localize the datetime
+                # Localize the datetime
                 return dt_obj.replace(tzinfo=ZoneInfo(time_zone)).isoformat()
 
-                # For datetime inputs
+            # For datetime inputs
             if dt.tzinfo and dt.tzinfo != ZoneInfo(time_zone):
                 raise ValueError(f"`{dt_name}` should be in {time_zone} timezone: {dt}")
 
@@ -284,10 +282,10 @@ class NotionDate(BaseNotionModel):
     @classmethod
     def validate_datetime_with_timezone(
         cls,
-        start: Union[str, datetime],
-        end: Union[str, datetime, None],
-        time_zone: Optional[str],
-    ) -> tuple[Union[str, datetime], Union[str, datetime, None], Optional[str]]:
+        start: str | datetime,
+        end: str | datetime | None,
+        time_zone: str | None,
+    ) -> tuple[str | datetime, str | datetime | None, str | None]:
         """
         Ensures that `start` and `end` datetimes conform to Notion's timezone constraints.
 
@@ -373,12 +371,12 @@ class NotionParent(TypeObjectModel):
     }
 
     type: Annotated[
-        Union[str, ParentType],
+        str | ParentType,
         BeforeValidator(lambda v: validate_enum(v, (ParentType,))),
         Field(frozen=True),
     ]
 
-    type_object: Union[bool, AnnotatedObjectId]
+    type_object: bool | AnnotatedObjectId
 
 
 class NotionFile(TypeObjectModel):
@@ -403,12 +401,12 @@ class NotionFile(TypeObjectModel):
     }
 
     type: Annotated[
-        Union[str, FileType],
+        str | FileType,
         BeforeValidator(lambda v: validate_enum(v, (FileType,))),
         Field(frozen=True),
     ]
 
-    type_object: Union[NotionHostedFile, NotionLink]
+    type_object: NotionHostedFile | NotionLink
 
 
 class CustomEmoji(BaseNotionModel):
@@ -425,9 +423,11 @@ class CustomEmoji(BaseNotionModel):
         https://developers.notion.com/reference/emoji-object#custom-emoji
     """
 
-    id: ObjectId
-    name: str
-    url: NotionUrl
+    id: AnnotatedObjectId = Field(frozen=True)
+
+    name: str = Field(frozen=True)
+
+    url: NotionUrl = Field(frozen=True)
 
 
 class NotionEmoji(TypeObjectModel):
@@ -451,10 +451,12 @@ class NotionEmoji(TypeObjectModel):
     }
 
     type: Annotated[
-        Union[str, EmojiType], BeforeValidator(lambda v: validate_enum(v, (EmojiType,)))
+        str | EmojiType,
+        BeforeValidator(lambda v: validate_enum(v, (EmojiType,))),
+        Field(frozen=True),
     ]
 
-    type_object: Union[str, CustomEmoji]
+    type_object: str | CustomEmoji
 
 
 class IdLinkObject(BaseNotionModel):
@@ -467,7 +469,7 @@ class IdLinkObject(BaseNotionModel):
         id: The unique identifier of the referenced object.
     """
 
-    id: ObjectId
+    id: AnnotatedObjectId = Field(frozen=True)
 
 
 class PartialUser(BaseNotionModel):
@@ -485,9 +487,9 @@ class PartialUser(BaseNotionModel):
 
     _object: ObjectType = PrivateAttr(default=ObjectType.USER)
 
-    id: ObjectId
+    id: AnnotatedObjectId = Field(frozen=True)
 
-    def __init__(self, *, object: Optional[ObjectType] = None, **data: Any):  # noqa
+    def __init__(self, *, object: ObjectType | None = None, **data: Any):  # noqa
         """
         Initialize a PartialUser.
 
@@ -515,7 +517,7 @@ class PartialUser(BaseNotionModel):
         return self._object
 
 
-class NotionObject(BaseNotionModel):
+class NotionObject(BaseNotionModel, ABC):
     """
     Base class for primary Notion objects (pages, databases, blocks).
 
@@ -538,26 +540,24 @@ class NotionObject(BaseNotionModel):
 
     _object: Literal[ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK]
 
-    parent: Optional[NotionParent] = Field(default=None)
+    parent: NotionParent | None = Field(default=None)
 
-    read_only_id: Optional[ObjectId] = Field(default=None, frozen=True)
+    read_only_id: ObjectId | None = Field(default=None, frozen=True)
 
-    read_only_created_time: Optional[NotionDatetime] = Field(default=None, frozen=True)
+    read_only_created_time: NotionDatetime | None = Field(default=None, frozen=True)
 
-    read_only_last_edited_time: Optional[NotionDatetime] = Field(
-        default=None, frozen=True
-    )
+    read_only_last_edited_time: NotionDatetime | None = Field(default=None, frozen=True)
 
-    read_only_created_by: Optional[PartialUser] = Field(default=None, frozen=True)
+    read_only_created_by: PartialUser | None = Field(default=None, frozen=True)
 
-    read_only_last_edited_by: Optional[PartialUser] = Field(default=None, frozen=True)
+    read_only_last_edited_by: PartialUser | None = Field(default=None, frozen=True)
 
-    read_only_archived: Optional[bool] = Field(default=None, frozen=True)
+    read_only_archived: bool | None = Field(default=None, frozen=True)
 
-    read_only_in_trash: Optional[bool] = Field(default=None, frozen=True)
+    read_only_in_trash: bool | None = Field(default=None, frozen=True)
 
     @property
-    def id(self) -> Optional[ObjectId]:
+    def id(self) -> ObjectId | None:
         """
         The unique identifier for this object.
 
@@ -567,7 +567,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_id
 
     @property
-    def created_time(self) -> Optional[NotionDatetime]:
+    def created_time(self) -> NotionDatetime | None:
         """
         The time when this object was created.
 
@@ -577,7 +577,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_created_time
 
     @property
-    def last_edited_time(self) -> Optional[NotionDatetime]:
+    def last_edited_time(self) -> NotionDatetime | None:
         """
         The time when this object was last edited.
 
@@ -587,7 +587,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_last_edited_time
 
     @property
-    def created_by(self) -> Optional[PartialUser]:
+    def created_by(self) -> PartialUser | None:
         """
         The user who created this object.
 
@@ -597,7 +597,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_created_by
 
     @property
-    def last_edited_by(self) -> Optional[PartialUser]:
+    def last_edited_by(self) -> PartialUser | None:
         """
         The user who last edited this object.
 
@@ -607,7 +607,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_last_edited_by
 
     @property
-    def archived(self) -> Optional[bool]:
+    def archived(self) -> bool | None:
         """
         Whether this object is archived.
 
@@ -617,7 +617,7 @@ class NotionObject(BaseNotionModel):
         return self.read_only_archived
 
     @property
-    def in_trash(self) -> Optional[bool]:
+    def in_trash(self) -> bool | None:
         """
         Whether this object is in the trash bin.
 
@@ -636,7 +636,6 @@ class NotionObject(BaseNotionModel):
         super().__init__(**data)
         object.__setattr__(self, "_object", obj)
 
-    @computed_field
     @property
     def object(self) -> ObjectType:
         """

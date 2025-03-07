@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Union, Annotated, Any
+from typing import Annotated, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -54,7 +54,7 @@ class TypedModel(TypeObjectModel):
         BeforeValidator(lambda v: validate_enum(v, (NotionSampleType,))),
     ]
 
-    type_object: Union[DateData, TextData, None]
+    type_object: DateData | TextData | None
 
 
 @pytest.mark.parametrize(
@@ -131,7 +131,7 @@ def test_create_type_object_subclass():
             BeforeValidator(lambda v: validate_enum(v, (NotionSampleType,))),
         ]
 
-        type_object: Union[ExampleData, None]
+        type_object: ExampleData | None
 
     assert ExampleData is TempTypeModel.__type_object_map__[NotionSampleType.TEXT]
 
