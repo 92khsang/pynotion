@@ -1,15 +1,14 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Union, Optional, Annotated
+from typing import Union, Annotated
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_validator, PrivateAttr, BeforeValidator
 
 from ._internal import (
-    register_notion_type_enum,
-    register_type_data,
-    NotionTypedModel,
-    NotionBaseModel,
+    TypeObjectModel,
+    BaseNotionModel,
+    validate_enum,
 )
 from .rich_text import RichText
 from .types import (
@@ -25,11 +24,10 @@ from .types import (
     IdLinkObject,
     NotionDate,
     PartialUser,
-    ObjectId,
+    AnnotatedObjectId,
 )
 
 
-@register_notion_type_enum
 class BlockType(StrEnum):
     """Enumeration of block types supported by the Notion API.
 
@@ -266,8 +264,7 @@ class ProgrammingLanguage(StrEnum):
     JAVA_C_CPP_CSHARP = "java/c/c++/c#"
 
 
-@register_type_data(BlockType.BOOKMARK)
-class BookmarkBlock(NotionBaseModel):
+class BookmarkBlock(BaseNotionModel):
     """Represents a bookmark block.
 
     Attributes:
@@ -275,16 +272,12 @@ class BookmarkBlock(NotionBaseModel):
         caption: The caption of the bookmark.
     """
 
-    url: NotionUrl = Field(..., description="The URL of the bookmark.")
-    caption: list[RichText] = Field(..., description="The caption of the bookmark.")
+    url: NotionUrl
+
+    caption: list[RichText] = Field(default_factory=list)
 
 
-@register_type_data(BlockType.BULLETED_LIST_ITEM)
-@register_type_data(BlockType.NUMBERED_LIST_ITEM)
-@register_type_data(BlockType.PARAGRAPH)
-@register_type_data(BlockType.QUOTE)
-@register_type_data(BlockType.TOGGLE)
-class TextBaseBlock(NotionBaseModel):
+class TextBaseBlock(BaseNotionModel):
     """Represents a text-based block.
 
     Attributes:
@@ -293,21 +286,14 @@ class TextBaseBlock(NotionBaseModel):
         children: The children of the text block.
     """
 
-    rich_text: list[RichText] = Field(
-        default_factory=list, description="The content of the list item."
-    )
+    rich_text: list[RichText] = Field(default_factory=list)
 
-    color: Color | BackgroundColor = Field(
-        default=Color.DEFAULT, description="The color of the list item."
-    )
+    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
-    children: list[Block] = Field(
-        default_factory=list, description="The children of the list item."
-    )
+    children: list[Block] = Field(default_factory=list)
 
 
-@register_type_data(BlockType.CALLOUT)
-class CalloutBlock(NotionBaseModel):
+class CalloutBlock(BaseNotionModel):
     """Represents a callout block.
 
     Attributes:
@@ -316,33 +302,24 @@ class CalloutBlock(NotionBaseModel):
         color: The color of the callout.
     """
 
-    rich_text: list[RichText] = Field(
-        default_factory=list, description="The content of the callout."
-    )
+    rich_text: list[RichText] = Field(default_factory=list)
 
-    icon: Union[NotionFile, NotionEmoji] = Field(
-        ..., description="The icon of the callout."
-    )
+    icon: NotionFile | NotionEmoji
 
-    color: Color | BackgroundColor = Field(
-        default=Color.DEFAULT, description="The color of the callout."
-    )
+    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
 
-@register_type_data(BlockType.CHILD_DATABASE)
-@register_type_data(BlockType.CHILD_PAGE)
-class ChildObjectBlock(NotionBaseModel):
+class ChildObjectBlock(BaseNotionModel):
     """Represents a child page or database block.
 
     Attributes:
         title: The title of the child page or database.
     """
 
-    title: str = Field(..., description="The title of the child page or database.")
+    title: str
 
 
-@register_type_data(BlockType.CODE)
-class CodeBlock(NotionBaseModel):
+class CodeBlock(BaseNotionModel):
     """Represents a code block.
 
     Attributes:
@@ -351,31 +328,23 @@ class CodeBlock(NotionBaseModel):
         language: The language of the code block.
     """
 
-    caption: list[RichText] = Field(
-        default_factory=list, description="The caption of the code block."
-    )
+    caption: list[RichText] = Field(default_factory=list)
 
-    rich_text: list[RichText] = Field(
-        default_factory=list, description="The text of the code block."
-    )
+    rich_text: list[RichText] = Field(default_factory=list)
 
-    language: ProgrammingLanguage = Field(
-        ..., description="The language of the code block."
-    )
+    language: ProgrammingLanguage
 
 
-@register_type_data(BlockType.EMBED)
-class EmbedBlock(NotionBaseModel):
+class EmbedBlock(BaseNotionModel):
     """Represents an embed block.
 
     Attributes:
         url: The URL of the embed.
     """
 
-    url: NotionUrl = Field(..., description="The URL of the embed.")
+    url: NotionUrl
 
 
-@register_type_data(BlockType.FILE)
 class FileBlock(NotionFile):
     """Represents a file block.
 
@@ -384,20 +353,12 @@ class FileBlock(NotionFile):
         name: The name of the file block.
     """
 
-    caption: list[RichText] = Field(
-        default_factory=list, description="The caption of the file block."
-    )
+    caption: list[RichText] = Field(default_factory=list)
 
-    name: str = Field(
-        ...,
-        description="The name of the file block, as shown in the Notion UI. Note that the UI may auto-append .pdf or other extensions.",
-    )
+    name: str
 
 
-@register_type_data(BlockType.HEADING_1)
-@register_type_data(BlockType.HEADING_2)
-@register_type_data(BlockType.HEADING_3)
-class HeadingBlock(NotionBaseModel):
+class HeadingBlock(BaseNotionModel):
     """Represents a heading block.
 
     Attributes:
@@ -406,20 +367,13 @@ class HeadingBlock(NotionBaseModel):
         is_toggleable: Whether the heading block is toggleable.
     """
 
-    rich_text: list[RichText] = Field(
-        default_factory=list, description="The text of the heading block."
-    )
+    rich_text: list[RichText] = Field(default_factory=list)
 
-    color: Color | BackgroundColor = Field(
-        default=Color.DEFAULT, description="The color of the heading block."
-    )
+    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
-    is_toggleable: bool = Field(
-        ..., description="Whether the heading block is toggleable."
-    )
+    is_toggleable: bool = Field(default=False)
 
 
-@register_type_data(BlockType.PDF)
 class PdfBlock(NotionFile):
     """Represents a PDF block.
 
@@ -427,25 +381,20 @@ class PdfBlock(NotionFile):
         caption: The caption of the PDF block.
     """
 
-    caption: list[RichText] = Field(
-        default_factory=list, description="The caption of the PDF block."
-    )
+    caption: list[RichText] = Field(default_factory=list)
 
 
-class SyncedFrom(NotionBaseModel):
+class SyncedFrom(BaseNotionModel):
     """Represents the type of the synced from the object.
 
     Attributes:
         block_id: The synced block.
     """
 
-    block_id: ObjectId = Field(
-        ..., description="An identifier for the original synced_block."
-    )
+    block_id: AnnotatedObjectId
 
 
-@register_type_data(BlockType.SYNCED_BLOCK)
-class SyncedBlock(NotionBaseModel):
+class SyncedBlock(BaseNotionModel):
     """Represents a synced block.
 
     Attributes:
@@ -453,14 +402,9 @@ class SyncedBlock(NotionBaseModel):
         children: The nested child blocks, if any, of the synced_block.
     """
 
-    synced_from: Optional[SyncedFrom] = Field(
-        default=None, description="The type of the synced from the object."
-    )
+    synced_from: SyncedFrom | None = Field(default=None)
 
-    children: Optional[list[Block]] = Field(
-        default=None,
-        description="The nested child blocks, if any, of the synced_block.",
-    )
+    children: list[Block] | None = Field(default=None)
 
     @model_validator(mode="after")
     @classmethod
@@ -475,8 +419,7 @@ class SyncedBlock(NotionBaseModel):
         return values
 
 
-@register_type_data(BlockType.TABLE)
-class TableBlock(NotionBaseModel):
+class TableBlock(BaseNotionModel):
     """Represents a table block.
 
     Attributes:
@@ -485,33 +428,24 @@ class TableBlock(NotionBaseModel):
         has_row_header: Whether the table has a header row.
     """
 
-    table_width: Annotated[
-        int, Field(ge=1, description="The number of columns in the table.")
-    ]
+    table_width: Annotated[int, Field(ge=1)]
 
-    has_column_header: bool = Field(
-        ..., description="Whether the table has a column header."
-    )
+    has_column_header: bool
 
-    has_row_header: bool = Field(..., description="Whether the table has a header row.")
+    has_row_header: bool
 
 
-@register_type_data(BlockType.TABLE_ROW)
-class TableRowBlock(NotionBaseModel):
+class TableRowBlock(BaseNotionModel):
     """Represents a table row block.
 
     Attributes:
         cells: An array of cell contents in horizontal display order. Each cell is an array of rich text objects.
     """
 
-    cells: list[RichText] = Field(
-        default_factory=list,
-        description="An array of cell contents in horizontal display order. Each cell is an array of rich text objects.",
-    )
+    cells: list[RichText] = Field(default_factory=list)
 
 
-@register_type_data(BlockType.TABLE_OF_CONTENTS)
-class TableContentBlock(NotionBaseModel):
+class TableContentBlock(BaseNotionModel):
     """Represents a table of contents blocks.
 
 
@@ -519,12 +453,9 @@ class TableContentBlock(NotionBaseModel):
         color: The color of the table of contents blocks.
     """
 
-    color: Color | BackgroundColor = Field(
-        default=Color.DEFAULT, description="The color of the table of contents blocks."
-    )
+    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
 
-@register_type_data(BlockType.TO_DO)
 class ToDoBlock(TextBaseBlock):
     """Represents a to-do block.
 
@@ -532,23 +463,8 @@ class ToDoBlock(TextBaseBlock):
         checked: Whether the 'To do' is checked.
     """
 
-    checked: Optional[bool] = Field(
-        default=None, description="Whether the 'To do' is checked."
-    )
+    checked: bool | None = Field(default=None)
 
-
-register_type_data(BlockType.BREADCRUMB, dict)
-register_type_data(BlockType.COLUMN_LIST, dict)
-register_type_data(BlockType.COLUMN, dict)
-register_type_data(BlockType.DIVIDER, dict)
-register_type_data(BlockType.EQUATION, NotionEquation)
-register_type_data(BlockType.IMAGE, NotionFile)
-register_type_data(BlockType.LINK_PREVIEW, NotionLink)
-register_type_data(BlockType.DATABASE, IdLinkObject)
-register_type_data(BlockType.DATE, NotionDate)
-register_type_data(BlockType.PAGE, IdLinkObject)
-register_type_data(BlockType.USER, PartialUser)
-register_type_data(BlockType.VIDEO, NotionFile)
 
 BlockTypeData = Union[
     BookmarkBlock,
@@ -575,26 +491,61 @@ BlockTypeData = Union[
 ]
 
 
-class Block(NotionObject, NotionTypedModel):
+class Block(NotionObject, TypeObjectModel):
     """Represents a Notion block.
 
     Attributes:
         object: Always 'block', ensuring consistency.
         has_children: Whether the block has children.
         type: The type of the block.
-        type_data: An object containing type-specific block information.
+        type_object: An object containing type-specific block information.
     """
 
-    object: ObjectType = Field(
-        default=ObjectType.BLOCK,
-        frozen=True,
-        description="Always 'block', ensuring consistency",
-    )
+    __type_object_map__ = {
+        BlockType.BOOKMARK: BookmarkBlock,
+        BlockType.BREADCRUMB: dict,
+        BlockType.BULLETED_LIST_ITEM: TextBaseBlock,
+        BlockType.CALLOUT: CalloutBlock,
+        BlockType.CHILD_DATABASE: ChildObjectBlock,
+        BlockType.CHILD_PAGE: ChildObjectBlock,
+        BlockType.CODE: CodeBlock,
+        BlockType.COLUMN: dict,
+        BlockType.COLUMN_LIST: dict,
+        BlockType.DATABASE: IdLinkObject,
+        BlockType.DATE: NotionDate,
+        BlockType.DIVIDER: dict,
+        BlockType.EMBED: EmbedBlock,
+        BlockType.EQUATION: NotionEquation,
+        BlockType.FILE: FileBlock,
+        BlockType.HEADING_1: HeadingBlock,
+        BlockType.HEADING_2: HeadingBlock,
+        BlockType.HEADING_3: HeadingBlock,
+        BlockType.IMAGE: NotionFile,
+        BlockType.LINK_PREVIEW: NotionLink,
+        BlockType.NUMBERED_LIST_ITEM: TextBaseBlock,
+        BlockType.PAGE: IdLinkObject,
+        BlockType.PARAGRAPH: TextBaseBlock,
+        BlockType.PDF: PdfBlock,
+        BlockType.QUOTE: TextBaseBlock,
+        BlockType.SYNCED_BLOCK: SyncedBlock,
+        BlockType.TABLE: TableBlock,
+        BlockType.TABLE_ROW: TableRowBlock,
+        BlockType.TABLE_OF_CONTENTS: TableContentBlock,
+        BlockType.TOGGLE: TextBaseBlock,
+        BlockType.TO_DO: ToDoBlock,
+        BlockType.USER: PartialUser,
+        BlockType.VIDEO: NotionFile,
+    }
 
-    has_children: bool = Field(..., description="Whether the block has children.")
+    __serializable_private_attrs__ = {"_object": "object"}
 
-    type: BlockType = Field(..., description="The type of the block.")
+    _object: ObjectType = PrivateAttr(default=ObjectType.BLOCK)
 
-    type_data: BlockTypeData = Field(
-        ..., description="An object containing type-specific block information."
-    )
+    type: (
+        Annotated[str, BeforeValidator(lambda v: validate_enum(v, (BlockType,)))]
+        | BlockType
+    ) = Field(frozen=True)
+
+    type_object: BlockTypeData
+
+    read_only_has_children: bool = Field(frozen=True)

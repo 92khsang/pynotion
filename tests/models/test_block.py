@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 from pynotion.models.block import (
     BlockType,
@@ -25,7 +25,7 @@ from pynotion.models.block import (
     SyncedFrom,
     SyncedBlock,
 )
-from pynotion.models.rich_text import Text, RichTextType
+from pynotion.models.rich_text import Text, RichTextType, Annotations
 from pynotion.models.types import EmojiType, NotionLink, BackgroundColor
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -45,7 +45,7 @@ def test_block_type_enum(block_type):
                 "caption": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="Bookmark Caption"),
+                        type_object=Text(content="Bookmark Caption"),
                     )
                 ],
             },
@@ -56,7 +56,7 @@ def test_block_type_enum(block_type):
                 "rich_text": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="TextBase Text"),
+                        type_object=Text(content="TextBase Text"),
                     )
                 ],
                 "color": Color.BLUE,
@@ -69,10 +69,10 @@ def test_block_type_enum(block_type):
                 "rich_text": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="Callout Text"),
+                        type_object=Text(content="Callout Text"),
                     )
                 ],
-                "icon": NotionEmoji(type=EmojiType.EMOJI, type_data="🔥"),
+                "icon": NotionEmoji(type=EmojiType.EMOJI, type_object="🔥"),
                 "color": Color.PINK,
             },
         ),
@@ -83,13 +83,13 @@ def test_block_type_enum(block_type):
                 "caption": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="Code Caption"),
+                        type_object=Text(content="Code Caption"),
                     )
                 ],
                 "rich_text": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="print('Hello')"),
+                        type_object=Text(content="print('Hello')"),
                     )
                 ],
                 "language": ProgrammingLanguage.PYTHON,
@@ -111,7 +111,7 @@ def test_block_type_enum(block_type):
                 "rich_text": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="Heading Text"),
+                        type_object=Text(content="Heading Text"),
                     )
                 ],
                 "color": Color.DEFAULT,
@@ -124,11 +124,13 @@ def test_block_type_enum(block_type):
                 "caption": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="PDF Caption"),
+                        type_object=Text(content="PDF Caption"),
                     )
                 ],
                 "type": "external",
-                "type_data": NotionLink(url="https://companywebsite.com/files/doc.pdf"),
+                "type_object": NotionLink(
+                    url="https://companywebsite.com/files/doc.pdf"
+                ),
             },
         ),
         (
@@ -141,7 +143,7 @@ def test_block_type_enum(block_type):
                 "cells": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="Cell Text"),
+                        type_object=Text(content="Cell Text"),
                     )
                 ],
             },
@@ -153,7 +155,7 @@ def test_block_type_enum(block_type):
                 "rich_text": [
                     RichText(
                         type=RichTextType.TEXT,
-                        type_data=Text(content="To Do Text"),
+                        type_object=Text(content="To Do Text"),
                     )
                 ],
                 "checked": True,
@@ -222,8 +224,8 @@ def test_synced_block_validation(synced_from, children, should_raise):
         ),  # is_toggleable required
         (
             PdfBlock,
-            {"caption": [], "type": "external", "type_data": None},
-        ),  # type_data is required
+            {"caption": [], "type": "external", "type_object": None},
+        ),  # type_object is required
         (
             TableBlock,
             {"table_width": 0, "has_column_header": True, "has_row_header": False},
@@ -247,132 +249,179 @@ def test_invalid_block_model_creation(invalid_data):
     [
         (
             BookmarkBlock,
-            [
-                (
-                    BookmarkBlock(
-                        url="https://example.com",
-                        caption=[
-                            RichText(
-                                type=RichTextType.TEXT,
-                                type_data=Text(content="Bookmark Caption"),
-                            )
-                        ],
-                    ),
-                    {
-                        "url": "https://example.com",
-                        "caption": [
-                            {
-                                "type": "text",
-                                "text": {"content": "Bookmark Caption"},
-                            }
-                        ],
-                    },
-                ),
-            ],
+            (
+                {
+                    "url": "https://example.com",
+                    "caption": [
+                        RichText(
+                            type=RichTextType.TEXT,
+                            type_object=Text(content="Bookmark Caption"),
+                        )
+                    ],
+                },
+                {
+                    "url": "https://example.com",
+                    "caption": [
+                        {
+                            "type": RichTextType.TEXT,
+                            "text": {"content": "Bookmark Caption"},
+                            "annotations": Annotations().model_dump(),
+                        }
+                    ],
+                },
+                {
+                    "url": "https://example.com",
+                    "caption": [
+                        {
+                            "type": RichTextType.TEXT.value,
+                            "text": {"content": "Bookmark Caption"},
+                        }
+                    ],
+                },
+            ),
         ),
         (
             CalloutBlock,
-            [
-                (
-                    CalloutBlock(
-                        rich_text=[
-                            RichText(
-                                type=RichTextType.TEXT,
-                                type_data=Text(content="Callout Text"),
-                            )
-                        ],
-                        icon=NotionEmoji(type=EmojiType.EMOJI, type_data="🔥"),
-                        color=Color.PINK,
-                    ),
-                    {
-                        "rich_text": [
-                            {
-                                "type": "text",
-                                "text": {"content": "Callout Text"},
-                            }
-                        ],
-                        "icon": {"type": "emoji", "emoji": "🔥"},
-                        "color": "pink",
-                    },
-                ),
-            ],
+            (
+                {
+                    "rich_text": [
+                        RichText(
+                            type=RichTextType.TEXT,
+                            type_object=Text(content="Callout Text"),
+                        )
+                    ],
+                    "icon": NotionEmoji(type=EmojiType.EMOJI, type_object="🔥"),
+                    "color": Color.PINK,
+                },
+                {
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT,
+                            "text": {"content": "Callout Text"},
+                            "annotations": Annotations().model_dump(),
+                        }
+                    ],
+                    "icon": {"type": EmojiType.EMOJI, "emoji": "🔥"},
+                    "color": Color.PINK,
+                },
+                {
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT.value,
+                            "text": {"content": "Callout Text"},
+                        }
+                    ],
+                    "icon": {"type": EmojiType.EMOJI.value, "emoji": "🔥"},
+                    "color": Color.PINK.value,
+                },
+            ),
         ),
         (
             CodeBlock,
-            [
-                (
-                    CodeBlock(
-                        caption=[
-                            RichText(
-                                type=RichTextType.TEXT,
-                                type_data=Text(content="Code Caption"),
-                            )
-                        ],
-                        rich_text=[
-                            RichText(
-                                type=RichTextType.TEXT,
-                                type_data=Text(content="print('Hello')"),
-                            )
-                        ],
-                        language=ProgrammingLanguage.PYTHON,
-                    ),
-                    {
-                        "caption": [
-                            {
-                                "type": "text",
-                                "text": {"content": "Code Caption"},
-                            }
-                        ],
-                        "rich_text": [
-                            {
-                                "type": "text",
-                                "text": {"content": "print('Hello')"},
-                            }
-                        ],
-                        "language": "python",
-                    },
-                ),
-            ],
+            (
+                {
+                    "caption": [
+                        RichText(
+                            type=RichTextType.TEXT,
+                            type_object=Text(content="Code Caption"),
+                        )
+                    ],
+                    "rich_text": [
+                        RichText(
+                            type=RichTextType.TEXT,
+                            type_object=Text(content="print('Hello')"),
+                        )
+                    ],
+                    "language": ProgrammingLanguage.PYTHON,
+                },
+                {
+                    "caption": [
+                        {
+                            "type": RichTextType.TEXT,
+                            "text": {"content": "Code Caption"},
+                            "annotations": Annotations().model_dump(),
+                        }
+                    ],
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT,
+                            "text": {"content": "print('Hello')"},
+                            "annotations": Annotations().model_dump(),
+                        }
+                    ],
+                    "language": ProgrammingLanguage.PYTHON,
+                },
+                {
+                    "caption": [
+                        {
+                            "type": RichTextType.TEXT.value,
+                            "text": {"content": "Code Caption"},
+                        }
+                    ],
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT.value,
+                            "text": {"content": "print('Hello')"},
+                        }
+                    ],
+                    "language": ProgrammingLanguage.PYTHON.value,
+                },
+            ),
         ),
         (
             TableBlock,
-            [
-                (
-                    TableBlock(
-                        table_width=3, has_column_header=True, has_row_header=False
-                    ),
-                    {
-                        "table_width": 3,
-                        "has_column_header": True,
-                        "has_row_header": False,
-                    },
-                ),
-            ],
+            (
+                {
+                    "table_width": 3,
+                    "has_column_header": True,
+                    "has_row_header": False,
+                },
+                {
+                    "table_width": 3,
+                    "has_column_header": True,
+                    "has_row_header": False,
+                },
+                {
+                    "table_width": 3,
+                    "has_column_header": True,
+                    "has_row_header": False,
+                },
+            ),
         ),
         (
             ToDoBlock,
-            [
-                (
-                    ToDoBlock(
-                        rich_text=[
-                            RichText(
-                                type=RichTextType.TEXT,
-                                type_data=Text(content="ToDo Text"),
-                            )
-                        ],
-                        checked=True,
-                    ),
-                    {
-                        "rich_text": [
-                            {
-                                "type": "text",
-                                "text": {"content": "ToDo Text"},
-                            }
-                        ],
-                        "checked": True,
-                    },
-                ),
-            ],
+            (
+                {
+                    "rich_text": [
+                        RichText(
+                            type=RichTextType.TEXT,
+                            type_object=Text(content="ToDo Text"),
+                        )
+                    ],
+                    "checked": True,
+                },
+                {
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT,
+                            "text": {"content": "ToDo Text"},
+                            "annotations": Annotations().model_dump(),
+                        }
+                    ],
+                    "color": Color.DEFAULT,
+                    "children": [],
+                    "checked": True,
+                },
+                {
+                    "rich_text": [
+                        {
+                            "type": RichTextType.TEXT.value,
+                            "text": {"content": "ToDo Text"},
+                        }
+                    ],
+                    "checked": True,
+                },
+            ),
         ),
     ],
     ids=[
@@ -383,5 +432,5 @@ def test_invalid_block_model_creation(invalid_data):
         "ToDoBlockSerialization",
     ],
 )
-def test_models_serialization(clz: type, test_data: list[tuple]):
+def test_models_serialization(clz: type[BaseModel], test_data: tuple[dict, dict, dict]):
     PydanticModelTester(clz, test_data).run_all_tests()
