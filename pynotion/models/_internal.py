@@ -23,7 +23,7 @@ from pydantic import (
     PrivateAttr,
     Field,
 )
-from pydantic_core import ArgsKwargs
+from pydantic_core import ArgsKwargs, PydanticUndefined
 
 # Type aliases
 NotionType: TypeAlias = StrEnum
@@ -173,15 +173,6 @@ def validate_enum_value(
         raise ValueError(f"Invalid value '{actual_val}'. Expected '{expected_values}'")
 
     return actual_val
-
-
-def validate_allowed_value(value: Any, allowed_values: set[Any]) -> Any:
-    """
-    Checks if 'value' is within the set of 'allowed_values'; raises ValueError otherwise.
-    """
-    if value not in allowed_values:
-        raise ValueError(f"Invalid value '{value}'. Expected one of: {allowed_values}")
-    return value
 
 
 def validate_timezone(value: str) -> str:
@@ -360,7 +351,7 @@ class TypeObjectModel(BaseNotionModel, ABC):
         )
 
     @model_validator(mode="after")
-    def _validate_model(self) -> "TypeObjectModel":
+    def _validate_model(self) -> TypeObjectModel:
         """Validates type and type_object consistency after initialization."""
         _type = getattr(self, self._get_type_field(), None)
         _type_object = getattr(self, self._get_type_object_field(), None)
@@ -465,10 +456,7 @@ class FixedTypeObjectModel(TypeObjectModel, ABC):
     @classmethod
     def _validate_type_exists(cls) -> None:
         private_attr = cls.__private_attributes__.get("_type")
-        if not private_attr:
-            raise ValueError("_type must be defined by PrivateAttr")
-
-        if not private_attr.default:
+        if private_attr.default is PydanticUndefined:
             raise ValueError("_type must have a default value")
 
     @classmethod

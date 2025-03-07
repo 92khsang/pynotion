@@ -510,3 +510,31 @@ def test_fixed_type_object_model():
 
     with pytest.raises(AttributeError, match="object has no attribute 'invalid'"):
         instance.invalid
+
+    with pytest.raises(ValueError, match="_type must have a default value"):
+
+        class NoPrivateAttr(FixedTypeObjectModel):
+            __type_object_map__ = {MyEnum.BAR: dict}
+
+            pass
+
+
+def test_invalid_class_creation():
+    class_types = [
+        BaseNotionModel,
+        TypeObjectModel,
+        ReadOnlyTypeObjectModel,
+        FixedTypeObjectModel,
+    ]
+
+    for cls in class_types:
+        with pytest.raises(TypeError, match="cannot be instantiated directly"):
+            cls()
+
+    class_types = [ReadOnlyTypeObjectModel, FixedTypeObjectModel]
+
+    for cls in class_types:
+        with pytest.raises(ValueError, match="is not registered with any Notion types"):
+
+            class TempClass(cls):  # noqa
+                pass
