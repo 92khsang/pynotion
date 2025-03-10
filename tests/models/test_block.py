@@ -1,3 +1,4 @@
+import uuid
 from uuid import uuid4
 
 import pytest
@@ -6,11 +7,8 @@ from pydantic import ValidationError, BaseModel
 from pynotion.models.block import (
     BlockType,
     BookmarkBlock,
-    TextBaseBlock,
     CalloutBlock,
-    ChildObjectBlock,
     RichText,
-    Color,
     NotionEmoji,
     CodeBlock,
     ProgrammingLanguage,
@@ -24,13 +22,20 @@ from pynotion.models.block import (
     ToDoBlock,
     SyncedFrom,
     SyncedBlock,
+    ParagraphBlock,
+    ChildDatabaseBlock,
+    QuoteBlock,
+    DividerBlock,
+    Block,
 )
 from pynotion.models.rich_text import Text, RichTextType, Annotations
 from pynotion.models.types import (
+    Color,
     EmojiType,
     NotionLink,
     BackgroundColor,
     NotionExternalFile,
+    ObjectType,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -56,7 +61,7 @@ def test_block_type_enum(block_type):
             },
         ),
         (
-            TextBaseBlock,
+            ParagraphBlock,
             {
                 "rich_text": [
                     RichText(
@@ -81,7 +86,7 @@ def test_block_type_enum(block_type):
                 "color": Color.PINK,
             },
         ),
-        (ChildObjectBlock, {"title": "Database Title"}),
+        (ChildDatabaseBlock, {"title": "Database Title"}),
         (
             CodeBlock,
             {
@@ -204,7 +209,7 @@ def test_synced_block_validation(synced_from, children, should_raise):
             {"url": "https://example.com", "caption": "Invalid Type"},
         ),  # Caption should be a list
         (
-            TextBaseBlock,
+            QuoteBlock,
             {"rich_text": None, "color": Color.BLUE, "children": []},
         ),  # rich_text should be a list
         (
@@ -430,6 +435,143 @@ def test_invalid_block_model_creation(invalid_data):
                 },
             ),
         ),
+        (
+            SyncedBlock,
+            (
+                {
+                    "synced_from": SyncedFrom(
+                        block_id="12345678-1234-1234-1234-123456789012"
+                    ),
+                },
+                {
+                    "synced_from": {
+                        "block_id": uuid.UUID("12345678-1234-1234-1234-123456789012")
+                    },
+                },
+                {
+                    "synced_from": {"block_id": "12345678-1234-1234-1234-123456789012"},
+                },
+            ),
+        ),
+        (
+            DividerBlock,
+            (
+                {},
+                {},
+                {},
+            ),
+        ),
+        (
+            Block,
+            (
+                {
+                    "type": BlockType.PARAGRAPH,
+                    "type_object": ParagraphBlock(rich_text=[]),
+                    "has_children": False,
+                },
+                {
+                    "object": ObjectType.BLOCK,
+                    "type": BlockType.PARAGRAPH,
+                    "paragraph": {
+                        "rich_text": [],
+                        "color": Color.DEFAULT,
+                        "children": [],
+                    },
+                    "has_children": False,
+                },
+                {
+                    "object": ObjectType.BLOCK.value,
+                    "type": BlockType.PARAGRAPH.value,
+                    "paragraph": {},
+                    "has_children": False,
+                },
+            ),
+        ),
+        (
+            Block,
+            (
+                {
+                    "type": BlockType.CODE,
+                    "type_object": CodeBlock(
+                        caption=[
+                            RichText(
+                                type=RichTextType.TEXT,
+                                type_object=Text(content="Code Caption"),
+                            )
+                        ],
+                        rich_text=[
+                            RichText(
+                                type=RichTextType.TEXT,
+                                type_object=Text(content="print('Hello')"),
+                            )
+                        ],
+                        language=ProgrammingLanguage.PYTHON,
+                    ),
+                    "has_children": False,
+                },
+                {
+                    "object": ObjectType.BLOCK,
+                    "type": BlockType.CODE,
+                    "code": {
+                        "caption": [
+                            {
+                                "type": RichTextType.TEXT,
+                                "text": {"content": "Code Caption"},
+                                "annotations": Annotations().model_dump(),
+                            }
+                        ],
+                        "rich_text": [
+                            {
+                                "type": RichTextType.TEXT,
+                                "text": {"content": "print('Hello')"},
+                                "annotations": Annotations().model_dump(),
+                            }
+                        ],
+                        "language": ProgrammingLanguage.PYTHON,
+                    },
+                    "has_children": False,
+                },
+                {
+                    "object": ObjectType.BLOCK.value,
+                    "type": BlockType.CODE.value,
+                    "code": {
+                        "caption": [
+                            {
+                                "type": RichTextType.TEXT.value,
+                                "text": {"content": "Code Caption"},
+                            }
+                        ],
+                        "rich_text": [
+                            {
+                                "type": RichTextType.TEXT.value,
+                                "text": {"content": "print('Hello')"},
+                            }
+                        ],
+                        "language": ProgrammingLanguage.PYTHON.value,
+                    },
+                    "has_children": False,
+                },
+            ),
+        ),
+        (
+            Block,
+            (
+                {
+                    "type": BlockType.DIVIDER,
+                    "type_object": {},
+                },
+                {
+                    "object": ObjectType.BLOCK,
+                    "type": BlockType.DIVIDER,
+                    "divider": {},
+                },
+                {
+                    "object": ObjectType.BLOCK.value,
+                    "type": BlockType.DIVIDER.value,
+                    "divider": {},
+                },
+            ),
+        ),
     ],
     ids=[
         "BookmarkBlockSerialization",
@@ -437,6 +579,11 @@ def test_invalid_block_model_creation(invalid_data):
         "CodeBlockSerialization",
         "TableBlockSerialization",
         "ToDoBlockSerialization",
+        "SyncedBlockSerialization",
+        "DividerBlockSerialization",
+        "ParagraphBlockSerialization",
+        "CodeBlockSerialization",
+        "DividerBlockSerialization",
     ],
 )
 def test_models_serialization(clz: type[BaseModel], test_data: tuple[dict, dict, dict]):

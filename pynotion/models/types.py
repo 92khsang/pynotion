@@ -15,7 +15,7 @@ from pydantic import (
     PrivateAttr,
     computed_field,
 )
-from pydantic_core import ArgsKwargs
+from pydantic_core import ArgsKwargs, PydanticUndefined
 
 from ._internal import (
     validate_timezone,
@@ -558,6 +558,28 @@ class NotionObject(BaseNotionModel, ABC):
 
     read_only_in_trash: bool | None = Field(default=None, frozen=True)
 
+    @classmethod
+    def _validate_object_exists(cls) -> None:
+        private_attr = cls.__private_attributes__.get("_object")
+        if private_attr.default is PydanticUndefined:
+            raise ValueError("_object must have a default value")
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
+        cls._validate_object_exists()
+
+    def __init__(self, /, **data: Any):
+        obj = data.pop("object", None) or self.__private_attributes__["_object"].default
+
+        if obj:
+            obj = validate_enum_value(
+                obj, {ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK}
+            )
+
+        super().__init__(**data)
+        object.__setattr__(self, "_object", obj)
+
     @property
     def id(self) -> NotionObjectId | None:
         """
@@ -627,16 +649,6 @@ class NotionObject(BaseNotionModel, ABC):
             bool: True if in trash, False otherwise.
         """
         return self.read_only_in_trash
-
-    def __init__(self, /, **data: Any):
-        obj = data.pop("object", None)
-        if obj:
-            obj = validate_enum_value(
-                obj, {ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK}
-            )
-
-        super().__init__(**data)
-        object.__setattr__(self, "_object", obj)
 
     @property
     def object(self) -> ObjectType:

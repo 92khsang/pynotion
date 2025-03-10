@@ -1,9 +1,9 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Union, Annotated
+from typing import Union, Annotated, TypeAlias
 
-from pydantic import Field, model_validator, PrivateAttr, BeforeValidator
+from pydantic import Field, model_validator, BeforeValidator
 
 from ._internal import (
     TypeObjectModel,
@@ -264,20 +264,12 @@ class ProgrammingLanguage(StrEnum):
     JAVA_C_CPP_CSHARP = "java/c/c++/c#"
 
 
-class BookmarkBlock(BaseNotionModel):
-    """Represents a bookmark block.
-
-    Attributes:
-        url: The URL of the bookmark.
-        caption: The caption of the bookmark.
-    """
-
-    url: NotionUrl
-
-    caption: list[RichText] = Field(default_factory=list)
+# --------------------------- Reusable Blocks -------------------------------------
+class _EmptyBlock(BaseNotionModel):
+    pass
 
 
-class TextBaseBlock(BaseNotionModel):
+class _TextBaseBlock(BaseNotionModel):
     """Represents a text-based block.
 
     Attributes:
@@ -291,6 +283,46 @@ class TextBaseBlock(BaseNotionModel):
     color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
     children: list[Block] = Field(default_factory=list)
+
+
+class _ChildObjectBlock(BaseNotionModel):
+    """Represents a child page or database block.
+
+    Attributes:
+        title: The title of the child page or database.
+    """
+
+    title: str
+
+
+# --------------------------- Specific Blocks -------------------------------------
+class BookmarkBlock(BaseNotionModel):
+    """Represents a bookmark block.
+
+    Attributes:
+        url: The URL of the bookmark.
+        caption: The caption of the bookmark.
+    """
+
+    url: NotionUrl
+
+    caption: list[RichText] = Field(default_factory=list)
+
+
+class HeadingBlock(BaseNotionModel):
+    """Represents a heading block.
+
+    Attributes:
+        rich_text: The text of the heading block.
+        color: The color of the heading block.
+        is_toggleable: Whether the heading block is toggleable.
+    """
+
+    rich_text: list[RichText] = Field(default_factory=list)
+
+    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
+
+    is_toggleable: bool = Field(default=False)
 
 
 class CalloutBlock(BaseNotionModel):
@@ -307,16 +339,6 @@ class CalloutBlock(BaseNotionModel):
     icon: NotionFile | NotionEmoji
 
     color: Color | BackgroundColor = Field(default=Color.DEFAULT)
-
-
-class ChildObjectBlock(BaseNotionModel):
-    """Represents a child page or database block.
-
-    Attributes:
-        title: The title of the child page or database.
-    """
-
-    title: str
 
 
 class CodeBlock(BaseNotionModel):
@@ -356,22 +378,6 @@ class FileBlock(NotionFile):
     caption: list[RichText] = Field(default_factory=list)
 
     name: str
-
-
-class HeadingBlock(BaseNotionModel):
-    """Represents a heading block.
-
-    Attributes:
-        rich_text: The text of the heading block.
-        color: The color of the heading block.
-        is_toggleable: Whether the heading block is toggleable.
-    """
-
-    rich_text: list[RichText] = Field(default_factory=list)
-
-    color: Color | BackgroundColor = Field(default=Color.DEFAULT)
-
-    is_toggleable: bool = Field(default=False)
 
 
 class PdfBlock(NotionFile):
@@ -456,7 +462,7 @@ class TableContentBlock(BaseNotionModel):
     color: Color | BackgroundColor = Field(default=Color.DEFAULT)
 
 
-class ToDoBlock(TextBaseBlock):
+class ToDoBlock(_TextBaseBlock):
     """Represents a to-do block.
 
     Attributes:
@@ -466,28 +472,49 @@ class ToDoBlock(TextBaseBlock):
     checked: bool | None = Field(default=None)
 
 
-BlockTypeData = Union[
+BreadcrumbBlock: TypeAlias = _EmptyBlock
+BulletedListItemBlock: TypeAlias = _TextBaseBlock
+ChildDatabaseBlock: TypeAlias = _ChildObjectBlock
+ChildPageBlock: TypeAlias = _ChildObjectBlock
+ColumnBlock: TypeAlias = _TextBaseBlock
+ColumnListBlock: TypeAlias = _TextBaseBlock
+DividerBlock: TypeAlias = _EmptyBlock
+EquationBlock: TypeAlias = NotionEquation
+ImageBlock: TypeAlias = FileBlock
+MentionDatabaseBlock: TypeAlias = NotionObjectRef
+MentionDateBlock: TypeAlias = NotionDate
+MentionLinkPreviewBlock: TypeAlias = NotionLink
+MentionPageBlock: TypeAlias = NotionObjectRef
+MentionUserBlock: TypeAlias = NotionUserRef
+NumberedListItemBlock: TypeAlias = _TextBaseBlock
+ParagraphBlock: TypeAlias = _TextBaseBlock
+QuoteBlock: TypeAlias = _TextBaseBlock
+ToggleBlock: TypeAlias = _TextBaseBlock
+VideoBlock: TypeAlias = NotionFile
+
+
+BlockTypeObjects = Union[
+    NotionLink,
+    NotionFile,
+    NotionDate,
+    NotionEquation,
+    NotionObjectRef,
+    NotionUserRef,
+    _EmptyBlock,
+    _TextBaseBlock,
+    _ChildObjectBlock,
     BookmarkBlock,
-    TextBaseBlock,
+    HeadingBlock,
     CalloutBlock,
-    ChildObjectBlock,
     CodeBlock,
     EmbedBlock,
     FileBlock,
-    HeadingBlock,
     PdfBlock,
     SyncedBlock,
     TableBlock,
     TableRowBlock,
     TableContentBlock,
     ToDoBlock,
-    NotionEquation,
-    NotionFile,
-    NotionLink,
-    NotionObjectRef,
-    NotionDate,
-    NotionUserRef,
-    dict,
 ]
 
 
@@ -503,49 +530,49 @@ class Block(NotionObject, TypeObjectModel):
 
     __type_object_map__ = {
         BlockType.BOOKMARK: BookmarkBlock,
-        BlockType.BREADCRUMB: dict,
-        BlockType.BULLETED_LIST_ITEM: TextBaseBlock,
+        BlockType.BREADCRUMB: BreadcrumbBlock,
+        BlockType.BULLETED_LIST_ITEM: BulletedListItemBlock,
         BlockType.CALLOUT: CalloutBlock,
-        BlockType.CHILD_DATABASE: ChildObjectBlock,
-        BlockType.CHILD_PAGE: ChildObjectBlock,
+        BlockType.CHILD_DATABASE: ChildDatabaseBlock,
+        BlockType.CHILD_PAGE: ChildPageBlock,
         BlockType.CODE: CodeBlock,
-        BlockType.COLUMN: dict,
-        BlockType.COLUMN_LIST: dict,
-        BlockType.DATABASE: NotionObjectRef,
-        BlockType.DATE: NotionDate,
-        BlockType.DIVIDER: dict,
+        BlockType.COLUMN: ColumnBlock,
+        BlockType.COLUMN_LIST: ColumnListBlock,
+        BlockType.DATABASE: MentionDatabaseBlock,
+        BlockType.DATE: MentionDateBlock,
+        BlockType.DIVIDER: DividerBlock,
         BlockType.EMBED: EmbedBlock,
-        BlockType.EQUATION: NotionEquation,
+        BlockType.EQUATION: EquationBlock,
         BlockType.FILE: FileBlock,
         BlockType.HEADING_1: HeadingBlock,
         BlockType.HEADING_2: HeadingBlock,
         BlockType.HEADING_3: HeadingBlock,
-        BlockType.IMAGE: NotionFile,
-        BlockType.LINK_PREVIEW: NotionLink,
-        BlockType.NUMBERED_LIST_ITEM: TextBaseBlock,
-        BlockType.PAGE: NotionObjectRef,
-        BlockType.PARAGRAPH: TextBaseBlock,
+        BlockType.IMAGE: ImageBlock,
+        BlockType.LINK_PREVIEW: MentionLinkPreviewBlock,
+        BlockType.NUMBERED_LIST_ITEM: NumberedListItemBlock,
+        BlockType.PAGE: MentionPageBlock,
+        BlockType.PARAGRAPH: ParagraphBlock,
         BlockType.PDF: PdfBlock,
-        BlockType.QUOTE: TextBaseBlock,
+        BlockType.QUOTE: QuoteBlock,
         BlockType.SYNCED_BLOCK: SyncedBlock,
         BlockType.TABLE: TableBlock,
         BlockType.TABLE_ROW: TableRowBlock,
         BlockType.TABLE_OF_CONTENTS: TableContentBlock,
-        BlockType.TOGGLE: TextBaseBlock,
+        BlockType.TOGGLE: ToggleBlock,
         BlockType.TO_DO: ToDoBlock,
-        BlockType.USER: NotionUserRef,
-        BlockType.VIDEO: NotionFile,
+        BlockType.USER: MentionUserBlock,
+        BlockType.VIDEO: VideoBlock,
     }
 
     __serializable_private_attrs__ = {"_object": "object"}
 
-    _object: ObjectType = PrivateAttr(default=ObjectType.BLOCK)
+    _object: ObjectType = ObjectType.BLOCK
 
     type: (
         Annotated[str, BeforeValidator(lambda v: validate_enum(v, (BlockType,)))]
         | BlockType
     ) = Field(frozen=True)
 
-    type_object: BlockTypeData
+    type_object: BlockTypeObjects
 
-    read_only_has_children: bool = Field(frozen=True)
+    read_only_has_children: bool | None = Field(default=None, frozen=True)
