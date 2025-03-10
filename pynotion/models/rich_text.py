@@ -1,15 +1,14 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Literal, Union, TypeAlias, Annotated, get_args
+from typing import Literal, Union, TypeAlias, Annotated
 
-from pydantic import Field, BeforeValidator, PrivateAttr
+from pydantic import Field, BeforeValidator
 
 from ._internal import (
     BaseNotionModel,
     TypeObjectModel,
     validate_enum,
-    FixedTypeObjectModel,
 )
 from .types import (
     NotionEquation,
@@ -120,6 +119,7 @@ class Text(BaseNotionModel):
     """
 
     content: Annotated[str, Field(max_length=2000)]
+
     link: (
         Annotated[
             str | NotionLink, BeforeValidator(lambda v: NotionLink(url=NotionUrl(v)))
@@ -133,188 +133,53 @@ Equation: TypeAlias = NotionEquation
 
 
 # ---------------------- Mentions ---------------------- #
-class TemplateMentionDate(FixedTypeObjectModel):
-    """Represents a template mention for a date.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#template-mention-type-object
-    """
-
+class MentionTemplate(TypeObjectModel):
     __type_object_map__ = {
-        TemplateMentionType.TEMPLATE_MENTION_DATE: Literal["today", "now"]
+        TemplateMentionType.TEMPLATE_MENTION_DATE: Literal["today", "now"],
+        TemplateMentionType.TEMPLATE_MENTION_USER: Literal["me"],
     }
 
-    _type: TemplateMentionType = PrivateAttr(
-        default=TemplateMentionType.TEMPLATE_MENTION_DATE
-    )
-
-    type_object: Literal["today", "now"]
-
-
-class TemplateMentionUser(FixedTypeObjectModel):
-    """Represents a template mention for a user.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#template-mention-type-object
-    """
-
-    __type_object_map__ = {TemplateMentionType.TEMPLATE_MENTION_USER: Literal["me"]}
-
-    _type: TemplateMentionType = PrivateAttr(
-        default=TemplateMentionType.TEMPLATE_MENTION_USER
-    )
-
-    type_object: Literal["me"]
-
-
-class MentionDatabase(FixedTypeObjectModel):
-    """Represents a database mention.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#database-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.DATABASE: NotionObjectRef}
-
-    _type: MentionType = PrivateAttr(default=MentionType.DATABASE)
-
-    type_object: NotionObjectRef
-
-
-class MentionDate(FixedTypeObjectModel):
-    """Represents a date mention.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#date-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.DATE: NotionDate}
-
-    _type: MentionType = PrivateAttr(default=MentionType.DATE)
-
-    type_object: NotionDate
-
-
-class MentionLinkPreview(FixedTypeObjectModel):
-    """Represents a link preview mention.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#link-preview-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.LINK_PREVIEW: NotionLink}
-
-    _type: MentionType = PrivateAttr(default=MentionType.LINK_PREVIEW)
-
-    type_object: Annotated[
-        str | NotionLink,
-        BeforeValidator(
-            lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
-        ),
+    type: Annotated[
+        str | TemplateMentionType,
+        BeforeValidator(lambda v: validate_enum(v, (TemplateMentionType,))),
     ]
 
-
-class MentionPage(FixedTypeObjectModel):
-    """Represents a page mention.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#page-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.PAGE: NotionObjectRef}
-
-    _type: MentionType = PrivateAttr(default=MentionType.PAGE)
-
-    type_object: NotionObjectRef
+    type_object: Literal["today", "now"] | Literal["me"]
 
 
-class MentionDateTemplate(FixedTypeObjectModel):
-    """Represents a template mention for a date.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#template-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.TEMPLATE_MENTION: TemplateMentionDate}
-
-    _type: MentionType = PrivateAttr(default=MentionType.TEMPLATE_MENTION)
-
-    type_object: TemplateMentionDate
+MentionDatabase: TypeAlias = NotionObjectRef
+MentionDate: TypeAlias = NotionDate
+MentionPage: TypeAlias = NotionObjectRef
+MentionUser: TypeAlias = NotionUserRef
+MentionLinkPreview: TypeAlias = NotionLink
 
 
-class MentionUserTemplate(FixedTypeObjectModel):
-    """Represents a template mention for a user.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#template-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.TEMPLATE_MENTION: TemplateMentionUser}
-
-    _type: MentionType = PrivateAttr(default=MentionType.TEMPLATE_MENTION)
-
-    type_object: TemplateMentionUser = Field(frozen=True)
-
-
-class MentionUser(FixedTypeObjectModel):
-    """Represents a user mention.
-
-    Attributes:
-        type: The type of the mention.
-        type_object: The data related to this particularly mentioned instance.
-
-    References:
-        https://developers.notion.com/reference/rich-text#user-mention-type-object
-    """
-
-    __type_object_map__ = {MentionType.USER: NotionUserRef}
-
-    _type: MentionType = PrivateAttr(default=MentionType.USER)
-
-    type_object: NotionUserRef
-
-
-Mention = Union[
+MentionObjects = Union[
     MentionDatabase,
     MentionDate,
     MentionLinkPreview,
     MentionPage,
-    MentionDateTemplate,
-    MentionUserTemplate,
+    MentionTemplate,
     MentionUser,
 ]
+
+
+class Mention(TypeObjectModel):
+    __type_object_map__ = {
+        MentionType.DATABASE: MentionDatabase,
+        MentionType.DATE: MentionDate,
+        MentionType.LINK_PREVIEW: MentionLinkPreview,
+        MentionType.PAGE: MentionPage,
+        MentionType.TEMPLATE_MENTION: MentionTemplate,
+        MentionType.USER: MentionUser,
+    }
+
+    type: Annotated[
+        str | MentionType,
+        BeforeValidator(lambda v: validate_enum(v, (MentionType,))),
+    ]
+
+    type_object: MentionObjects
 
 
 # ---------------------- RichText ---------------------- #
@@ -335,17 +200,16 @@ class RichText(TypeObjectModel):
     __type_object_map__ = {
         RichTextType.TEXT: Text,
         RichTextType.EQUATION: Equation,
-        RichTextType.MENTION: set(get_args(Mention)),
+        RichTextType.MENTION: Mention,
     }
 
-    type: (
-        Annotated[str, BeforeValidator(lambda v: validate_enum(v, (RichTextType,)))]
-        | RichTextType
-    ) = Field(frozen=True)
+    type: Annotated[
+        str | RichTextType,
+        BeforeValidator(lambda v: validate_enum(v, (RichTextType,))),
+        Field(frozen=True),
+    ]
 
-    type_object: Text | Equation | Mention = Field(
-        description="An object containing type-specific configuration. Refer to the rich text type objects section below for details on type-specific values."
-    )
+    type_object: Text | Equation | Mention
 
     annotations: Annotations = Field(default_factory=Annotations)
 

@@ -307,7 +307,7 @@ class TypeObjectModel(BaseNotionModel, ABC):
                 if type_str in data:
                     data[cls._get_type_object_field()] = data.pop(type_str)
 
-                    # Update type field
+            # Update type field
             data.pop(type_field_name)
             data[cls._get_type_field()] = type_value
 
