@@ -25,8 +25,8 @@ from pynotion.models.types import (
     NotionLink,
     NotionDate,
     Color,
-    PartialUser,
-    IdLinkObject,
+    NotionUserRef,
+    NotionObjectRef,
     BackgroundColor,
     ObjectType,
 )
@@ -102,7 +102,7 @@ def test_invalid_text_model():
         (
             MentionDatabase,
             MentionType.DATABASE,
-            IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "database",
                 "database": {"id": "d7db80bd-b3e3-4394-b134-a21b05412c7c"},
@@ -123,7 +123,7 @@ def test_invalid_text_model():
         (
             MentionPage,
             MentionType.PAGE,
-            IdLinkObject(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            NotionObjectRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "page",
                 "page": {"id": "a7db80bd-b3e3-4394-b134-a21b05412c7c"},
@@ -156,7 +156,7 @@ def test_invalid_text_model():
         (
             MentionUser,
             MentionType.USER,
-            PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            NotionUserRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {
                 "type": "user",
                 "user": {
@@ -180,23 +180,23 @@ def test_mentions(mention_class, type_value, type_object, type_asdict):
 @pytest.mark.parametrize(
     "type_object",
     [
-        IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+        NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
         NotionDate(start="2022-01-01", end="2022-01-31"),
         NotionLink(url="https://notion.so"),
         TemplateMentionDate(type_object="today"),
         TemplateMentionUser(type_object="me"),
-        PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+        NotionUserRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
     ],
 )
 def test_invalid_mentions(type_object):
     """Test invalid Mention-based models."""
     mention_classes: list[tuple[type, type]] = [
-        (MentionDatabase, IdLinkObject),
+        (MentionDatabase, NotionObjectRef),
         (MentionDate, NotionDate),
         (MentionLinkPreview, NotionLink),
-        (MentionPage, IdLinkObject),
+        (MentionPage, NotionObjectRef),
         (MentionDateTemplate, TemplateMentionDate),
-        (MentionUser, PartialUser),
+        (MentionUser, NotionUserRef),
     ]
 
     for mention_class, mention_data_class in mention_classes:
@@ -229,7 +229,7 @@ def test_invalid_mentions(type_object):
             "Test User",
             None,
             MentionUser(
-                type_object=PartialUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=NotionUserRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -238,7 +238,7 @@ def test_invalid_mentions(type_object):
             "Test Page",
             None,
             MentionPage(
-                type_object=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -247,7 +247,7 @@ def test_invalid_mentions(type_object):
             "Test Database",
             None,
             MentionDatabase(
-                type_object=IdLinkObject(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
+                type_object=NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c")
             ),
         ),
         (
@@ -404,7 +404,7 @@ def test_rich_text_validation_errors(invalid_data):
                 {
                     "type": RichTextType.MENTION,
                     "type_object": MentionUser(
-                        type_object=PartialUser(
+                        type_object=NotionUserRef(
                             id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
                         )
                     ),

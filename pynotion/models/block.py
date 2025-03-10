@@ -21,10 +21,10 @@ from .types import (
     NotionFile,
     NotionEmoji,
     NotionLink,
-    IdLinkObject,
+    NotionObjectRef,
     NotionDate,
-    PartialUser,
-    AnnotatedObjectId,
+    NotionUserRef,
+    NotionObjectId,
 )
 
 
@@ -391,7 +391,7 @@ class SyncedFrom(BaseNotionModel):
         block_id: The synced block.
     """
 
-    block_id: AnnotatedObjectId
+    block_id: NotionObjectId
 
 
 class SyncedBlock(BaseNotionModel):
@@ -484,9 +484,9 @@ BlockTypeData = Union[
     NotionEquation,
     NotionFile,
     NotionLink,
-    IdLinkObject,
+    NotionObjectRef,
     NotionDate,
-    PartialUser,
+    NotionUserRef,
     dict,
 ]
 
@@ -511,7 +511,7 @@ class Block(NotionObject, TypeObjectModel):
         BlockType.CODE: CodeBlock,
         BlockType.COLUMN: dict,
         BlockType.COLUMN_LIST: dict,
-        BlockType.DATABASE: IdLinkObject,
+        BlockType.DATABASE: NotionObjectRef,
         BlockType.DATE: NotionDate,
         BlockType.DIVIDER: dict,
         BlockType.EMBED: EmbedBlock,
@@ -523,7 +523,7 @@ class Block(NotionObject, TypeObjectModel):
         BlockType.IMAGE: NotionFile,
         BlockType.LINK_PREVIEW: NotionLink,
         BlockType.NUMBERED_LIST_ITEM: TextBaseBlock,
-        BlockType.PAGE: IdLinkObject,
+        BlockType.PAGE: NotionObjectRef,
         BlockType.PARAGRAPH: TextBaseBlock,
         BlockType.PDF: PdfBlock,
         BlockType.QUOTE: TextBaseBlock,
@@ -533,7 +533,7 @@ class Block(NotionObject, TypeObjectModel):
         BlockType.TABLE_OF_CONTENTS: TableContentBlock,
         BlockType.TOGGLE: TextBaseBlock,
         BlockType.TO_DO: ToDoBlock,
-        BlockType.USER: PartialUser,
+        BlockType.USER: NotionUserRef,
         BlockType.VIDEO: NotionFile,
     }
 

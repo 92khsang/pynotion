@@ -18,8 +18,8 @@ from .types import (
     NotionLink,
     NotionUrl,
     NotionDate,
-    PartialUser,
-    IdLinkObject,
+    NotionUserRef,
+    NotionObjectRef,
 )
 
 
@@ -119,13 +119,10 @@ class Text(BaseNotionModel):
         https://developers.notion.com/reference/rich-text#text
     """
 
-    content: Annotated[str, Field(max_length=2000, description="The text content.")]
+    content: Annotated[str, Field(max_length=2000)]
     link: (
         Annotated[
-            str | NotionLink,
-            BeforeValidator(
-                lambda v: NotionLink(url=NotionUrl(v)) if isinstance(v, str) else v
-            ),
+            str | NotionLink, BeforeValidator(lambda v: NotionLink(url=NotionUrl(v)))
         ]
         | None
     ) = None
@@ -189,11 +186,11 @@ class MentionDatabase(FixedTypeObjectModel):
         https://developers.notion.com/reference/rich-text#database-mention-type-object
     """
 
-    __type_object_map__ = {MentionType.DATABASE: IdLinkObject}
+    __type_object_map__ = {MentionType.DATABASE: NotionObjectRef}
 
     _type: MentionType = PrivateAttr(default=MentionType.DATABASE)
 
-    type_object: IdLinkObject
+    type_object: NotionObjectRef
 
 
 class MentionDate(FixedTypeObjectModel):
@@ -248,11 +245,11 @@ class MentionPage(FixedTypeObjectModel):
         https://developers.notion.com/reference/rich-text#page-mention-type-object
     """
 
-    __type_object_map__ = {MentionType.PAGE: IdLinkObject}
+    __type_object_map__ = {MentionType.PAGE: NotionObjectRef}
 
     _type: MentionType = PrivateAttr(default=MentionType.PAGE)
 
-    type_object: IdLinkObject
+    type_object: NotionObjectRef
 
 
 class MentionDateTemplate(FixedTypeObjectModel):
@@ -302,11 +299,11 @@ class MentionUser(FixedTypeObjectModel):
         https://developers.notion.com/reference/rich-text#user-mention-type-object
     """
 
-    __type_object_map__ = {MentionType.USER: PartialUser}
+    __type_object_map__ = {MentionType.USER: NotionUserRef}
 
     _type: MentionType = PrivateAttr(default=MentionType.USER)
 
-    type_object: PartialUser
+    type_object: NotionUserRef
 
 
 Mention = Union[

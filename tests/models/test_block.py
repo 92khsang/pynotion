@@ -26,7 +26,12 @@ from pynotion.models.block import (
     SyncedBlock,
 )
 from pynotion.models.rich_text import Text, RichTextType, Annotations
-from pynotion.models.types import EmojiType, NotionLink, BackgroundColor
+from pynotion.models.types import (
+    EmojiType,
+    NotionLink,
+    BackgroundColor,
+    NotionExternalFile,
+)
 from tests.models.model_test_utils import PydanticModelTester
 
 
@@ -102,7 +107,9 @@ def test_block_type_enum(block_type):
                 "caption": [],
                 "name": "doc.txt",
                 "type": "external",
-                "external": NotionLink(url="https://companywebsite.com/files/doc.txt"),
+                "external": NotionExternalFile(
+                    url="https://companywebsite.com/files/doc.txt"
+                ),
             },
         ),
         (
@@ -128,7 +135,7 @@ def test_block_type_enum(block_type):
                     )
                 ],
                 "type": "external",
-                "type_object": NotionLink(
+                "type_object": NotionExternalFile(
                     url="https://companywebsite.com/files/doc.pdf"
                 ),
             },

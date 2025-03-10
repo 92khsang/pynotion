@@ -28,14 +28,12 @@ from ._internal import (
     validate_enum_value,
 )
 
-ObjectId: TypeAlias = uuid.UUID
-
-AnnotatedObjectId: TypeAlias = Annotated[
-    str | uuid.UUID | int | bytes, BeforeValidator(validate_uuid4)
+NotionObjectId: TypeAlias = Annotated[
+    str | int | bytes | uuid.UUID, BeforeValidator(validate_uuid4)
 ]
 
 NotionDatetime: TypeAlias = Annotated[
-    datetime | str, BeforeValidator(validate_datetime)
+    str | datetime, BeforeValidator(validate_datetime)
 ]
 
 NotionEmail: TypeAlias = Annotated[str, Field(..., max_length=200), EmailStr]
@@ -170,7 +168,7 @@ class EmojiType(StrEnum):
 class NotionLink(BaseNotionModel):
     """Represents a URL link in Notion.
 
-    This model is used for external resources including external files.
+    This model is used for wrapping URLs in Notion.
 
     Attributes:
         url: The URL of the link, validated to ensure it's properly formatted.
@@ -190,6 +188,16 @@ class NotionHostedFile(NotionLink):
     """
 
     expiry_time: NotionDatetime
+
+
+class NotionExternalFile(NotionLink):
+    """Represents an externally hosted file in Notion.
+
+    Attributes:
+        url: The URL of the externally hosted file.
+    """
+
+    pass
 
 
 class NotionEquation(BaseNotionModel):
@@ -356,7 +364,7 @@ class NotionParent(TypeObjectModel):
     Attributes:
         type: The type of the parent object (database_id, page_id, block_id, or workspace).
         type_object: The data related to this particular parent type.
-            For database_id, page_id, and block_id, this will be an ObjectId.
+            For database_id, page_id, and block_id, this will be an NotionObjectId.
             For workspace, this will be a boolean (True).
 
     References:
@@ -364,9 +372,9 @@ class NotionParent(TypeObjectModel):
     """
 
     __type_object_map__ = {
-        ParentType.DATABASE_ID: ObjectId,
-        ParentType.PAGE_ID: ObjectId,
-        ParentType.BLOCK_ID: ObjectId,
+        ParentType.DATABASE_ID: uuid.UUID,
+        ParentType.PAGE_ID: uuid.UUID,
+        ParentType.BLOCK_ID: uuid.UUID,
         ParentType.WORKSPACE: bool,
     }
 
@@ -376,7 +384,7 @@ class NotionParent(TypeObjectModel):
         Field(frozen=True),
     ]
 
-    type_object: bool | AnnotatedObjectId
+    type_object: bool | NotionObjectId
 
 
 class NotionFile(TypeObjectModel):
@@ -397,7 +405,7 @@ class NotionFile(TypeObjectModel):
 
     __type_object_map__ = {
         FileType.FILE: NotionHostedFile,
-        FileType.EXTERNAL: NotionLink,
+        FileType.EXTERNAL: NotionExternalFile,
     }
 
     type: Annotated[
@@ -406,10 +414,10 @@ class NotionFile(TypeObjectModel):
         Field(frozen=True),
     ]
 
-    type_object: NotionHostedFile | NotionLink
+    type_object: NotionHostedFile | NotionExternalFile
 
 
-class CustomEmoji(BaseNotionModel):
+class CustomEmoji(NotionLink):
     """Represents a custom emoji in Notion.
 
     Custom emojis are uploaded images that can be used like regular emojis.
@@ -423,11 +431,9 @@ class CustomEmoji(BaseNotionModel):
         https://developers.notion.com/reference/emoji-object#custom-emoji
     """
 
-    id: AnnotatedObjectId = Field(frozen=True)
+    id: NotionObjectId = Field(frozen=True)
 
     name: str = Field(frozen=True)
-
-    url: NotionUrl = Field(frozen=True)
 
 
 class NotionEmoji(TypeObjectModel):
@@ -459,20 +465,18 @@ class NotionEmoji(TypeObjectModel):
     type_object: str | CustomEmoji
 
 
-class IdLinkObject(BaseNotionModel):
-    """
-    Represents a reference to another object by ID in Notion.
-
-    This is used in various places where Notion needs to link to another object.
+class NotionObjectRef(BaseNotionModel):
+    """Represents a reference to a Notion object.
 
     Attributes:
-        id: The unique identifier of the referenced object.
+        id: The unique identifier for the referenced object.
+
     """
 
-    id: AnnotatedObjectId = Field(frozen=True)
+    id: NotionObjectId = Field(frozen=True)
 
 
-class PartialUser(BaseNotionModel):
+class NotionUserRef(NotionObjectRef):
     """
     Represents a minimal user reference when a full User object isn't needed.
 
@@ -487,11 +491,9 @@ class PartialUser(BaseNotionModel):
 
     _object: ObjectType = PrivateAttr(default=ObjectType.USER)
 
-    id: AnnotatedObjectId = Field(frozen=True)
-
     def __init__(self, *, object: ObjectType | None = None, **data: Any):  # noqa
         """
-        Initialize a PartialUser.
+        Initialize a NotionUserRef.
 
         Args:
             object: Must be ObjectType.USER if provided.
@@ -542,27 +544,27 @@ class NotionObject(BaseNotionModel, ABC):
 
     parent: NotionParent | None = Field(default=None)
 
-    read_only_id: ObjectId | None = Field(default=None, frozen=True)
+    read_only_id: NotionObjectId | None = Field(default=None, frozen=True)
 
     read_only_created_time: NotionDatetime | None = Field(default=None, frozen=True)
 
     read_only_last_edited_time: NotionDatetime | None = Field(default=None, frozen=True)
 
-    read_only_created_by: PartialUser | None = Field(default=None, frozen=True)
+    read_only_created_by: NotionUserRef | None = Field(default=None, frozen=True)
 
-    read_only_last_edited_by: PartialUser | None = Field(default=None, frozen=True)
+    read_only_last_edited_by: NotionUserRef | None = Field(default=None, frozen=True)
 
     read_only_archived: bool | None = Field(default=None, frozen=True)
 
     read_only_in_trash: bool | None = Field(default=None, frozen=True)
 
     @property
-    def id(self) -> ObjectId | None:
+    def id(self) -> NotionObjectId | None:
         """
         The unique identifier for this object.
 
         Returns:
-            ObjectId: The UUID of this object.
+            NotionObjectId: The UUID of this object.
         """
         return self.read_only_id
 
@@ -587,22 +589,22 @@ class NotionObject(BaseNotionModel, ABC):
         return self.read_only_last_edited_time
 
     @property
-    def created_by(self) -> PartialUser | None:
+    def created_by(self) -> NotionUserRef | None:
         """
         The user who created this object.
 
         Returns:
-            PartialUser: Basic info about the creator.
+            NotionUserRef: Basic info about the creator.
         """
         return self.read_only_created_by
 
     @property
-    def last_edited_by(self) -> PartialUser | None:
+    def last_edited_by(self) -> NotionUserRef | None:
         """
         The user who last edited this object.
 
         Returns:
-            PartialUser: Basic info about the last editor.
+            NotionUserRef: Basic info about the last editor.
         """
         return self.read_only_last_edited_by
 
@@ -628,7 +630,7 @@ class NotionObject(BaseNotionModel, ABC):
 
     def __init__(self, /, **data: Any):
         obj = data.pop("object", None)
-        if obj is not None:
+        if obj:
             obj = validate_enum_value(
                 obj, {ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK}
             )

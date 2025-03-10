@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError, BaseModel, UUID4
 
 from pynotion.models.types import (
-    ObjectId,
+    NotionObjectId,
     NotionDatetime,
     NotionEmail,
     NotionUrl,
@@ -25,7 +25,8 @@ from pynotion.models.types import (
     CustomEmoji,
     NotionEmoji,
     NotionObject,
-    PartialUser,
+    NotionUserRef,
+    NotionExternalFile,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -37,7 +38,7 @@ from tests.models.model_test_utils import PydanticModelTester
 )
 def test_object_id(test_input):
     class ObjectIdModel(BaseModel):
-        object_id: ObjectId
+        object_id: NotionObjectId
 
     assert ObjectIdModel(object_id=test_input).object_id == UUID4(test_input)
 
@@ -262,10 +263,10 @@ def test_notion_parent(parent_type, type_object, should_raise):
             ),
             False,
         ),
-        (FileType.EXTERNAL, NotionLink(url="https://external.com"), False),
+        (FileType.EXTERNAL, NotionExternalFile(url="https://external.com"), False),
         (
             FileType.FILE,
-            NotionLink(url="https://external.com"),
+            NotionExternalFile(url="https://external.com"),
             True,
         ),  # Wrong type_object for FILE
         (
@@ -277,7 +278,7 @@ def test_notion_parent(parent_type, type_object, should_raise):
         ),  # Wrong type_object for EXTERNAL
         (
             "invalid-type",
-            NotionLink(url="https://valid-url.com"),
+            NotionExternalFile(url="https://valid-url.com"),
             True,
         ),  # Invalid file type
     ],
@@ -323,13 +324,13 @@ def test_notion_emoji(emoji_type, type_object, should_raise):
         assert notion_emoji.type_object == type_object
 
 
-def test_partial_user():
+def test_notion_user_ref():
     with pytest.raises(ValueError, match="Invalid object type: page"):
-        PartialUser(object=ObjectType.PAGE)
+        NotionUserRef(object=ObjectType.PAGE)
 
-    valid_partial = PartialUser(id=uuid4())
+    valid_user_ref = NotionUserRef(id=uuid4())
 
-    assert valid_partial.object == ObjectType.USER
+    assert valid_user_ref.object == ObjectType.USER
 
 
 def test_frozen_object():
@@ -371,10 +372,10 @@ def test_frozen_object():
                 ),
                 "created_time": datetime(2022, 3, 1, 19, 5, tzinfo=timezone.utc),
                 "last_edited_time": datetime(2022, 7, 6, 19, 41, tzinfo=timezone.utc),
-                "created_by": PartialUser(
+                "created_by": NotionUserRef(
                     id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
                 ),
-                "last_edited_by": PartialUser(
+                "last_edited_by": NotionUserRef(
                     id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
                 ),
                 "archived": False,

@@ -16,8 +16,7 @@ from .types import (
     NotionEmail,
     NotionUrl,
     ObjectType,
-    ObjectId,
-    AnnotatedObjectId,
+    NotionObjectId,
 )
 
 
@@ -154,7 +153,7 @@ class User(ReadOnlyTypeObjectModel):
 
     _object: ObjectType = PrivateAttr(default=ObjectType.USER)
 
-    read_only_id: AnnotatedObjectId | None = Field(default=None, frozen=True)
+    read_only_id: NotionObjectId | None = Field(default=None, frozen=True)
 
     read_only_type: (
         Annotated[
@@ -211,11 +210,11 @@ class User(ReadOnlyTypeObjectModel):
         return self._object
 
     @property
-    def id(self) -> ObjectId:
+    def id(self) -> NotionObjectId:
         """The unique identifier for this user.
 
         Returns:
-            ObjectId: The user's ID.
+            NotionObjectId: The user's ID.
         """
         return self.read_only_id
 
