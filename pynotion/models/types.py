@@ -12,10 +12,8 @@ from pydantic import (
     BeforeValidator,
     EmailStr,
     model_validator,
-    PrivateAttr,
-    computed_field,
 )
-from pydantic_core import ArgsKwargs, PydanticUndefined
+from pydantic_core import ArgsKwargs
 
 from ._internal import (
     validate_timezone,
@@ -25,7 +23,6 @@ from ._internal import (
     TypeObjectModel,
     validate_enum,
     validate_uuid4,
-    validate_enum_value,
 )
 
 NotionObjectId: TypeAlias = Annotated[
@@ -41,27 +38,6 @@ NotionEmail: TypeAlias = Annotated[str, Field(..., max_length=200), EmailStr]
 NotionUrl: TypeAlias = Annotated[
     str, Field(..., max_length=2000), BeforeValidator(validate_url)
 ]
-
-
-class ObjectType(StrEnum):
-    """Defines object types in Notion.
-
-    These types correspond to the primary object categories in the Notion API.
-    The 'object' field in API responses will contain one of these values.
-
-    Attributes:
-        BLOCK: Block object type, representing content blocks like paragraphs or lists.
-        DATABASE: Database object type, representing structured data collections.
-        PAGE: Page object type, representing Notion pages.
-        USER: User object type, representing Notion users.
-        COMMENT: Comment object type, representing comments on pages.
-    """
-
-    BLOCK = "block"
-    DATABASE = "database"
-    PAGE = "page"
-    USER = "user"
-    COMMENT = "comment"
 
 
 class Color(StrEnum):
@@ -165,6 +141,7 @@ class EmojiType(StrEnum):
     CUSTOM_EMOJI = "custom_emoji"
 
 
+# -------------------------------- Templates --------------------------------------
 class NotionLink(BaseNotionModel):
     """Represents a URL link in Notion.
 
@@ -487,39 +464,10 @@ class NotionUserRef(NotionObjectRef):
         object: Always 'user', confirming this is a user reference.
     """
 
-    __serializable_private_attrs__ = {"_object": "object"}
-
-    _object: ObjectType = PrivateAttr(default=ObjectType.USER)
-
-    def __init__(self, *, object: ObjectType | None = None, **data: Any):  # noqa
-        """
-        Initialize a NotionUserRef.
-
-        Args:
-            object: Must be ObjectType.USER if provided.
-            **data: Other user data, must include 'id'.
-
-        Raises:
-            ValueError: If object is provided but is not ObjectType.USER.
-        """
-        if object and object != ObjectType.USER:
-            raise ValueError(f"Invalid object type: {object}")
-
-        super().__init__(**data)
-
-    @computed_field
-    @property
-    def object(self) -> ObjectType:
-        """
-        The object type, always 'user'.
-
-        Returns:
-            ObjectType.USER: The string "user".
-        """
-        return self._object
+    object: Literal["user"] = Field(frozen=True)
 
 
-class NotionObject(BaseNotionModel, ABC):
+class TxNotionObject(BaseNotionModel, ABC):
     """
     Base class for primary Notion objects (pages, databases, blocks).
 
@@ -528,134 +476,55 @@ class NotionObject(BaseNotionModel, ABC):
 
     Attributes:
         object: The type of this object (database, page, or block).
-        parent: The parent object that contains this object.
-        id: Unique identifier for this object.
-        created_time: ISO 8601 datetime when this object was created.
-        last_edited_time: ISO 8601 datetime when this object was last edited.
-        created_by: User who created this object.
-        last_edited_by: User who last edited this object.
-        archived: Whether this object is archived (moved to trash).
-        in_trash: Whether this object is in the trash bin.
     """
 
-    __serializable_private_attrs__ = {"_object": "object"}
+    object: Literal["database", "page", "block"]
 
-    _object: Literal[ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK]
-
-    parent: NotionParent | None = Field(default=None)
-
-    read_only_id: NotionObjectId | None = Field(default=None, frozen=True)
-
-    read_only_created_time: NotionDatetime | None = Field(default=None, frozen=True)
-
-    read_only_last_edited_time: NotionDatetime | None = Field(default=None, frozen=True)
-
-    read_only_created_by: NotionUserRef | None = Field(default=None, frozen=True)
-
-    read_only_last_edited_by: NotionUserRef | None = Field(default=None, frozen=True)
-
-    read_only_archived: bool | None = Field(default=None, frozen=True)
-
-    read_only_in_trash: bool | None = Field(default=None, frozen=True)
-
+    @model_validator(mode="before")
     @classmethod
-    def _validate_object_exists(cls) -> None:
-        private_attr = cls.__private_attributes__.get("_object")
-        if private_attr.default is PydanticUndefined:
-            raise ValueError("_object must have a default value")
+    def validate_abstract_clz(cls, values: Any) -> Any:
+        if cls == TxNotionObject:
+            raise TypeError("Cannot instantiate abstract class TxNotionObject")
 
+        return values
+
+
+class RxNotionObject(BaseNotionModel, ABC):
+    """
+    Base class for response Notion objects (pages, databases, blocks).
+
+    This class provides the common fields and behavior shared by
+    the main Notion object types.
+
+    Attributes:
+        id: The unique identifier for the object.
+        object: The type of this object (database, page, or block).
+        parent: The parent object that contains this object.
+        created_time: The timestamp when the object was created.
+        last_edited_time: The timestamp when the object was last edited.
+        created_by: The user who created the object.
+        last_edited_by: The user who last edited the object.
+        archived: Whether the object is archived.
+        in_trash: Whether the object is in the trash.
+    """
+
+    object: Literal["database", "page", "block"] = Field(frozen=True)
+    parent: NotionParent | None = Field(frozen=True)
+    id: NotionObjectId = Field(frozen=True)
+    created_time: NotionDatetime = Field(frozen=True)
+    last_edited_time: NotionDatetime = Field(frozen=True)
+    created_by: NotionUserRef = Field(frozen=True)
+    last_edited_by: NotionUserRef = Field(frozen=True)
+    archived: bool = Field(frozen=True)
+    in_trash: bool = Field(default=False, frozen=True)
+
+    @model_validator(mode="before")
     @classmethod
-    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
-        super().__pydantic_init_subclass__(**kwargs)
-        cls._validate_object_exists()
+    def validate_abstract_clz(cls, values: Any) -> Any:
+        if cls == RxNotionObject:
+            raise TypeError("Cannot instantiate abstract class RxNotionObject")
 
-    def __init__(self, /, **data: Any):
-        obj = data.pop("object", None) or self.__private_attributes__["_object"].default
+        return values
 
-        if obj:
-            obj = validate_enum_value(
-                obj, {ObjectType.DATABASE, ObjectType.PAGE, ObjectType.BLOCK}
-            )
 
-        super().__init__(**data)
-        object.__setattr__(self, "_object", obj)
-
-    @property
-    def id(self) -> NotionObjectId | None:
-        """
-        The unique identifier for this object.
-
-        Returns:
-            NotionObjectId: The UUID of this object.
-        """
-        return self.read_only_id
-
-    @property
-    def created_time(self) -> NotionDatetime | None:
-        """
-        The time when this object was created.
-
-        Returns:
-            NotionDatetime: ISO 8601 datetime.
-        """
-        return self.read_only_created_time
-
-    @property
-    def last_edited_time(self) -> NotionDatetime | None:
-        """
-        The time when this object was last edited.
-
-        Returns:
-            NotionDatetime: ISO 8601 datetime.
-        """
-        return self.read_only_last_edited_time
-
-    @property
-    def created_by(self) -> NotionUserRef | None:
-        """
-        The user who created this object.
-
-        Returns:
-            NotionUserRef: Basic info about the creator.
-        """
-        return self.read_only_created_by
-
-    @property
-    def last_edited_by(self) -> NotionUserRef | None:
-        """
-        The user who last edited this object.
-
-        Returns:
-            NotionUserRef: Basic info about the last editor.
-        """
-        return self.read_only_last_edited_by
-
-    @property
-    def archived(self) -> bool | None:
-        """
-        Whether this object is archived.
-
-        Returns:
-            bool: True if archived, False otherwise.
-        """
-        return self.read_only_archived
-
-    @property
-    def in_trash(self) -> bool | None:
-        """
-        Whether this object is in the trash bin.
-
-        Returns:
-            bool: True if in trash, False otherwise.
-        """
-        return self.read_only_in_trash
-
-    @property
-    def object(self) -> ObjectType:
-        """
-        The type of this object.
-
-        Returns:
-            ObjectType: The type (database, page, or block).
-        """
-        return self._object
+NotionObject: TypeAlias = TxNotionObject | RxNotionObject

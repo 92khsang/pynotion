@@ -10,7 +10,6 @@ from pynotion.models.types import (
     NotionDatetime,
     NotionEmail,
     NotionUrl,
-    ObjectType,
     Color,
     BackgroundColor,
     NotionLink,
@@ -24,9 +23,10 @@ from pynotion.models.types import (
     EmojiType,
     CustomEmoji,
     NotionEmoji,
-    NotionObject,
     NotionUserRef,
     NotionExternalFile,
+    TxNotionObject,
+    RxNotionObject,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -120,8 +120,6 @@ def test_notion_url_invalid(invalid_input):
 @pytest.mark.parametrize(
     "enum_class, member, expected",
     [
-        (ObjectType, "BLOCK", "block"),
-        (ObjectType, "USER", "user"),
         (Color, "BLUE", "blue"),
         (Color, "RED", "red"),
         (BackgroundColor, "BLUE_BACKGROUND", "blue_background"),
@@ -325,18 +323,78 @@ def test_notion_emoji(emoji_type, type_object, should_raise):
 
 
 def test_notion_user_ref():
-    with pytest.raises(ValueError, match="Invalid object type: page"):
-        NotionUserRef(object=ObjectType.PAGE)
+    with pytest.raises(ValueError, match="Input should be \'user\'"):
+        NotionUserRef(object="page")
 
-    valid_user_ref = NotionUserRef(id=uuid4())
+    valid_user_ref = NotionUserRef(object="user", id=uuid4())
 
-    assert valid_user_ref.object == ObjectType.USER
+    assert valid_user_ref.object == "user"
 
 
 def test_frozen_object():
     with pytest.raises(ValidationError, match="Field is frozen"):
         emoji_object = NotionEmoji(type=EmojiType.EMOJI, type_object="🔥")
         emoji_object.__setattr__("type", EmojiType.CUSTOM_EMOJI)
+
+
+@pytest.mark.parametrize(
+    "input_dict, expected_dict, should_raise",
+    [
+        (
+            {
+                "object": "block",
+                "parent": {
+                    "type": "page_id",
+                    "page_id": "59833787-2cf9-4fdf-8782-e53db20768a5",
+                },
+            },
+            {
+                "object": "block",
+                "parent": NotionParent(
+                    type=ParentType.PAGE_ID,
+                    type_object=UUID("59833787-2cf9-4fdf-8782-e53db20768a5"),
+                ),
+            },
+            False,
+        ),
+        (
+            {
+                "object": "database",
+                "parent": {
+                    "type": "workspace",
+                    "workspace": True,
+                },
+            },
+            {
+                "object": "database",
+                "parent": NotionParent(
+                    type=ParentType.WORKSPACE,
+                    type_object=True,
+                ),
+            },
+            False,
+        ),
+        (
+            {
+                "object": "user",
+                "id": "ee5f0f84-409a-440f-983a-a5315961c6e4",
+            },
+            None,
+            True,
+        ),
+    ],
+)
+def test_notion_object_req(input_dict, expected_dict, should_raise):
+    class TxNotionObjectImpl(TxNotionObject):
+        parent: NotionParent
+
+    if should_raise:
+        with pytest.raises(ValueError):
+            TxNotionObjectImpl(**input_dict)
+    else:
+        notion_obj = TxNotionObjectImpl(**input_dict)
+        for key, value in expected_dict.items():
+            assert getattr(notion_obj, key) == value
 
 
 @pytest.mark.parametrize(
@@ -364,7 +422,7 @@ def test_frozen_object():
                 "in_trash": False,
             },
             {
-                "object": ObjectType.BLOCK,
+                "object": "block",
                 "id": UUID("c02fc1d3-db8b-45c5-a222-27595b15aea7"),
                 "parent": NotionParent(
                     type=ParentType.PAGE_ID,
@@ -373,38 +431,13 @@ def test_frozen_object():
                 "created_time": datetime(2022, 3, 1, 19, 5, tzinfo=timezone.utc),
                 "last_edited_time": datetime(2022, 7, 6, 19, 41, tzinfo=timezone.utc),
                 "created_by": NotionUserRef(
-                    id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
+                    object="user", id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
                 ),
                 "last_edited_by": NotionUserRef(
-                    id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
+                    object="user", id=UUID("ee5f0f84-409a-440f-983a-a5315961c6e4")
                 ),
                 "archived": False,
                 "in_trash": False,
-            },
-            False,
-        ),
-        (
-            {
-                "object": "database",
-                "id": "59833787-2cf9-4fdf-8782-e53db20768a5",
-                "parent": {
-                    "type": "workspace",
-                    "workspace": True,
-                },
-            },
-            {
-                "object": ObjectType.DATABASE,
-                "id": UUID("59833787-2cf9-4fdf-8782-e53db20768a5"),
-                "parent": NotionParent(
-                    type=ParentType.WORKSPACE,
-                    type_object=True,
-                ),
-                "created_time": None,
-                "last_edited_time": None,
-                "created_by": None,
-                "last_edited_by": None,
-                "archived": None,
-                "in_trash": None,
             },
             False,
         ),
@@ -426,26 +459,23 @@ def test_frozen_object():
         ),
     ],
 )
-def test_notion_object(input_dict, expected_dict, should_raise):
+def test_notion_object_res(input_dict, expected_dict, should_raise):
+    class RxNotionObjectImpl(RxNotionObject):
+        pass
+
     if should_raise:
         with pytest.raises(ValueError):
-            NotionObject(**input_dict)
+            RxNotionObjectImpl(**input_dict)
     else:
-        notion_obj = NotionObject(**input_dict)
+        notion_obj = RxNotionObjectImpl(**input_dict)
         for key, value in expected_dict.items():
             assert getattr(notion_obj, key) == value
 
 
-def test_invalid_initializer():
-    with pytest.raises(
-        TypeError,
-        match="takes 1 positional argument but 3 were given",
-    ):
-        NotionObject(ObjectType.BLOCK, UUID("c02fc1d3-db8b-45c5-a222-27595b15aea7"))
-
-    for obj in ["user", "comment", "unknown"]:
-        with pytest.raises(ValueError):
-            NotionObject(object=obj)
+def test_create_abstract_class():
+    for clz in [TxNotionObject, RxNotionObject]:
+        with pytest.raises(TypeError, match="Cannot instantiate abstract class"):
+            clz()
 
 
 @pytest.mark.parametrize(
@@ -563,26 +593,6 @@ def test_invalid_initializer():
                         "name": "smile",
                         "url": "https://example.com/emoji.png",
                     },
-                },
-            ),
-        ),
-        (
-            NotionObject,
-            (
-                {
-                    "object": "page",
-                    "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
-                    "created_time": "2024-05-17T15:30:00Z",
-                },
-                {
-                    "object": ObjectType.PAGE,
-                    "id": UUID("f4de14e1-0cff-4497-835f-29d6d04d62c1"),
-                    "created_time": datetime(2024, 5, 17, 15, 30, tzinfo=timezone.utc),
-                },
-                {
-                    "object": "page",
-                    "id": "f4de14e1-0cff-4497-835f-29d6d04d62c1",
-                    "created_time": "2024-05-17T15:30:00Z",
                 },
             ),
         ),
