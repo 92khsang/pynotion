@@ -1,9 +1,10 @@
 from __future__ import annotations as _annotations
 
+from abc import ABC
 from enum import StrEnum
-from typing import Literal, Union, TypeAlias, Annotated
+from typing import Literal, Union, TypeAlias, Annotated, Any
 
-from pydantic import Field, BeforeValidator
+from pydantic import Field, BeforeValidator, field_validator, model_validator
 
 from ._internal import (
     BaseNotionModel,
@@ -11,14 +12,14 @@ from ._internal import (
     validate_enum,
 )
 from .types import (
-    NotionEquation,
     Color,
     BackgroundColor,
-    NotionLink,
-    NotionUrl,
-    NotionDate,
-    NotionUserRef,
-    NotionObjectRef,
+    NotionDate as _NotionDate,
+    NotionLink as _NotionLink,
+    NotionUrl as _NotionUrl,
+    NotionUserRef as _NotionUserRef,
+    NotionObjectRef as _NotionObjectRef,
+    NotionEquation as _NotionEquation,
 )
 
 
@@ -120,16 +121,17 @@ class Text(BaseNotionModel):
 
     content: Annotated[str, Field(max_length=2000)]
 
-    link: (
-        Annotated[
-            str | NotionLink, BeforeValidator(lambda v: NotionLink(url=NotionUrl(v)))
-        ]
-        | None
-    ) = None
+    link: str | _NotionLink | None = Field(default=None)
+
+    @field_validator("link", mode="before")
+    def validate_link(cls, v):
+        if v is None or isinstance(v, _NotionLink):
+            return v
+        return _NotionLink(url=_NotionUrl(v))
 
 
 # ---------------------- Equation ---------------------- #
-Equation: TypeAlias = NotionEquation
+Equation: TypeAlias = _NotionEquation
 
 
 # ---------------------- Mentions ---------------------- #
@@ -147,12 +149,11 @@ class MentionTemplate(TypeObjectModel):
     type_object: Literal["today", "now"] | Literal["me"]
 
 
-MentionDatabase: TypeAlias = NotionObjectRef
-MentionDate: TypeAlias = NotionDate
-MentionPage: TypeAlias = NotionObjectRef
-MentionUser: TypeAlias = NotionUserRef
-MentionLinkPreview: TypeAlias = NotionLink
-
+MentionDatabase: TypeAlias = _NotionObjectRef
+MentionDate: TypeAlias = _NotionDate
+MentionPage: TypeAlias = _NotionObjectRef
+MentionUser: TypeAlias = _NotionUserRef
+MentionLinkPreview: TypeAlias = _NotionLink
 
 MentionObjects = Union[
     MentionDatabase,
@@ -183,18 +184,16 @@ class Mention(TypeObjectModel):
 
 
 # ---------------------- RichText ---------------------- #
-class RichText(TypeObjectModel):
-    """Represents a rich text object.
+RichTextHref: TypeAlias = _NotionUrl
+
+
+class BaseRichText(TypeObjectModel, ABC):
+    """Base class for rich text objects.
 
     Attributes:
         type: The type of the rich text object.
         type_object: The data related to this particular rich text object.
-        annotations: The information is used to style the rich text object.
-        plain_text: The plain text without annotations.
-        href: The URL of any link or Notion mentioned in this text, if any.
 
-    References:
-        https://developers.notion.com/reference/rich-text
     """
 
     __type_object_map__ = {
@@ -208,19 +207,50 @@ class RichText(TypeObjectModel):
         BeforeValidator(lambda v: validate_enum(v, (RichTextType,))),
         Field(frozen=True),
     ]
-
     type_object: Text | Equation | Mention
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_abstract_clz(cls, values: Any) -> Any:
+        if cls == BaseRichText:
+            raise TypeError("Cannot instantiate abstract class BaseRichText")
+
+        return values
+
+
+class TxRichText(BaseRichText):
+    """Represents a rich text object.
+
+    Attributes:
+        type: The type of the rich text object.
+        type_object: The data related to this particular rich text object.
+        annotations: The information is used to style the rich text object.
+
+    References:
+        https://developers.notion.com/reference/rich-text
+    """
 
     annotations: Annotations = Field(default_factory=Annotations)
 
-    read_only_plain_text: str | None = Field(default=None, frozen=True)
 
-    read_only_href: NotionUrl | None = Field(default=None, frozen=True)
+class RxRichText(BaseRichText):
+    """Represents a rich text object.
 
-    @property
-    def plain_text(self) -> str | None:
-        return self.read_only_plain_text
+    Attributes:
+        type: The type of the rich text object.
+        type_object: The data related to this particular rich text object.
+        annotations: The information is used to style the rich text object.
+        plain_text: The plain text without annotations.
+        href: The URL of any link or Notion mentioned in this text, if any.
 
-    @property
-    def href(self) -> NotionUrl | None:
-        return self.read_only_href
+    References:
+        https://developers.notion.com/reference/rich-text
+    """
+
+    type_object: Text | Equation | Mention = Field(frozen=True)
+    annotations: Annotations = Field(frozen=True)
+    plain_text: str | None = Field(frozen=True)
+    href: RichTextHref | None = Field(frozen=True)
+
+
+RichText: TypeAlias = TxRichText | RxRichText

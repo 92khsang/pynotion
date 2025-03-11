@@ -14,9 +14,9 @@ from pynotion.models.rich_text import (
     MentionPage,
     MentionLinkPreview,
     MentionDate,
-    RichText,
     MentionTemplate,
     Mention,
+    RxRichText,
 )
 from pynotion.models.types import (
     NotionEquation,
@@ -26,7 +26,6 @@ from pynotion.models.types import (
     NotionUserRef,
     NotionObjectRef,
     BackgroundColor,
-    ObjectType,
 )
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -131,7 +130,7 @@ def test_invalid_text_model():
         ),
         (
             MentionUser,
-            NotionUserRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            NotionUserRef(object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
             {"object": "user", "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c"},
         ),
     ],
@@ -158,7 +157,7 @@ def test_mentions(mention_class, type_object, type_asdict):
         MentionTemplate(
             type=TemplateMentionType.TEMPLATE_MENTION_USER, type_object="me"
         ),
-        NotionUserRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+        NotionUserRef(object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
     ],
 )
 def test_invalid_mentions(type_object):
@@ -203,7 +202,9 @@ def test_invalid_mentions(type_object):
             None,
             Mention(
                 type=MentionType.USER,
-                type_object=MentionUser(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
+                type_object=MentionUser(
+                    object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
+                ),
             ),
         ),
         (
@@ -273,12 +274,12 @@ def test_invalid_mentions(type_object):
 )
 def test_rich_text(rich_text_type, annotations, plain_text, href, type_object):
     """Test RichText model with a text type."""
-    rich_text = RichText(
+    rich_text = RxRichText(
         type=rich_text_type,
         type_object=type_object,
         annotations=annotations,
-        read_only_plain_text=plain_text,
-        read_only_href=href,
+        plain_text=plain_text,
+        href=href,
     )
 
     assert rich_text.type == rich_text_type
@@ -299,7 +300,7 @@ def test_rich_text(rich_text_type, annotations, plain_text, href, type_object):
 def test_rich_text_validation_errors(invalid_data):
     """Test invalid data should raise ValidationError."""
     with pytest.raises(ValidationError):
-        RichText.model_validate(invalid_data)
+        RxRichText.model_validate(invalid_data)
 
 
 # ------------------ SERIALIZATION TESTS ------------------ #
@@ -307,14 +308,14 @@ def test_rich_text_validation_errors(invalid_data):
     "clz, test_data",
     [
         (
-            RichText,
+            RxRichText,
             (
                 {
                     "type": RichTextType.TEXT,
                     "type_object": Text(content="Test Text", link="https://notion.so"),
                     "annotations": Annotations(bold=True),
-                    "read_only_plain_text": "Test Text",
-                    "read_only_href": "https://notion.so",
+                    "plain_text": "Test Text",
+                    "href": "https://notion.so",
                 },
                 {
                     "type": RichTextType.TEXT,
@@ -348,14 +349,14 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RichText,
+            RxRichText,
             (
                 {
                     "type": RichTextType.EQUATION,
                     "type_object": NotionEquation(expression="E = mc^2"),
                     "annotations": Annotations(bold=True, italic=True, color=Color.RED),
-                    "read_only_plain_text": "E = mc^2",
-                    "read_only_href": None,
+                    "plain_text": "E = mc^2",
+                    "href": None,
                 },
                 {
                     "type": RichTextType.EQUATION,
@@ -387,14 +388,14 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RichText,
+            RxRichText,
             (
                 {
                     "type": RichTextType.MENTION,
                     "type_object": Mention(
                         type=MentionType.USER,
                         type_object=MentionUser(
-                            id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
+                            object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
                         ),
                     ),
                     "annotations": Annotations(
@@ -405,14 +406,15 @@ def test_rich_text_validation_errors(invalid_data):
                         code=True,
                         color=BackgroundColor.RED_BACKGROUND,
                     ),
-                    "read_only_plain_text": "Test User",
+                    "plain_text": "Test User",
+                    "href": None,
                 },
                 {
                     "type": RichTextType.MENTION,
                     "mention": {
                         "type": MentionType.USER,
                         "user": {
-                            "object": ObjectType.USER,
+                            "object": "user",
                             "id": UUID("a7db80bd-b3e3-4394-b134-a21b05412c7c"),
                         },
                     },
@@ -431,7 +433,7 @@ def test_rich_text_validation_errors(invalid_data):
                     "mention": {
                         "type": MentionType.USER.value,
                         "user": {
-                            "object": ObjectType.USER.value,
+                            "object": "user",
                             "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
                         },
                     },
@@ -446,7 +448,7 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RichText,
+            RxRichText,
             (
                 {
                     "type": RichTextType.MENTION,
@@ -460,8 +462,8 @@ def test_rich_text_validation_errors(invalid_data):
                     "annotations": Annotations(
                         italic=True, underline=True, color=Color.YELLOW
                     ),
-                    "read_only_plain_text": "now",
-                    "read_only_href": None,
+                    "plain_text": "now",
+                    "href": None,
                 },
                 {
                     "type": RichTextType.MENTION,
@@ -501,7 +503,7 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RichText,
+            RxRichText,
             (
                 {
                     "type": RichTextType.MENTION,
@@ -515,8 +517,8 @@ def test_rich_text_validation_errors(invalid_data):
                     "annotations": Annotations(
                         strikethrough=True, code=True, color=Color.PURPLE
                     ),
-                    "read_only_plain_text": "now",
-                    "read_only_href": None,
+                    "plain_text": "now",
+                    "href": None,
                 },
                 {
                     "type": RichTextType.MENTION,
