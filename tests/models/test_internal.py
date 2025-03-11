@@ -5,7 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
-from pydantic import BeforeValidator, ValidationError, Field, PrivateAttr
+from pydantic import BeforeValidator, ValidationError, PrivateAttr
 
 from pynotion.models._internal import (
     validate_timezone,
@@ -16,8 +16,6 @@ from pynotion.models._internal import (
     validate_enum,
     validate_uuid4,
     NotionType,
-    remove_read_only_prefix,
-    ReadOnlyTypeObjectModel,
     FixedTypeObjectModel,
 )
 
@@ -266,35 +264,6 @@ def test_unregistered_type_raises():
         NoMappingModel(type=FakeEnum.FAKE, type_object={})
 
 
-def test_remove_read_only_prefix_function():
-    """
-    Ensures remove_read_only_prefix handles both prefixed and non-prefixed strings.
-    """
-    assert remove_read_only_prefix("read_only_field_name") == "field_name"
-    assert remove_read_only_prefix("normal_field") == "normal_field"
-
-
-def test_remove_read_only_prefix_on_data_dict():
-    """
-    Exercises BaseNotionModel._remove_read_only_prefix(data: dict) by
-    providing a dict with and without read_only_ prefix keys.
-    """
-
-    class TempModel(BaseNotionModel):
-        pass
-
-    data = {
-        "read_only_oldKey": "some_value",
-        "regularKey": 123,
-    }
-    result = TempModel._remove_read_only_prefix(data)
-    # 'read_only_oldKey' should be renamed to 'oldKey'
-    assert "oldKey" in result
-    assert "read_only_oldKey" not in result
-    assert result["oldKey"] == "some_value"
-    assert result["regularKey"] == 123
-
-
 def test_base_notion_model_serialize_model_wrap():
     """
     Tests the coverage of BaseNotionModel.serialize_model ensuring it calls
@@ -305,14 +274,14 @@ def test_base_notion_model_serialize_model_wrap():
         __serializable_private_attrs__ = {"_private_value": "alias_private"}
 
         _private_value: str
-        read_only_something: str
+        something: str
         normal_field: int
 
         def __init__(self, **data):
             super().__init__(**data)
             object.__setattr__(self, "_private_value", "hello")
 
-    instance = SampleModel(read_only_something="read-only", normal_field=42)
+    instance = SampleModel(something="something", normal_field=42)
     serialized = instance.model_dump()
 
     # private attr should appear under aliased key
@@ -321,8 +290,7 @@ def test_base_notion_model_serialize_model_wrap():
 
     # the read_only_ prefix on read_only_something should be removed
     assert "something" in serialized
-    assert "read_only_something" not in serialized
-    assert serialized["something"] == "read-only"
+    assert serialized["something"] == "something"
 
 
 @pytest.mark.parametrize(
@@ -466,28 +434,6 @@ def test_serialize_model_no_type_object():
     assert serialized["type"] == "foo"
 
 
-def test_read_only_type_object_model():
-    """
-    Covers read_only_type and read_only_type_object properties in ReadOnlyTypeObjectModel.
-    """
-
-    class MyEnum(NotionType):
-        BAR = "bar"
-
-    class ReadOnlyTestModel(ReadOnlyTypeObjectModel):
-        __type_object_map__ = {MyEnum.BAR: dict}
-
-        read_only_type: MyEnum | None = Field(default=None, frozen=True)
-        read_only_type_object: Any | None = Field(default=None, frozen=True)
-
-    instance = ReadOnlyTestModel(
-        read_only_type=MyEnum.BAR, read_only_type_object={"x": 1}
-    )
-
-    assert instance.type == "bar"
-    assert instance.type_object == {"x": 1}
-
-
 def test_fixed_type_object_model():
     """
     Covers fixed_type and fixed_type_object properties in FixedTypeObjectModel.
@@ -523,7 +469,6 @@ def test_invalid_class_creation():
     class_types = [
         BaseNotionModel,
         TypeObjectModel,
-        ReadOnlyTypeObjectModel,
         FixedTypeObjectModel,
     ]
 
@@ -531,7 +476,7 @@ def test_invalid_class_creation():
         with pytest.raises(TypeError, match="cannot be instantiated directly"):
             cls()
 
-    class_types = [ReadOnlyTypeObjectModel, FixedTypeObjectModel]
+    class_types = [FixedTypeObjectModel]
 
     for cls in class_types:
         with pytest.raises(ValueError, match="is not registered with any Notion types"):
