@@ -1,7 +1,110 @@
 import json
+from typing import Any, TypeAlias
 
 import pytest
 from pydantic import BaseModel, TypeAdapter
+
+# Type aliases for better readability
+Diffdict: TypeAlias = dict[str, Any]
+Mismatchdict: TypeAlias = dict[str, tuple[Any, Any]]
+FormattedResult: TypeAlias = str
+
+
+def _format_dict(d: dict[str, Any], level: int = 1) -> str:
+    """
+    Format a dictionary with proper indentation.
+
+    Args:
+        d: dictionary to format
+        level: Current indentation level
+
+    Returns:
+        Formatted string representation of the dictionary
+    """
+    if not d:
+        return "{}"
+
+    indent = "    " * level
+    prev_level_indent = "    " * (level - 1)
+
+    entries = [
+        f"{indent}{repr(k)}: {_format_value(v, level + 1)}," for k, v in d.items()
+    ]
+
+    return "{\n" + "\n".join(entries) + f"\n{prev_level_indent}}}"
+
+
+def _format_value(val: Any, level: int = 1) -> str:
+    """
+    Format a value, with special handling for dictionaries.
+
+    Args:
+        val: Value to format
+        level: Current indentation level
+
+    Returns:
+        Formatted string representation of the value
+    """
+    if isinstance(val, dict):
+        return _format_dict(val, level)
+    return repr(val)
+
+
+def _format_mismatch(m: Mismatchdict, level: int = 1) -> str:
+    """
+    Format mismatch dictionary showing expected vs actual values.
+
+    Args:
+        m: dictionary of mismatches
+        level: Current indentation level
+
+    Returns:
+        Formatted string representation of mismatches
+    """
+    if not m:
+        return "{}"
+
+    indent = "    " * level
+    prev_level_indent = "    " * (level - 1)
+
+    entries = []
+    for k, (expected_val, actual_val) in m.items():
+        entries.append(
+            f"{indent}{repr(k)}:\n"
+            f"{indent}    Expected: {_format_value(expected_val, level + 1)},\n"
+            f"{indent}    Actual: {_format_value(actual_val, level + 1)},"
+        )
+
+    return "{\n" + "\n".join(entries) + f"\n{prev_level_indent}}}"
+
+
+def find_mismatch(expected: dict[str, Any], actual: dict[str, Any]) -> FormattedResult:
+    """
+    Compare two dictionaries and identify differences between them.
+
+    Args:
+        expected: dictionary containing expected values
+        actual: dictionary containing actual values
+
+    Returns:
+        A formatted string showing differences categorized as:
+        - Keys only in expected
+        - Keys only in actual
+        - Keys in both but with different values
+    """
+    expected_only: Diffdict = {k: v for k, v in expected.items() if k not in actual}
+    actual_only: Diffdict = {k: v for k, v in actual.items() if k not in expected}
+    mismatch: Mismatchdict = {
+        k: (expected[k], actual[k])
+        for k in set(expected) & set(actual)
+        if expected[k] != actual[k]
+    }
+
+    return (
+        f"\n    Expected Only: {_format_dict(expected_only)}"
+        f"\n    Actual Only: {_format_dict(actual_only)}"
+        f"\n    Mismatch: {_format_mismatch(mismatch)}"
+    )
 
 
 class PydanticModelTester:
@@ -48,7 +151,7 @@ class PydanticModelTester:
             )
             assert (
                 model_dict == self.expected_dict
-            ), f"dictionary mismatch: {model_dict} != {self.expected_dict}"
+            ), f"dictionary mismatch: {find_mismatch(self.expected_dict, model_dict)}"
         except AssertionError as e:
             pytest.fail(f"dictionary validation failed: {e}")
         except Exception as e:
@@ -62,7 +165,7 @@ class PydanticModelTester:
             )
             assert (
                 model_dump_dict == self.expected_dict
-            ), f"model_dump() output mismatch: {model_dump_dict} != {self.expected_dict}"
+            ), f"model_dump() output mismatch: {find_mismatch(self.expected_dict, model_dump_dict)}"
         except AssertionError as e:
             pytest.fail(f"model_dump validation failed: {e}")
         except Exception as e:
@@ -76,7 +179,7 @@ class PydanticModelTester:
             )
             assert (
                 json.loads(json_data) == self.expected_json
-            ), f"JSON mismatch: {json.loads(json_data)} != {self.expected_json}"
+            ), f"JSON mismatch: {find_mismatch(self.expected_json, json.loads(json_data))}"
         except AssertionError as e:
             pytest.fail(f"JSON validation failed: {e}")
         except Exception as e:
