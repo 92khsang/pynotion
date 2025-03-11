@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError, BaseModel, UUID4
 
-from pynotion.models.types import NotionUrl, ObjectType
+from pynotion.models.types import NotionUrl
 from pynotion.models.user import UserType, BotOwnerType, Person, BotOwner, Bot, User
 from tests.models.model_test_utils import PydanticModelTester
 
@@ -129,8 +129,12 @@ def test_user_model_without_data(user_type: UserType, expected_error):
     """Test User model validation rules for type and type_object consistency."""
     with pytest.raises(ValidationError, match=expected_error):
         User(
+            object="user",
             id=str(uuid4()),
             type=user_type,
+            name="Test User",
+            avatar_url="https://example.com/avatar.png",
+            type_object=None,
         )
 
 
@@ -163,10 +167,12 @@ def test_user_model_without_data(user_type: UserType, expected_error):
 def test_user_model(user_type, name, avatar_url, type_object):
     """Test valid User model instantiation with the type 'person'."""
     user = User(
-        read_only_type=user_type or None,
-        read_only_name=name or None,
-        read_only_avatar_url=avatar_url or None,
-        read_only_type_object=type_object or None,
+        object="user",
+        id=str(uuid4()),
+        type=user_type or None,
+        name=name or None,
+        avatar_url=avatar_url or None,
+        type_object=type_object or None,
     )
     assert user.object == "user"
     assert user.type == user_type
@@ -223,7 +229,7 @@ def test_user_model(user_type, name, avatar_url, type_object):
                 "person": {"email": "user@example.com"},
             },
             {
-                "object": ObjectType.USER,
+                "object": "user",
                 "id": UUID4("d7db80bd-b3e3-4394-b134-a21b05412c7c"),
                 "type": UserType.PERSON,
                 "name": "Test User",
@@ -253,7 +259,7 @@ def test_user_model(user_type, name, avatar_url, type_object):
                 },
             },
             {
-                "object": ObjectType.USER,
+                "object": "user",
                 "id": UUID4("923ef3ea-cff1-423a-a5af-a24cfcb08f7c"),
                 "type": UserType.BOT,
                 "name": "Test Bot",

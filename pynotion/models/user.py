@@ -1,22 +1,19 @@
 from __future__ import annotations as _annotations
 
 from enum import StrEnum
-from typing import Literal, Any, Annotated
+from typing import Literal, Annotated, TypeAlias
 
-from pydantic import Field, model_validator, PrivateAttr, BeforeValidator
+from pydantic import Field, model_validator, BeforeValidator
 
 from ._internal import (
     BaseNotionModel,
     TypeObjectModel,
-    validate_enum_value,
     validate_enum,
-    ReadOnlyTypeObjectModel,
 )
 from .types import (
-    NotionEmail,
-    NotionUrl,
-    ObjectType,
-    NotionObjectId,
+    NotionEmail as _NotionEmail,
+    NotionUrl as _NotionUrl,
+    NotionObjectId as _NotionObjectId,
 )
 
 
@@ -52,6 +49,11 @@ class BotOwnerType(StrEnum):
 
 
 # ---------------------- MODELS ---------------------- #
+UserId: TypeAlias = _NotionObjectId
+PersonEmail: TypeAlias = _NotionEmail
+AvatarUrl: TypeAlias = _NotionUrl
+
+
 class Person(BaseNotionModel):
     """Represents a person in Notion.
 
@@ -62,7 +64,7 @@ class Person(BaseNotionModel):
         https://developers.notion.com/reference/user#people
     """
 
-    email: NotionEmail = Field(description="email address of the user")
+    email: PersonEmail
 
 
 class BotOwner(TypeObjectModel):
@@ -129,7 +131,7 @@ class Bot(BaseNotionModel):
         return self
 
 
-class User(ReadOnlyTypeObjectModel):
+class User(TypeObjectModel):
     """Represents a user in Notion.
 
     Attributes:
@@ -137,36 +139,34 @@ class User(ReadOnlyTypeObjectModel):
         id: Unique identifier for this user.
         type: The type of the user (person or bot).
         name: The name of the user.
-        url: The URL of the user's avatar.
+        avatar_url: The URL of the user's avatar.
         type_object: The data related to this user, either Person or Bot.
 
     References:
         https://developers.notion.com/reference/user#all-users
     """
 
-    __serializable_private_attrs__ = {"_object": "object"}
-
     __type_object_map__ = {
         UserType.PERSON: Person,
         UserType.BOT: Bot,
     }
 
-    _object: ObjectType = PrivateAttr(default=ObjectType.USER)
+    object: Literal["user"] = Field(frozen=True)
 
-    read_only_id: NotionObjectId | None = Field(default=None, frozen=True)
+    id: UserId = Field(frozen=True)
 
-    read_only_type: (
+    type: (
         Annotated[
             str | UserType, BeforeValidator(lambda v: validate_enum(v, (UserType,)))
         ]
         | None
-    ) = Field(default=None, frozen=True)
+    ) = Field(frozen=True)
 
-    read_only_name: str | None = Field(default=None, frozen=True)
+    name: str | None = Field(frozen=True)
 
-    read_only_avatar_url: NotionUrl | None = Field(default=None, frozen=True)
+    avatar_url: AvatarUrl | None = Field(frozen=True)
 
-    read_only_type_object: Person | Bot | None = Field(default=None, frozen=True)
+    type_object: Person | Bot | None = Field(frozen=True)
 
     @model_validator(mode="after")
     def validate_user_type(self):
@@ -184,72 +184,5 @@ class User(ReadOnlyTypeObjectModel):
             raise ValueError("A user of a type 'bot' must have a 'bot' field.")
         return self
 
-    def __init__(self, **data: Any):
-        """Initialize a User instance.
 
-        Args:
-            **data: Dictionary of attribute values to initialize the User with.
-                May include 'object' which should be ObjectType.USER.
-
-        Raises:
-            ValueError: If 'object' is provided but not ObjectType.USER.
-        """
-        obj = data.pop("object", None) or ObjectType.USER
-        obj = validate_enum_value(obj, {ObjectType.USER})
-
-        super().__init__(**data)
-        object.__setattr__(self, "_object", obj)
-
-    @property
-    def object(self) -> ObjectType:
-        """The object type, always 'user'.
-
-        Returns:
-            ObjectType: Always ObjectType.USER.
-        """
-        return self._object
-
-    @property
-    def id(self) -> NotionObjectId:
-        """The unique identifier for this user.
-
-        Returns:
-            NotionObjectId: The user's ID.
-        """
-        return self.read_only_id
-
-    @property
-    def name(self) -> str | None:
-        """The user's name.
-
-        Returns:
-            str: The user's name, or None if not available.
-        """
-        return self.read_only_name
-
-    @property
-    def avatar_url(self) -> NotionUrl | None:
-        """The URL of the user's avatar image.
-
-        Returns:
-            NotionUrl: The URL to the user's avatar, or None if not available.
-        """
-        return self.read_only_avatar_url
-
-    @property
-    def type(self) -> UserType | None:
-        """The type of user (person or bot).
-
-        Returns:
-            UserType: The type of the user.
-        """
-        return self.read_only_type
-
-    @property
-    def type_object(self) -> Person | Bot | None:
-        """The type-specific object for this user.
-
-        Returns:
-            Person or Bot: Additional data specific to this user type.
-        """
-        return self.read_only_type_object
+User: TypeAlias = User
