@@ -1,24 +1,26 @@
-from __future__ import annotations as _annotations
+from enum import Enum
+from typing import Literal, Annotated, Optional
 
-from enum import StrEnum
-from typing import Literal, Annotated, TypeAlias
-
-from pydantic import Field, model_validator, BeforeValidator
+from pydantic import (
+    Field,
+    model_validator,
+    Discriminator,
+    Tag,
+    BeforeValidator,
+)
 
 from ._internal import (
     BaseNotionModel,
-    TypeObjectModel,
-    validate_enum,
+    validate_url,
+    validate_email,
 )
-from .types import (
-    NotionEmail as _NotionEmail,
-    NotionUrl as _NotionUrl,
-    NotionObjectId as _NotionObjectId,
+from .object import (
+    NotionObjectType,
+    NotionObjectId,
 )
 
 
-# ---------------------- ENUMS ---------------------- #
-class UserType(StrEnum):
+class UserType(str, Enum):
     """Defined user types in Notion.
 
     Attributes:
@@ -33,7 +35,7 @@ class UserType(StrEnum):
     BOT = "bot"
 
 
-class BotOwnerType(StrEnum):
+class BotOwnerType(str, Enum):
     """Defined bot owner types in Notion.
 
     Attributes:
@@ -48,10 +50,21 @@ class BotOwnerType(StrEnum):
     USER = "user"
 
 
-# ---------------------- MODELS ---------------------- #
-UserId: TypeAlias = _NotionObjectId
-PersonEmail: TypeAlias = _NotionEmail
-AvatarUrl: TypeAlias = _NotionUrl
+class WorkspaceBotOwner(BaseNotionModel):
+    type: Literal[BotOwnerType.WORKSPACE] = Field(
+        default=BotOwnerType.WORKSPACE, frozen=True
+    )
+    workspace: Literal[True] = Field(default=True, frozen=True)
+
+
+class UserBotOwner(BaseNotionModel):
+    type: Literal[BotOwnerType.USER] = Field(default=BotOwnerType.USER, frozen=True)
+
+
+BotOwner = Annotated[
+    WorkspaceBotOwner | UserBotOwner,
+    Field(discriminator="type"),
+]
 
 
 class Person(BaseNotionModel):
@@ -64,33 +77,7 @@ class Person(BaseNotionModel):
         https://developers.notion.com/reference/user#people
     """
 
-    email: PersonEmail
-
-
-class BotOwner(TypeObjectModel):
-    """Represents a bot owner in Notion.
-
-    Attributes:
-        type: The type of the bot owner (workspace or user).
-        type_object: The data related to this bot owner. True for workspace,
-            None for user.
-
-    References:
-        https://developers.notion.com/reference/user#bots
-    """
-
-    __type_object_map__ = {
-        BotOwnerType.WORKSPACE: Literal[True],
-        BotOwnerType.USER: None,
-    }
-
-    type: Annotated[
-        str | BotOwnerType,
-        BeforeValidator(lambda v: validate_enum(v, (BotOwnerType,))),
-        Field(frozen=True),
-    ]
-
-    type_object: Literal[True] | None = Field(default=None, frozen=True)
+    email: Annotated[str, BeforeValidator(validate_email)]
 
 
 class Bot(BaseNotionModel):
@@ -99,7 +86,6 @@ class Bot(BaseNotionModel):
     Attributes:
         owner: The owner of the bot.
         workspace_name: The name of the workspace if the bot belongs to a workspace.
-            Required when owner type is workspace, must be None when owner type is user.
 
     References:
         https://developers.notion.com/reference/user#bots
@@ -107,15 +93,15 @@ class Bot(BaseNotionModel):
 
     owner: BotOwner
 
-    workspace_name: str | None = Field(default=None)
+    workspace_name: Optional[str] = Field(default=None)
 
     @model_validator(mode="after")
     def validate_workspace_name(self):
-        """Validates workspace_name based on owner type.
+        """Validates workspace_name based on an owner type.
 
         Raises:
-            ValueError: If workspace_name is missing for workspace owner
-                or present for user owner.
+            ValueError: If workspace_name is missing for a workspace owner
+                or present for a user owner.
 
         Returns:
             Bot: The validated Bot instance.
@@ -131,58 +117,86 @@ class Bot(BaseNotionModel):
         return self
 
 
-class User(TypeObjectModel):
-    """Represents a user in Notion.
+class UserRef(BaseNotionModel):
+    """
+    Represents a minimal user reference when a full User object isn't needed.
+
+    This is often used in created_by and last_edited_by fields.
 
     Attributes:
-        object: Always 'user', ensuring consistency.
-        id: Unique identifier for this user.
-        type: The type of the user (person or bot).
-        name: The name of the user.
-        avatar_url: The URL of the user's avatar.
-        type_object: The data related to this user, either Person or Bot.
-
-    References:
-        https://developers.notion.com/reference/user#all-users
+        id: Unique identifier for the user.
+        object: Always 'user', confirming this is a user reference.
     """
 
-    __type_object_map__ = {
-        UserType.PERSON: Person,
-        UserType.BOT: Bot,
-    }
-
-    object: Literal["user"] = Field(frozen=True)
-
-    id: UserId = Field(frozen=True)
-
-    type: (
-        Annotated[
-            str | UserType, BeforeValidator(lambda v: validate_enum(v, (UserType,)))
-        ]
-        | None
-    ) = Field(frozen=True)
-
-    name: str | None = Field(frozen=True)
-
-    avatar_url: AvatarUrl | None = Field(frozen=True)
-
-    type_object: Person | Bot | None = Field(frozen=True)
-
-    @model_validator(mode="after")
-    def validate_user_type(self):
-        """Validates that type_object matches the specified user type.
-
-        Raises:
-            ValueError: If the type_object doesn't match the expected type.
-
-        Returns:
-            User: The validated User instance.
-        """
-        if self.type == "person" and not isinstance(self.type_object, Person):
-            raise ValueError("A user of the type 'person' must have a 'person' field.")
-        if self.type == "bot" and not isinstance(self.type_object, Bot):
-            raise ValueError("A user of a type 'bot' must have a 'bot' field.")
-        return self
+    object: Literal[NotionObjectType.User] = Field(
+        default=NotionObjectType.User, frozen=True
+    )
+    id: NotionObjectId = Field(frozen=True)
 
 
-User: TypeAlias = User
+class _BaseUser(UserRef):
+    __no_instance__ = True
+
+    name: Optional[str] = Field(default=None)
+    avatar_url: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(
+        default=None
+    )
+
+
+class PersonUser(_BaseUser):
+    """Represents a person user in Notion.
+
+    Attributes:
+        object: Always 'user', confirming this is a person user.
+        id: Unique identifier for the person user.
+        type: Always 'person', confirming this is a person user.
+        person: The person associated with the person user.
+        name: The name of the person.
+        avatar_url: The URL of the avatar image of the person.
+    """
+
+    type: Literal[UserType.PERSON] = Field(default=UserType.PERSON)
+    person: Person
+
+
+class BotUser(_BaseUser):
+    """Represents a bot user in Notion.
+
+    Attributes:
+        object: Always 'user', confirming this is a bot user.
+        id: Unique identifier for the bot user.
+        type: Always 'bot', confirming this is a bot user.
+        bot: The bot associated with the bot user.
+        name: The name of the bot.
+        avatar_url: The URL of the avatar image of the bot.
+    """
+
+    type: Literal[UserType.BOT] = Field(default=UserType.BOT)
+    bot: Bot
+
+
+def model_user_discriminator(v):
+    if isinstance(v, dict):
+        type_value = v.get("type", None)
+    else:
+        type_value = getattr(v, "type", None)
+
+    match type_value:
+        case None:
+            return "ref"
+        case UserType.PERSON:
+            return "person"
+        case UserType.BOT:
+            return "bot"
+
+    raise ValueError(f"Unknown user type: {v}")
+
+
+User = Annotated[
+    (
+        Annotated[UserRef, Tag("ref")]
+        | Annotated[PersonUser, Tag("person")]
+        | Annotated[BotUser, Tag("bot")]
+    ),
+    Discriminator(model_user_discriminator),
+]

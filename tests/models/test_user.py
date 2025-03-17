@@ -3,9 +3,11 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError, BaseModel, UUID4
 
-from pynotion.models.types import NotionUrl
-from pynotion.models.user import UserType, BotOwnerType, Person, BotOwner, Bot, User
-from tests.models.model_test_utils import PydanticModelTester
+from pynotion.models.user import *
+from tests.models.model_test_utils import (
+    PydanticModelTester,
+    DiscriminatedModelTester,
+)
 
 
 # ------------------ ENUM TESTS ------------------ #
@@ -49,17 +51,26 @@ def test_person_model(sample_person):
     "sample_bot_owner_workspace, sample_bot_owner_user",
     [
         (
-            BotOwner(type=BotOwnerType.WORKSPACE, type_object=True),
-            BotOwner(type=BotOwnerType.USER),
+            WorkspaceBotOwner(),
+            UserBotOwner(),
         ),
     ],
 )
 def test_bot_owner_model(sample_bot_owner_workspace, sample_bot_owner_user):
     """Test BotOwner model with both workspace and user types."""
     assert sample_bot_owner_workspace.type == BotOwnerType.WORKSPACE
-    assert sample_bot_owner_workspace.type_object is True
+    assert sample_bot_owner_workspace.workspace is True
     assert sample_bot_owner_user.type == BotOwnerType.USER
-    assert sample_bot_owner_user.type_object is None
+
+
+def test_notion_user_ref():
+    with pytest.raises(
+        ValueError, match=r"Input should be <NotionObjectType.User: 'user'>"
+    ):
+        UserRef(object=NotionObjectType.PAGE, id=uuid4())
+
+    valid_user_ref = UserRef(object="user", id=uuid4())
+    assert valid_user_ref.object == "user"
 
 
 @pytest.mark.parametrize(
@@ -67,14 +78,14 @@ def test_bot_owner_model(sample_bot_owner_workspace, sample_bot_owner_user):
     [
         (
             Bot(
-                owner=BotOwner(type=BotOwnerType.WORKSPACE, type_object=True),
+                owner=WorkspaceBotOwner(),
                 workspace_name="Test Workspace",
             ),
             ("workspace", "Test Workspace"),
         ),
         (
             Bot(
-                owner=BotOwner(type=BotOwnerType.USER, type_object=None),
+                owner=UserBotOwner(),
                 workspace_name=None,
             ),
             ("user", None),
@@ -105,81 +116,86 @@ def test_bot_model_valid(sample_bot: Bot, expected_values: tuple):
 def test_bot_model_invalid_workspace_name(
     owner_type: BotOwnerType, workspace_name: str | None, expected_error: str
 ):
-    """Test Bot model validation rules for workspace_name based on an owner type."""
-    owner = BotOwner(
-        type=owner_type,
-        type_object=True if owner_type == BotOwnerType.WORKSPACE else None,
-    )
+    class TestModel(BaseModel):
+        owner: BotOwner
+
+    test_model = TestModel(**{"owner": {"type": owner_type.value}})
 
     with pytest.raises(ValidationError, match=expected_error):
-        Bot(owner=owner, workspace_name=workspace_name)
+        Bot(owner=test_model.owner, workspace_name=workspace_name)
 
 
 @pytest.mark.parametrize(
-    "user_type, expected_error",
+    "clz, user_type, expected_error",
     [
         (
+            PersonUser,
             UserType.PERSON,
-            "A user of the type 'person' must have a 'person' field.",
+            "Input should be a valid dictionary or instance of Person",
         ),
-        (UserType.BOT, "A user of a type 'bot' must have a 'bot' field."),
+        (
+            BotUser,
+            UserType.BOT,
+            "Input should be a valid dictionary or instance of Bot",
+        ),
     ],
 )
-def test_user_model_without_data(user_type: UserType, expected_error):
+def test_user_model_without_data(clz, user_type: UserType, expected_error):
     """Test User model validation rules for type and type_object consistency."""
     with pytest.raises(ValidationError, match=expected_error):
-        User(
+        clz(
             object="user",
             id=str(uuid4()),
             type=user_type,
             name="Test User",
             avatar_url="https://example.com/avatar.png",
-            type_object=None,
+            **{user_type.value: None},
         )
 
 
 @pytest.mark.parametrize(
-    "user_type, name, avatar_url, type_object",
+    "annotated_clz, expected_clz, input_data",
     [
         (
-            UserType.PERSON,
-            "Test User",
-            "https://example.com/avatar.png",
-            Person(email="user@example.com"),
+            User,
+            UserRef,
+            {
+                "object": "user",
+                "id": str(uuid4()),
+            },
         ),
         (
-            UserType.BOT,
-            "Test Bot",
-            "https://example.com/bot.png",
-            Bot(
-                owner=BotOwner(type=BotOwnerType.WORKSPACE, type_object=True),
-                workspace_name="Test Workspace",
-            ),
+            User,
+            PersonUser,
+            {
+                "object": "user",
+                "id": str(uuid4()),
+                "type": UserType.PERSON,
+                "name": "Test User",
+                "avatar_url": "https://example.com/avatar.png",
+                "person": Person(email="user@example.com"),
+            },
         ),
         (
-            None,
-            None,
-            None,
-            None,
+            User,
+            BotUser,
+            {
+                "object": "user",
+                "id": str(uuid4()),
+                "type": UserType.BOT,
+                "name": "Test Bot",
+                "avatar_url": "https://example.com/bot.png",
+                "bot": Bot(
+                    owner=WorkspaceBotOwner(),
+                    workspace_name="Test Workspace",
+                ),
+            },
         ),
     ],
 )
-def test_user_model(user_type, name, avatar_url, type_object):
-    """Test valid User model instantiation with the type 'person'."""
-    user = User(
-        object="user",
-        id=str(uuid4()),
-        type=user_type or None,
-        name=name or None,
-        avatar_url=avatar_url or None,
-        type_object=type_object or None,
-    )
-    assert user.object == "user"
-    assert user.type == user_type
-    assert user.name == name
-    assert user.avatar_url == avatar_url
-    assert user.type_object == type_object
-    assert isinstance(user.type_object, type(type_object))
+def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data: dict):
+    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
 
 
 @pytest.mark.parametrize(
@@ -192,14 +208,14 @@ def test_user_model(user_type, name, avatar_url, type_object):
             {"email": "user@example.com"},
         ),
         (
-            BotOwner,
-            {"type": "workspace", "type_object": True},
+            WorkspaceBotOwner,
+            {"type": "workspace", "workspace": True},
             {"type": BotOwnerType.WORKSPACE, "workspace": True},
             {"type": "workspace", "workspace": True},
         ),
         (
-            BotOwner,
-            {"type": "user", "type_object": None},
+            UserBotOwner,
+            {"type": "user"},
             {"type": BotOwnerType.USER},
             {"type": "user"},
         ),
@@ -219,7 +235,22 @@ def test_user_model(user_type, name, avatar_url, type_object):
             },
         ),
         (
-            User,
+            UserRef,
+            {
+                "object": "user",
+                "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
+            },
+            {
+                "object": "user",
+                "id": UUID4("d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            },
+            {
+                "object": "user",
+                "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
+            },
+        ),
+        (
+            PersonUser,
             {
                 "object": "user",
                 "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
@@ -233,7 +264,7 @@ def test_user_model(user_type, name, avatar_url, type_object):
                 "id": UUID4("d7db80bd-b3e3-4394-b134-a21b05412c7c"),
                 "type": UserType.PERSON,
                 "name": "Test User",
-                "avatar_url": NotionUrl("https://example.com/avatar.png"),
+                "avatar_url": "https://example.com/avatar.png",
                 "person": {"email": "user@example.com"},
             },
             {
@@ -246,7 +277,7 @@ def test_user_model(user_type, name, avatar_url, type_object):
             },
         ),
         (
-            User,
+            BotUser,
             {
                 "object": "user",
                 "id": "923ef3ea-cff1-423a-a5af-a24cfcb08f7c",
@@ -263,7 +294,7 @@ def test_user_model(user_type, name, avatar_url, type_object):
                 "id": UUID4("923ef3ea-cff1-423a-a5af-a24cfcb08f7c"),
                 "type": UserType.BOT,
                 "name": "Test Bot",
-                "avatar_url": NotionUrl("https://example.com/bot.png"),
+                "avatar_url": "https://example.com/bot.png",
                 "bot": {
                     "owner": {"type": BotOwnerType.WORKSPACE, "workspace": True},
                     "workspace_name": "Bot Workspace",
