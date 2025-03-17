@@ -175,7 +175,7 @@ class PydanticModelTester:
         """Validate JSON serialization of the model."""
         try:
             json_data = TypeAdapter(self.model_class).dump_json(
-                self.model_instance, exclude_none=True, exclude_defaults=True
+                self.model_instance, exclude_none=True
             )
             assert (
                 json.loads(json_data) == self.expected_json
@@ -192,3 +192,40 @@ class PydanticModelTester:
             self._validate_dict_serialization()
             self._validate_model_dump()
             self._validate_json_serialization()
+
+
+class DiscriminatedModelTester:
+    def __init__(self, annotated_class: type, expected_class: type, /, **input_data):
+        """
+        Initialize the tester with common parameters.
+        """
+        self.annotated_class = annotated_class
+        self.expected_class = expected_class
+        self.input_data = input_data
+
+    def _instantiate_model(self):
+        annotated_class = self.annotated_class
+
+        class ModelWrapper(BaseModel):
+            real_model: annotated_class
+
+            def __init__(self, /, **data):
+                field_data = {}
+                for k, v in list(data.items()):
+                    field_data[k] = data.pop(k)
+
+                data["real_model"] = field_data
+                super().__init__(**data)
+
+        self.model_instance = ModelWrapper(**self.input_data).real_model
+
+    def _validate_model_attrs(self):
+        assert type(self.model_instance) is self.expected_class
+        assert (
+            self.model_instance.model_dump()
+            == self.expected_class(**self.input_data).model_dump()
+        )
+
+    def run_all_tests(self):
+        self._instantiate_model()
+        self._validate_model_attrs()
