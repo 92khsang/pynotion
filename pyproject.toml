@@ -7,13 +7,12 @@ authors = [
 ]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.10,<3.14"
 keywords = ["notion", "pydantic", "httpx", "api", "integration"]
 
 dependencies = [
     "httpx >= 0.23.0,<1.0.0",
-    "pydantic[email] >= 2.10.0,<3.0.0",
-    "pytest (>=8.3.4,<9.0.0)",
+    "pydantic >= 2.10.0,<3.0.0",
     "tzdata >= 2023.3,<2024.0 ; sys_platform == 'win32'",
 ]
 
@@ -27,6 +26,12 @@ optional = true
 black = { version = ">=25.1.0,<26.0.0", extras = ["d"] }
 pytest = ">=8.3.4,<9.0.0"
 pytest-cov = ">=6.0.0,<7.0.0"
+
+[tool.poetry.group.polyfactory]
+optional = true
+
+[tool.poetry.group.polyfactory.dependencies]
+polyfactory = ">=2.19.0,<3.0.0"
 
 [tool.black]
 line-length = 88

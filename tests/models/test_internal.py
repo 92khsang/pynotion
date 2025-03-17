@@ -1,33 +1,30 @@
 from datetime import datetime, timezone
-from enum import StrEnum
-from typing import Annotated, Any
+from enum import Enum
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
-from pydantic import BeforeValidator, ValidationError, PrivateAttr
 
 from pynotion.models._internal import (
     validate_timezone,
     validate_datetime,
     validate_url,
-    TypeObjectModel,
     BaseNotionModel,
     validate_enum,
     validate_uuid4,
-    NotionType,
-    FixedTypeObjectModel,
+    validate_phone,
+    validate_email,
 )
 
 
 # --------------------------
 #  ✅ Define Sample Types
 # --------------------------
-class DummyType(StrEnum):
+class DummyType(str, Enum):
     DUMMY = "dummy"
 
 
-class NotionSampleType(StrEnum):
+class NotionSampleType(str, Enum):
     TEXT = "text"
     DATE = "date"
 
@@ -38,21 +35,6 @@ class TextData(BaseNotionModel):
 
 class DateData(BaseNotionModel):
     date: datetime
-
-
-class TypedModel(TypeObjectModel):
-    __type_object_map__ = {
-        NotionSampleType.TEXT: TextData,
-        NotionSampleType.DATE: DateData,
-    }
-
-    type: Annotated[
-        str,
-        NotionSampleType,
-        BeforeValidator(lambda v: validate_enum(v, (NotionSampleType,))),
-    ]
-
-    type_object: DateData | TextData | None
 
 
 @pytest.mark.parametrize(
@@ -114,90 +96,6 @@ def test_validate_url_invalid(invalid_url):
         validate_url(invalid_url)
 
 
-def test_create_type_object_subclass():
-    class ExampleData(BaseNotionModel):
-        value: int
-
-    class TempTypeModel(TypeObjectModel):
-        __type_object_map__ = {
-            NotionSampleType.TEXT: ExampleData,
-        }
-
-        type: Annotated[
-            str,
-            NotionSampleType,
-            BeforeValidator(lambda v: validate_enum(v, (NotionSampleType,))),
-        ]
-
-        type_object: ExampleData | None
-
-    assert ExampleData is TempTypeModel.__type_object_map__[NotionSampleType.TEXT]
-
-    with pytest.raises(
-        ValueError, match="TypeObjectModel is registered with multiple Notion types: "
-    ):
-
-        class MultipleTypeSubclass(TypeObjectModel):  # noqa
-            __type_object_map__ = {
-                NotionSampleType.TEXT: TextData,
-                DummyType.DUMMY: str,
-            }
-
-    with pytest.raises(
-        ValueError,
-        match="TypeObjectModel is missing fields: \'type\'",
-    ):
-
-        class NoTypeSubclass(TypeObjectModel):  # noqa
-            type_object: Any
-
-    with pytest.raises(
-        ValueError,
-        match="TypeObjectModel is missing fields: \'type_object\'",
-    ):
-
-        class NoTypeObjectSubclass(TypeObjectModel):  # noqa
-            type: Any
-
-
-@pytest.mark.parametrize(
-    "type_name, content, expected_object",
-    [
-        ("text", TextData(content="Hello"), TextData(content="Hello")),
-        ("text", {"content": "Hello"}, TextData(content="Hello")),
-        (
-            "date",
-            DateData(date=datetime(2023, 1, 1)),
-            DateData(date=datetime(2023, 1, 1)),
-        ),
-        ("date", {"date": "2023-01-01"}, DateData(date=datetime(2023, 1, 1))),
-    ],
-)
-def test_typed_model_creation(type_name, content, expected_object):
-    instance = TypedModel(type=type_name, type_object=content)
-
-    expected_type = (
-        NotionSampleType.TEXT if type_name == "text" else NotionSampleType.DATE
-    )
-
-    assert instance.type == expected_type
-    assert instance.type_object == expected_object
-
-
-@pytest.mark.parametrize(
-    "type_name, content",
-    [
-        ("text", {"content": datetime(2023, 1, 1)}),
-        ("date", {"date": "Hello"}),
-        ("text", {"date": "2023-01-01"}),
-        ("date", {"content": "Hello"}),
-    ],
-)
-def test_invalid_type_object(type_name, content):
-    with pytest.raises(ValidationError):
-        TypedModel(type=type_name, type_object=content)
-
-
 @pytest.mark.parametrize(
     "value, expected",
     [
@@ -227,70 +125,6 @@ def test_validate_enum_empty_enum_list():
     """Test that an empty enum list raises ValueError."""
     with pytest.raises(ValueError, match="Invalid value"):
         validate_enum("dummy", ())
-
-
-def test_notion_typed_model_getattr():
-    """Test that accessing type as an attribute returns type_object."""
-    instance = TypedModel(
-        type=NotionSampleType.TEXT,
-        type_object=TextData(content="Hello"),
-    )
-
-    assert instance.type_object == TextData(content="Hello")
-
-    assert instance.text == TextData(
-        content="Hello"
-    )  # instance.text should return type_object
-
-    with pytest.raises(AttributeError, match="object has no attribute 'invalid'"):
-        instance.invalid
-
-
-def test_unregistered_type_raises():
-    """
-    Ensures that '_check_notion_type_registration' raises a ValueError
-    when an unregistered type is used.
-    """
-
-    class FakeEnum(StrEnum):
-        FAKE = "fake_enum"
-
-    class NoMappingModel(TypeObjectModel):
-        __type_object_map__ = {}  # no types registered
-        type: str
-        type_object: Any
-
-    with pytest.raises(ValueError, match="Invalid value 'fake_enum'"):
-        NoMappingModel(type=FakeEnum.FAKE, type_object={})
-
-
-def test_base_notion_model_serialize_model_wrap():
-    """
-    Tests the coverage of BaseNotionModel.serialize_model ensuring it calls
-    _remove_read_only_prefix at the end and handles private_attrs + declared fields.
-    """
-
-    class SampleModel(BaseNotionModel):
-        __serializable_private_attrs__ = {"_private_value": "alias_private"}
-
-        _private_value: str
-        something: str
-        normal_field: int
-
-        def __init__(self, **data):
-            super().__init__(**data)
-            object.__setattr__(self, "_private_value", "hello")
-
-    instance = SampleModel(something="something", normal_field=42)
-    serialized = instance.model_dump()
-
-    # private attr should appear under aliased key
-    assert "alias_private" in serialized
-    assert serialized["alias_private"] == "hello"
-
-    # the read_only_ prefix on read_only_something should be removed
-    assert "something" in serialized
-    assert serialized["something"] == "something"
 
 
 @pytest.mark.parametrize(
@@ -323,163 +157,35 @@ def test_validate_uuid4_invalid_type():
         validate_uuid4([])
 
 
-def test_extract_kwargs_with_dict():
-    """
-    Exercises the (type(values) is dict) branch in _extract_kwargs.
-    """
+def test_no_instances():
+    class TestModel(BaseNotionModel):
+        __no_instance__ = True
 
-    class TestExtractModel(TypeObjectModel):
-        __type_object_map__ = {}
-        type: str = "test"
-        type_object: str = None
-
-        @staticmethod
-        def _extract_kwargs(values):
-            return super(TestExtractModel, TestExtractModel)._extract_kwargs(values)
-
-    data = {"type": "some_type"}
-    result = TestExtractModel._extract_kwargs(data)
-    assert result == data
+    with pytest.raises(TypeError, match="Cannot instantiate non-instance class"):
+        TestModel()
 
 
-def test_extract_kwargs_with_other():
-    """
-    Exercises the return None path in _extract_kwargs (values is neither dict nor ArgsKwargs).
-    """
-
-    class TestExtractModel(TypeObjectModel):
-        __type_object_map__ = {}
-        type: str = "test"
-        type_object: str = None
-
-        @staticmethod
-        def _extract_kwargs(values):
-            return super(TestExtractModel, TestExtractModel)._extract_kwargs(values)
-
-    class RandomClass:
-        pass
-
-    random_input = RandomClass()
-    result = TestExtractModel._extract_kwargs(random_input)
-    assert result is None
+def test_invalid_email():
+    with pytest.raises(ValueError, match="Invalid email address"):
+        validate_email("invalid-email")
 
 
-def test_pre_init_with_nested_type_dict():
-    """
-    Covers the block in _pre_init where:
-      if cls._get_type_object_field() not in data:
-          if data.get(str(type_value), None):
-              data[cls._get_type_object_field()] = data.pop(str(type_value))
-    """
-
-    class SubTypeModel(TypeObjectModel):
-        __type_field_set__ = ("type", "type_object")
-        __type_object_map__ = {"my_nested_data": dict}
-        type: str
-        type_object: dict | None
-
-    # The "my_nested_data" key matches str(type=="my_nested_data"), forcing data to be moved
-    input_data = {"type": "my_nested_data", "my_nested_data": {"some": "info"}}
-    instance = SubTypeModel(**input_data)
-    assert instance.type == "my_nested_data"
-    assert instance.type_object == {"some": "info"}
+def test_invalid_phone():
+    with pytest.raises(ValueError, match="Invalid phone number"):
+        validate_phone("invalid-phone")
 
 
-def test_convert_type_object_literal():
-    """
-    Exercises the branch where get_origin(type_class) is Literal but the value
-    is not in get_args(type_class), causing the for-loop to continue.
-    """
-    from typing import Literal
-
-    class MyLiteralEnum(NotionType):
-        LITERAL_TEST = "literal_test"
-
-    # A literal that won't match
-    LiteralClass = Literal["allowed_value"]
-
-    class LiteralTypeModel(TypeObjectModel):
-        __type_object_map__ = {MyLiteralEnum.LITERAL_TEST: LiteralClass}
-        type: MyLiteralEnum
-        type_object: LiteralClass
-
-    valid_instance = LiteralTypeModel(type="literal_test", type_object="allowed_value")
-    assert valid_instance.type_object == "allowed_value"
-    assert valid_instance.type == "literal_test"
-
-    # 'disallowed_value' not in ("allowed_value"), so it gets skipped and fails
-    with pytest.raises(ValidationError, match="Input should be 'allowed_value"):
-        LiteralTypeModel(type="literal_test", type_object="disallowed_value")
-
-
-def test_serialize_model_no_type_object():
-    """
-    Exercises the block in TypeObjectModel.serialize_model() where
-    type_object_field is not in data, ensuring it simply returns data unchanged.
-    """
-
-    class MyEnum(NotionType):
-        FOO = "foo"
-
-    class SimpleTypeModel(TypeObjectModel):
-        __type_object_map__ = {MyEnum.FOO: None}
-        type: MyEnum
-        type_object: None
-
-    model = SimpleTypeModel(type="foo", type_object=None)
-    serialized = model.model_dump(exclude_none=True)
-    # Should not have added "foo" key or anything else for 'type_object'
-    assert "foo" not in serialized
-    assert "type_object" not in serialized
-    assert serialized["type"] == "foo"
-
-
-def test_fixed_type_object_model():
-    """
-    Covers fixed_type and fixed_type_object properties in FixedTypeObjectModel.
-    """
-
-    class MyEnum(NotionType):
-        BAR = "bar"
-
-    class FixedTestModel(FixedTypeObjectModel):
-        __type_object_map__ = {MyEnum.BAR: dict}
-
-        _type: MyEnum = PrivateAttr(default=MyEnum.BAR)
-        type_object: dict[str, Any]
-
-    instance = FixedTestModel(type_object={"x": 1})
-
-    assert instance.type == "bar"
-    assert instance.type_object == {"x": 1}
-    assert instance.bar == {"x": 1}
-
-    with pytest.raises(AttributeError, match="object has no attribute 'invalid'"):
-        instance.invalid
-
-    with pytest.raises(ValueError, match="_type must have a default value"):
-
-        class NoPrivateAttr(FixedTypeObjectModel):
-            __type_object_map__ = {MyEnum.BAR: dict}
-
-            pass
-
-
-def test_invalid_class_creation():
-    class_types = [
-        BaseNotionModel,
-        TypeObjectModel,
-        FixedTypeObjectModel,
-    ]
-
-    for cls in class_types:
-        with pytest.raises(TypeError, match="cannot be instantiated directly"):
-            cls()
-
-    class_types = [FixedTypeObjectModel]
-
-    for cls in class_types:
-        with pytest.raises(ValueError, match="is not registered with any Notion types"):
-
-            class TempClass(cls):  # noqa
-                pass
+@pytest.mark.parametrize(
+    "phone, expected",
+    [
+        ("+1 (555) 123-4567", "+1 (555) 123-4567"),
+        ("555-123-4567", "555-123-4567"),
+        ("012-3456-7890", "012-3456-7890"),
+        ("02-123-4567", "02-123-4567"),
+        ("5551234567", "5551234567"),
+        ("+44 20 7946 0958", "+44 20 7946 0958"),
+        ("+91-9876543210", "+91-9876543210"),
+    ],
+)
+def test_validate_phone_valid(phone, expected):
+    assert validate_phone(phone) == expected

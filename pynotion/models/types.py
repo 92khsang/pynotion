@@ -1,46 +1,21 @@
 from __future__ import annotations as _annotations
 
-import uuid
-from abc import ABC
 from datetime import datetime
-from enum import StrEnum
-from typing import TypeAlias, Annotated, Any, Literal
+from enum import Enum
+from typing import Annotated, Optional, Any
 from zoneinfo import ZoneInfo
 
-from pydantic import (
-    Field,
-    BeforeValidator,
-    EmailStr,
-    model_validator,
-)
-from pydantic_core import ArgsKwargs
+from pydantic import BeforeValidator, Field, model_validator
 
 from ._internal import (
     validate_timezone,
     validate_datetime,
-    validate_url,
     BaseNotionModel,
-    TypeObjectModel,
-    validate_enum,
-    validate_uuid4,
+    validate_url,
 )
 
-NotionObjectId: TypeAlias = Annotated[
-    str | int | bytes | uuid.UUID, BeforeValidator(validate_uuid4)
-]
 
-NotionDatetime: TypeAlias = Annotated[
-    str | datetime, BeforeValidator(validate_datetime)
-]
-
-NotionEmail: TypeAlias = Annotated[str, Field(..., max_length=200), EmailStr]
-
-NotionUrl: TypeAlias = Annotated[
-    str, Field(..., max_length=2000), BeforeValidator(validate_url)
-]
-
-
-class Color(StrEnum):
+class Color(str, Enum):
     """Defines standard colors in Notion.
 
     These colors are used for text, backgrounds, and other UI elements.
@@ -70,7 +45,7 @@ class Color(StrEnum):
     YELLOW = "yellow"
 
 
-class BackgroundColor(StrEnum):
+class BackgroundColor(str, Enum):
     """Defines background colors in Notion.
 
     These colors are specifically for block backgrounds and highlights.
@@ -98,95 +73,24 @@ class BackgroundColor(StrEnum):
     YELLOW_BACKGROUND = "yellow_background"
 
 
-class ParentType(StrEnum):
-    """Defines the possible types of parents in Notion.
-
-    Each Notion object (except for the workspace itself) has a parent.
-    This enum defines all possible parent types.
-
-    Attributes:
-        DATABASE_ID: Parent is a database. The type_object will contain the database ID.
-        PAGE_ID: Parent is a page. The type_object will contain the page ID.
-        BLOCK_ID: Parent is a block. The type_object will contain the block ID.
-        WORKSPACE: Parent is a workspace. The type_object will be True.
-    """
-
-    DATABASE_ID = "database_id"
-    PAGE_ID = "page_id"
-    BLOCK_ID = "block_id"
-    WORKSPACE = "workspace"
-
-
-class FileType(StrEnum):
-    """Defines the possible file types in Notion.
-
-    Attributes:
-        FILE: File hosted by Notion with an expiry time.
-        EXTERNAL: File hosted externally (linked by URL).
-    """
-
-    FILE = "file"
-    EXTERNAL = "external"
-
-
-class EmojiType(StrEnum):
-    """Defines the possible emoji types in Notion.
-
-    Attributes:
-        EMOJI: Standard Unicode emoji.
-        CUSTOM_EMOJI: Custom emoji uploaded to Notion.
-    """
-
-    EMOJI = "emoji"
-    CUSTOM_EMOJI = "custom_emoji"
-
-
-# -------------------------------- Templates --------------------------------------
-class NotionLink(BaseNotionModel):
-    """Represents a URL link in Notion.
-
-    This model is used for wrapping URLs in Notion.
-
-    Attributes:
-        url: The URL of the link, validated to ensure it's properly formatted.
-    """
-
-    url: NotionUrl
-
-
-class NotionHostedFile(NotionLink):
-    """Represents a file hosted by Notion.
-
-    Notion-hosted files have a URL that expires after a period of time.
-
-    Attributes:
-        url: The URL of the hosted file.
-        expiry_time: The ISO 8601 datetime when the URL will expire.
-    """
-
-    expiry_time: NotionDatetime
-
-
-class NotionExternalFile(NotionLink):
-    """Represents an externally hosted file in Notion.
-
-    Attributes:
-        url: The URL of the externally hosted file.
-    """
-
-    pass
-
-
 class NotionEquation(BaseNotionModel):
-    """Represents a LaTeX equation in Notion.
-
-    Equations are rendered using KaTeX in the Notion UI.
+    """Represents an equation in Notion.
 
     Attributes:
-        expression: LaTeX expression string for the equation.
+        expression: The expression of the equation.
     """
 
     expression: str
+
+
+class NotionUrlObject(BaseNotionModel):
+    """Represents a URL object in Notion.
+
+    Attributes:
+        url: The URL of the object.
+    """
+
+    url: Annotated[str, BeforeValidator(validate_url)]
 
 
 class NotionDate(BaseNotionModel):
@@ -206,9 +110,13 @@ class NotionDate(BaseNotionModel):
         - If `time_zone` is None, `start` and `end` can contain UTC offsets.
     """
 
-    start: NotionDatetime
-    end: NotionDatetime | None = Field(default=None)
-    time_zone: str | None = Field(default=None)
+    start: Annotated[str | datetime, BeforeValidator(validate_datetime)]
+    end: Optional[Annotated[str | datetime, BeforeValidator(validate_datetime)]] = (
+        Field(default=None)
+    )
+    time_zone: Optional[Annotated[str, BeforeValidator(validate_timezone)]] = Field(
+        default=None
+    )
 
     @classmethod
     def _validate_single_datetime(
@@ -231,7 +139,9 @@ class NotionDate(BaseNotionModel):
 
         def has_utc_offset(dt_str: str) -> bool:
             """Check if the ISO string has a UTC offset (Z, + or - notation)."""
-            return "Z" in dt_str or "+" in dt_str
+            dt_time_format = dt_str.split("T")[1] or ""
+            utc_offset_chars = ["Z", "+", "-"]
+            return any(char in dt_time_format for char in utc_offset_chars)
 
         # Validate input type
         if not isinstance(dt, (str, datetime)):
@@ -272,7 +182,7 @@ class NotionDate(BaseNotionModel):
         time_zone: str | None,
     ) -> tuple[str | datetime, str | datetime | None, str | None]:
         """
-        Ensures that `start` and `end` datetimes conform to Notion's timezone constraints.
+        Ensures that `start` and `end` datetime conform to Notion's timezone constraints.
 
         Args:
             start: Start datetime value (string in ISO 8601 format or datetime object).
@@ -310,221 +220,33 @@ class NotionDate(BaseNotionModel):
         Raises:
             ValueError: If datetime values fail validation.
         """
-        if not isinstance(values, (ArgsKwargs, dict)):
-            return values
+        data = getattr(values, "kwargs", values)
 
-        data = values.kwargs if isinstance(values, ArgsKwargs) else values
+        if data:
 
-        # Validate and update datetime fields
-        checked_start, checked_end, checked_tz = cls.validate_datetime_with_timezone(
-            data.get("start"), data.get("end"), data.get("time_zone")
-        )
+            def extract_value(key: str) -> Any:
+                return (
+                    data.get(key, None)
+                    if isinstance(data, dict)
+                    else getattr(data, key, None)
+                )
 
-        # Update data with validated values
-        data.update(
-            {
-                "start": checked_start,
-                **({"end": checked_end} if checked_end is not None else {}),
-                **({"time_zone": checked_tz} if checked_tz is not None else {}),
-            }
-        )
+            # Validate and update datetime fields
+            checked_start, checked_end, checked_tz = (
+                cls.validate_datetime_with_timezone(
+                    extract_value("start"),
+                    extract_value("end"),
+                    extract_value("time_zone"),
+                )
+            )
 
-        return values
-
-
-class NotionParent(TypeObjectModel):
-    """Represents a parent object in Notion.
-
-    In Notion, most objects have a parent that represents their container.
-    The parent can be a database, page, block, or the workspace itself.
-
-    Attributes:
-        type: The type of the parent object (database_id, page_id, block_id, or workspace).
-        type_object: The data related to this particular parent type.
-            For database_id, page_id, and block_id, this will be an NotionObjectId.
-            For workspace, this will be a boolean (True).
-
-    References:
-        https://developers.notion.com/reference/parent-object
-    """
-
-    __type_object_map__ = {
-        ParentType.DATABASE_ID: uuid.UUID,
-        ParentType.PAGE_ID: uuid.UUID,
-        ParentType.BLOCK_ID: uuid.UUID,
-        ParentType.WORKSPACE: bool,
-    }
-
-    type: Annotated[
-        str | ParentType,
-        BeforeValidator(lambda v: validate_enum(v, (ParentType,))),
-        Field(frozen=True),
-    ]
-
-    type_object: bool | NotionObjectId
-
-
-class NotionFile(TypeObjectModel):
-    """Represents a file in Notion.
-
-    Files in Notion can be either hosted by Notion with an expiry time
-    or external files linked by URL.
-
-    Attributes:
-        type: The type of the file (file or external).
-        type_object: The data related to this particular file type.
-            For 'file' type, this will be a NotionHostedFile.
-            For 'external' type, this will be a NotionLink.
-
-    References:
-        https://developers.notion.com/reference/file-object
-    """
-
-    __type_object_map__ = {
-        FileType.FILE: NotionHostedFile,
-        FileType.EXTERNAL: NotionExternalFile,
-    }
-
-    type: Annotated[
-        str | FileType,
-        BeforeValidator(lambda v: validate_enum(v, (FileType,))),
-        Field(frozen=True),
-    ]
-
-    type_object: NotionHostedFile | NotionExternalFile
-
-
-class CustomEmoji(NotionLink):
-    """Represents a custom emoji in Notion.
-
-    Custom emojis are uploaded images that can be used like regular emojis.
-
-    Attributes:
-        id: The unique identifier for the custom emoji.
-        name: The display name of the custom emoji.
-        url: The URL where the custom emoji image is hosted.
-
-    References:
-        https://developers.notion.com/reference/emoji-object#custom-emoji
-    """
-
-    id: NotionObjectId = Field(frozen=True)
-
-    name: str = Field(frozen=True)
-
-
-class NotionEmoji(TypeObjectModel):
-    """Represents an emoji in Notion.
-
-    Notion supports both standard Unicode emojis and custom uploaded emojis.
-
-    Attributes:
-        type: The type of the emoji (emoji or custom_emoji).
-        type_object: The data related to this particular emoji type.
-            For 'emoji' type, this will be a string with the Unicode emoji.
-            For 'custom_emoji' type, this will be a CustomEmoji object.
-
-    References:
-        https://developers.notion.com/reference/emoji-object
-    """
-
-    __type_object_map__ = {
-        EmojiType.EMOJI: str,
-        EmojiType.CUSTOM_EMOJI: CustomEmoji,
-    }
-
-    type: Annotated[
-        str | EmojiType,
-        BeforeValidator(lambda v: validate_enum(v, (EmojiType,))),
-        Field(frozen=True),
-    ]
-
-    type_object: str | CustomEmoji
-
-
-class NotionObjectRef(BaseNotionModel):
-    """Represents a reference to a Notion object.
-
-    Attributes:
-        id: The unique identifier for the referenced object.
-
-    """
-
-    id: NotionObjectId = Field(frozen=True)
-
-
-class NotionUserRef(NotionObjectRef):
-    """
-    Represents a minimal user reference when a full User object isn't needed.
-
-    This is often used in created_by and last_edited_by fields.
-
-    Attributes:
-        id: Unique identifier for the user.
-        object: Always 'user', confirming this is a user reference.
-    """
-
-    object: Literal["user"] = Field(frozen=True)
-
-
-class TxNotionObject(BaseNotionModel, ABC):
-    """
-    Base class for primary Notion objects (pages, databases, blocks).
-
-    This class provides the common fields and behavior shared by
-    the main Notion object types.
-
-    Attributes:
-        object: The type of this object (database, page, or block).
-    """
-
-    object: Literal["database", "page", "block"]
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_abstract_clz(cls, values: Any) -> Any:
-        if cls == TxNotionObject:
-            raise TypeError("Cannot instantiate abstract class TxNotionObject")
+            # Update data with validated values
+            data.update(
+                {
+                    "start": checked_start,
+                    **({"end": checked_end} if checked_end is not None else {}),
+                    **({"time_zone": checked_tz} if checked_tz is not None else {}),
+                }
+            )
 
         return values
-
-
-class RxNotionObject(BaseNotionModel, ABC):
-    """
-    Base class for response Notion objects (pages, databases, blocks).
-
-    This class provides the common fields and behavior shared by
-    the main Notion object types.
-
-    Attributes:
-        id: The unique identifier for the object.
-        object: The type of this object (database, page, or block).
-        parent: The parent object that contains this object.
-        created_time: The timestamp when the object was created.
-        last_edited_time: The timestamp when the object was last edited.
-        created_by: The user who created the object.
-        last_edited_by: The user who last edited the object.
-        archived: Whether the object is archived.
-        in_trash: Whether the object is in the trash.
-    """
-
-    object: Literal["database", "page", "block"] = Field(frozen=True)
-    parent: NotionParent | None = Field(frozen=True)
-    id: NotionObjectId = Field(frozen=True)
-    created_time: NotionDatetime = Field(frozen=True)
-    last_edited_time: NotionDatetime = Field(frozen=True)
-    created_by: NotionUserRef = Field(frozen=True)
-    last_edited_by: NotionUserRef = Field(frozen=True)
-    archived: bool = Field(frozen=True)
-    in_trash: bool = Field(default=False, frozen=True)
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_abstract_clz(cls, values: Any) -> Any:
-        if cls == RxNotionObject:
-            raise TypeError("Cannot instantiate abstract class RxNotionObject")
-
-        return values
-
-
-NotionObject: TypeAlias = TxNotionObject | RxNotionObject
