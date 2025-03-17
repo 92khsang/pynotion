@@ -1,33 +1,14 @@
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError, BaseModel
+from pydantic import ValidationError
 
-from pynotion.models.rich_text import (
-    RichTextType,
-    MentionType,
-    TemplateMentionType,
-    Annotations,
-    Text,
-    MentionDatabase,
-    MentionUser,
-    MentionPage,
-    MentionLinkPreview,
-    MentionDate,
-    MentionTemplate,
-    Mention,
-    RxRichText,
+from pynotion.models.rich_text import *
+from pynotion.models.user import UserRef
+from tests.models.model_test_utils import (
+    DiscriminatedModelTester,
+    PydanticModelTester,
 )
-from pynotion.models.types import (
-    NotionEquation,
-    NotionLink,
-    NotionDate,
-    Color,
-    NotionUserRef,
-    NotionObjectRef,
-    BackgroundColor,
-)
-from tests.models.model_test_utils import PydanticModelTester
 
 
 # ------------------ ENUM TESTS ------------------ #
@@ -61,7 +42,7 @@ def test_annotations():
     """Test Annotations model instantiation."""
     sample_annotations = Annotations(bold=True, color="red")
     assert sample_annotations.bold is True
-    assert sample_annotations.italic is False
+    assert sample_annotations.italic is None
     assert sample_annotations.color == "red"
 
     with pytest.raises(ValueError):
@@ -69,250 +50,172 @@ def test_annotations():
 
 
 @pytest.mark.parametrize(
-    "content, link_url",
+    "content, link",
     [
-        ("Hello, Notion!", "https://notion.so"),
+        ("Hello, Notion!", NotionUrlObject(url="https://notion.so")),
         ("Hello", None),
     ],
 )
-def test_text_model(content, link_url):
+def test_text_model(content, link):
     """Test Text model instantiation and serialization."""
-    sample_text = Text(content=content, link=link_url)
+    sample_text = Text(content=content, link=link)
     assert sample_text.content == content
-    if link_url:
-        assert sample_text.link.url == link_url
+    if link:
+        assert sample_text.link == link
     else:
         assert sample_text.link is None
 
 
 def test_invalid_text_model():
     with pytest.raises(ValidationError):
-        Text(content="Hello", link="invalid_url")
+        Text(content="Hello", link=NotionUrlObject(url="invalid_url"))
 
     with pytest.raises(ValidationError):
         Text(content=None)
 
 
 @pytest.mark.parametrize(
-    "mention_class, type_object, type_asdict",
+    "annotated_clz, expected_clz, input_data",
     [
         (
-            MentionDatabase,
-            NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
+            Mention,
+            DatabaseMention,
             {
-                "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
+                "type": "database",
+                "database": {
+                    "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
+                },
             },
         ),
         (
-            MentionDate,
-            NotionDate(start="2022-01-01", end="2022-01-31"),
-            {"start": "2022-01-01", "end": "2022-01-31"},
+            Mention,
+            DateMention,
+            {
+                "type": "date",
+                "date": {
+                    "start": "2022-01-01",
+                    "end": "2022-12-31",
+                },
+            },
         ),
         (
-            MentionLinkPreview,
-            NotionLink(url="https://notion.so"),
-            {"url": "https://notion.so"},
+            Mention,
+            LinkPreviewMention,
+            {
+                "type": "link_preview",
+                "link_preview": {
+                    "url": "https://notion.so",
+                },
+            },
         ),
         (
-            MentionPage,
-            NotionObjectRef(id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
-            {"id": "a7db80bd-b3e3-4394-b134-a21b05412c7c"},
+            Mention,
+            PageMention,
+            {
+                "type": "page",
+                "page": {
+                    "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
+                },
+            },
         ),
         (
-            MentionTemplate,
-            "today",
-            {"type": "template_mention_date", "template_mention_date": "today"},
+            Mention,
+            TemplateMention,
+            {
+                "type": "template_mention",
+                "template_mention": {
+                    "type": "template_mention_date",
+                    "template_mention_date": "today",
+                },
+            },
         ),
         (
-            MentionTemplate,
-            "me",
-            {"type": "template_mention_user", "template_mention_user": "me"},
+            RichText,
+            TextRichText,
+            {
+                "type": "text",
+                "text": {"content": "Test Text", "link": {"url": "https://notion.so"}},
+                "annotations": {"bold": True, "color": "gray_background"},
+                "plain_text": "Test Text",
+                "href": "https://notion.so",
+            },
         ),
         (
-            MentionUser,
-            NotionUserRef(object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
-            {"object": "user", "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c"},
-        ),
-    ],
-)
-def test_mentions(mention_class, type_object, type_asdict):
-    """Test Mention-based models."""
-    mention_data = mention_class(**type_asdict)
-    # assert mention_data.type == type_value
-    # assert mention_data.type_object == type_object
-    # assert getattr(mention_data, type_value) == type_object
-    # assert eval(f"mention_data.{type_value}") == type_object
-    # assert mention_data == mention_class.model_validate(type_asdict)
-
-
-@pytest.mark.parametrize(
-    "type_object",
-    [
-        NotionObjectRef(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
-        NotionDate(start="2022-01-01", end="2022-01-31"),
-        NotionLink(url="https://notion.so"),
-        MentionTemplate(
-            type=TemplateMentionType.TEMPLATE_MENTION_DATE, type_object="today"
-        ),
-        MentionTemplate(
-            type=TemplateMentionType.TEMPLATE_MENTION_USER, type_object="me"
-        ),
-        NotionUserRef(object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"),
-    ],
-)
-def test_invalid_mentions(type_object):
-    """Test invalid Mention-based models."""
-    mention_classes: list[tuple[type, type]] = [
-        (MentionDatabase, NotionObjectRef),
-        (MentionDate, NotionDate),
-        (MentionLinkPreview, NotionLink),
-        (MentionPage, NotionObjectRef),
-        (MentionTemplate, MentionTemplate),
-        (MentionUser, NotionUserRef),
-    ]
-
-    for mention_class, mention_data_class in mention_classes:
-        if mention_data_class != type(type_object):
-            with pytest.raises((ValueError, TypeError)):
-                mention_class(type_object=type_object)
-
-
-# ------------------ RICH TEXT TESTS ------------------ #
-@pytest.mark.parametrize(
-    "rich_text_type, annotations, plain_text, href, type_object",
-    [
-        (
-            RichTextType.TEXT,
-            Annotations(),
-            "Test Text",
-            "https://notion.so",
-            Text(content="Test Text", link="https://notion.so"),
+            RichText,
+            EquationRichText,
+            {
+                "type": "equation",
+                "equation": {"expression": "a = b + c"},
+                "annotations": {"italic": True, "color": "gray"},
+            },
         ),
         (
-            RichTextType.EQUATION,
-            Annotations(),
-            "E = mc^2",
-            None,
-            NotionEquation(expression="E = mc^2"),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test User",
-            None,
-            Mention(
-                type=MentionType.USER,
-                type_object=MentionUser(
-                    object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
-                ),
-            ),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test Page",
-            None,
-            Mention(
-                type=MentionType.PAGE,
-                type_object=MentionPage(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
-            ),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test Database",
-            None,
-            Mention(
-                type=MentionType.DATABASE,
-                type_object=MentionDatabase(id="d7db80bd-b3e3-4394-b134-a21b05412c7c"),
-            ),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test Date",
-            None,
-            Mention(
-                type=MentionType.DATE,
-                type_object=MentionDate(start="2022-01-01", end="2022-01-31"),
-            ),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test Link Preview",
-            None,
-            Mention(
-                type=MentionType.LINK_PREVIEW,
-                type_object=MentionLinkPreview(url="https://notion.so"),
-            ),
-        ),
-        (
-            RichTextType.MENTION,
-            Annotations(),
-            "Test Template",
-            None,
-            Mention(
-                type=MentionType.TEMPLATE_MENTION,
-                type_object=MentionTemplate(
-                    type="template_mention_date",
-                    type_object="today",
-                ),
-            ),
+            RichText,
+            MentionRichText,
+            {
+                "type": "mention",
+                "mention": {
+                    "type": "user",
+                    "user": {
+                        "object": "user",
+                        "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
+                    },
+                },
+                "annotations": {"bold": True, "color": "gray_background"},
+                "plain_text": "Test User",
+                "href": "https://notion.so",
+            },
         ),
     ],
     ids=[
+        "mention_database",
+        "mention_date",
+        "mention_link_preview",
+        "mention_page",
+        "mention_template_mention",
         "rich_text_text",
         "rich_text_equation",
         "rich_text_mention_user",
-        "rich_text_mention_page",
-        "rich_text_mention_database",
-        "rich_text_mention_date",
-        "rich_text_mention_link_preview",
-        "rich_text_mention_date_template",
     ],
 )
-def test_rich_text(rich_text_type, annotations, plain_text, href, type_object):
-    """Test RichText model with a text type."""
-    rich_text = RxRichText(
-        type=rich_text_type,
-        type_object=type_object,
-        annotations=annotations,
-        plain_text=plain_text,
-        href=href,
-    )
-
-    assert rich_text.type == rich_text_type
-    assert rich_text.type_object == type_object
-    assert rich_text.annotations == annotations
-    assert rich_text.plain_text == plain_text
-    assert rich_text.href == href
+def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data: dict):
+    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
 
 
-# ------------------ VALIDATION TESTS ------------------ #
 @pytest.mark.parametrize(
-    "invalid_data",
+    "clz, invalid_data, expected_error",
     [
-        {"type": "text", "type_object": {"invalid_field": "value"}},
-        {"type": "mention", "type_object": {"type": "invalid_type"}},
+        (
+            TextRichText,
+            {"type": "text", "text": {"invalid_field": "value"}},
+            "2 validation errors for",
+        ),
+        (
+            MentionRichText,
+            {"type": "mention", "mention": {"type": "invalid_type"}},
+            "1 validation error for",
+        ),
     ],
 )
-def test_rich_text_validation_errors(invalid_data):
+def test_rich_text_validation_errors(clz, invalid_data, expected_error):
     """Test invalid data should raise ValidationError."""
-    with pytest.raises(ValidationError):
-        RxRichText.model_validate(invalid_data)
+    with pytest.raises(ValidationError, match=expected_error):
+        clz.model_validate(invalid_data)
 
 
-# ------------------ SERIALIZATION TESTS ------------------ #
 @pytest.mark.parametrize(
     "clz, test_data",
     [
         (
-            RxRichText,
+            TextRichText,
             (
                 {
                     "type": RichTextType.TEXT,
-                    "type_object": Text(content="Test Text", link="https://notion.so"),
+                    "text": Text(
+                        content="Test Text",
+                        link=NotionUrlObject(url="https://notion.so"),
+                    ),
                     "annotations": Annotations(bold=True),
                     "plain_text": "Test Text",
                     "href": "https://notion.so",
@@ -327,11 +230,6 @@ def test_rich_text_validation_errors(invalid_data):
                     },
                     "annotations": {
                         "bold": True,
-                        "italic": False,
-                        "strikethrough": False,
-                        "underline": False,
-                        "code": False,
-                        "color": Color.DEFAULT,
                     },
                     "plain_text": "Test Text",
                     "href": "https://notion.so",
@@ -349,11 +247,11 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RxRichText,
+            EquationRichText,
             (
                 {
                     "type": RichTextType.EQUATION,
-                    "type_object": NotionEquation(expression="E = mc^2"),
+                    "equation": Equation(expression="E = mc^2"),
                     "annotations": Annotations(bold=True, italic=True, color=Color.RED),
                     "plain_text": "E = mc^2",
                     "href": None,
@@ -366,9 +264,6 @@ def test_rich_text_validation_errors(invalid_data):
                     "annotations": {
                         "bold": True,
                         "italic": True,
-                        "strikethrough": False,
-                        "underline": False,
-                        "code": False,
                         "color": Color.RED,
                     },
                     "plain_text": "E = mc^2",
@@ -388,13 +283,13 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RxRichText,
+            MentionRichText,
             (
                 {
                     "type": RichTextType.MENTION,
-                    "type_object": Mention(
+                    "mention": UserMention(
                         type=MentionType.USER,
-                        type_object=MentionUser(
+                        user=UserRef(
                             object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
                         ),
                     ),
@@ -439,7 +334,9 @@ def test_rich_text_validation_errors(invalid_data):
                     },
                     "annotations": {
                         "bold": True,
+                        "italic": False,
                         "strikethrough": True,
+                        "underline": False,
                         "code": True,
                         "color": BackgroundColor.RED_BACKGROUND.value,
                     },
@@ -448,15 +345,15 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RxRichText,
+            MentionRichText,
             (
                 {
                     "type": RichTextType.MENTION,
-                    "type_object": Mention(
+                    "mention": TemplateMention(
                         type=MentionType.TEMPLATE_MENTION,
-                        type_object=MentionTemplate(
+                        template_mention=TemplateMentionDate(
                             type=TemplateMentionType.TEMPLATE_MENTION_DATE,
-                            type_object="now",
+                            template_mention_date="now",
                         ),
                     ),
                     "annotations": Annotations(
@@ -475,11 +372,8 @@ def test_rich_text_validation_errors(invalid_data):
                         },
                     },
                     "annotations": {
-                        "bold": False,
                         "italic": True,
-                        "strikethrough": False,
                         "underline": True,
-                        "code": False,
                         "color": Color.YELLOW,
                     },
                     "plain_text": "now",
@@ -503,16 +397,13 @@ def test_rich_text_validation_errors(invalid_data):
             ),
         ),
         (
-            RxRichText,
+            MentionRichText,
             (
                 {
                     "type": RichTextType.MENTION,
-                    "type_object": Mention(
+                    "mention": TemplateMention(
                         type=MentionType.TEMPLATE_MENTION,
-                        type_object=MentionTemplate(
-                            type=TemplateMentionType.TEMPLATE_MENTION_USER,
-                            type_object="me",
-                        ),
+                        template_mention=TemplateMentionUser(),
                     ),
                     "annotations": Annotations(
                         strikethrough=True, code=True, color=Color.PURPLE
@@ -530,10 +421,7 @@ def test_rich_text_validation_errors(invalid_data):
                         },
                     },
                     "annotations": {
-                        "bold": False,
-                        "italic": False,
                         "strikethrough": True,
-                        "underline": False,
                         "code": True,
                         "color": Color.PURPLE,
                     },
@@ -566,5 +454,7 @@ def test_rich_text_validation_errors(invalid_data):
         "RichTextMentionTemplateUser",
     ],
 )
-def test_models_serialization(clz: type[BaseModel], test_data: tuple[dict, dict, dict]):
+def test_models_serialization(
+    clz: type[BaseNotionModel], test_data: tuple[dict, dict, dict]
+):
     PydanticModelTester(clz, test_data).run_all_tests()

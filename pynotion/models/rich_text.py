@@ -1,30 +1,19 @@
-from __future__ import annotations as _annotations
+from enum import Enum
+from typing import Literal, Annotated, Optional
 
-from abc import ABC
-from enum import StrEnum
-from typing import Literal, Union, TypeAlias, Annotated, Any
-
-from pydantic import Field, BeforeValidator, field_validator, model_validator
+from pydantic import Field, BeforeValidator
 
 from ._internal import (
-    BaseNotionModel,
-    TypeObjectModel,
     validate_enum,
+    BaseNotionModel,
+    validate_url,
 )
-from .types import (
-    Color,
-    BackgroundColor,
-    NotionDate as _NotionDate,
-    NotionLink as _NotionLink,
-    NotionUrl as _NotionUrl,
-    NotionUserRef as _NotionUserRef,
-    NotionObjectRef as _NotionObjectRef,
-    NotionEquation as _NotionEquation,
-)
+from .object import NotionObjectRef
+from .types import Color, BackgroundColor, NotionDate, NotionEquation, NotionUrlObject
+from .user import User
 
 
-# ---------------------- ENUMS ---------------------- #
-class RichTextType(StrEnum):
+class RichTextType(str, Enum):
     """Defines rich text types in Notion.
 
     Attributes:
@@ -41,7 +30,7 @@ class RichTextType(StrEnum):
     MENTION = "mention"
 
 
-class MentionType(StrEnum):
+class MentionType(str, Enum):
     """Defines mention types in Notion.
 
     Attributes:
@@ -64,7 +53,7 @@ class MentionType(StrEnum):
     USER = "user"
 
 
-class TemplateMentionType(StrEnum):
+class TemplateMentionType(str, Enum):
     """Defines template mention types in Notion.
 
     Attributes:
@@ -79,7 +68,6 @@ class TemplateMentionType(StrEnum):
     TEMPLATE_MENTION_USER = "template_mention_user"
 
 
-# ---------------------- Annotations ---------------------- #
 class Annotations(BaseNotionModel):
     """
     Annotations for rich text.
@@ -96,149 +84,124 @@ class Annotations(BaseNotionModel):
         https://developers.notion.com/reference/rich-text#the-annotation-object
     """
 
-    bold: bool = Field(default=False)
-    italic: bool = Field(default=False)
-    strikethrough: bool = Field(default=False)
-    underline: bool = Field(default=False)
-    code: bool = Field(default=False)
-    color: Annotated[
-        Color | BackgroundColor | str,
-        BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
-    ] = Color.DEFAULT
+    bold: Optional[bool] = Field(default=None)
+    italic: Optional[bool] = Field(default=None)
+    strikethrough: Optional[bool] = Field(default=None)
+    underline: Optional[bool] = Field(default=None)
+    code: Optional[bool] = Field(default=None)
+    color: Optional[
+        Annotated[
+            Color | BackgroundColor | str,
+            BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
+        ]
+    ] = Field(default=None)
 
 
-# ---------------------- Text ---------------------- #
 class Text(BaseNotionModel):
-    """Represents a text type and optional link.
+    """Represents a rich text object.
 
     Attributes:
         content: The text content
         link: The link object.
-
-    References:
-        https://developers.notion.com/reference/rich-text#text
     """
 
     content: Annotated[str, Field(max_length=2000)]
-
-    link: str | _NotionLink | None = Field(default=None)
-
-    @field_validator("link", mode="before")
-    def validate_link(cls, v):
-        if v is None or isinstance(v, _NotionLink):
-            return v
-        return _NotionLink(url=_NotionUrl(v))
+    link: Optional[NotionUrlObject] = Field(default=None)
 
 
-# ---------------------- Equation ---------------------- #
-Equation: TypeAlias = _NotionEquation
+class Equation(NotionEquation):
+    """Represents an equation.
+
+    Attributes:
+        expression: The expression of the equation
+    """
+
+    pass
 
 
-# ---------------------- Mentions ---------------------- #
-class MentionTemplate(TypeObjectModel):
-    __type_object_map__ = {
-        TemplateMentionType.TEMPLATE_MENTION_DATE: Literal["today", "now"],
-        TemplateMentionType.TEMPLATE_MENTION_USER: Literal["me"],
-    }
+class DatabaseMention(BaseNotionModel):
+    """Represents a database mention.
 
-    type: Annotated[
-        str | TemplateMentionType,
-        BeforeValidator(lambda v: validate_enum(v, (TemplateMentionType,))),
+    Attributes:
+        type: The type of the mention. Always "database".
+        database: The ID of the database
+    """
+
+    type: Literal[MentionType.DATABASE] = Field(
+        default=MentionType.DATABASE, frozen=True
+    )
+    database: NotionObjectRef
+
+
+class DateMention(BaseNotionModel):
+    """Represents a date mention.
+
+    Attributes:
+        type: The type of the mention. Always "date".
+        date: The date
+    """
+
+    type: Literal[MentionType.DATE] = Field(default=MentionType.DATE, frozen=True)
+    date: NotionDate
+
+
+class LinkPreviewMention(BaseNotionModel):
+    type: Literal[MentionType.LINK_PREVIEW] = Field(
+        default=MentionType.LINK_PREVIEW, frozen=True
+    )
+    link_preview: NotionUrlObject
+
+
+class PageMention(BaseNotionModel):
+    type: Literal[MentionType.PAGE] = Field(default=MentionType.PAGE, frozen=True)
+    page: NotionObjectRef
+
+
+class TemplateMentionDate(BaseNotionModel):
+    type: Literal[TemplateMentionType.TEMPLATE_MENTION_DATE] = Field(
+        default=TemplateMentionType.TEMPLATE_MENTION_DATE,
+        frozen=True,
+    )
+    template_mention_date: Literal["today", "now"]
+
+
+class TemplateMentionUser(BaseNotionModel):
+    type: Literal[TemplateMentionType.TEMPLATE_MENTION_USER] = Field(
+        default=TemplateMentionType.TEMPLATE_MENTION_USER, frozen=True
+    )
+    template_mention_user: Literal["me"] = Field(default="me", frozen=True)
+
+
+class TemplateMention(BaseNotionModel):
+    type: Literal[MentionType.TEMPLATE_MENTION] = Field(
+        default=MentionType.TEMPLATE_MENTION, frozen=True
+    )
+    template_mention: Annotated[
+        TemplateMentionDate | TemplateMentionUser,
+        Field(discriminator="type"),
     ]
 
-    type_object: Literal["today", "now"] | Literal["me"]
+
+class UserMention(BaseNotionModel):
+    type: Literal[MentionType.USER] = Field(default=MentionType.USER, frozen=True)
+    user: User
 
 
-MentionDatabase: TypeAlias = _NotionObjectRef
-MentionDate: TypeAlias = _NotionDate
-MentionPage: TypeAlias = _NotionObjectRef
-MentionUser: TypeAlias = _NotionUserRef
-MentionLinkPreview: TypeAlias = _NotionLink
-
-MentionObjects = Union[
-    MentionDatabase,
-    MentionDate,
-    MentionLinkPreview,
-    MentionPage,
-    MentionTemplate,
-    MentionUser,
+Mention = Annotated[
+    DatabaseMention
+    | DateMention
+    | LinkPreviewMention
+    | PageMention
+    | TemplateMention
+    | UserMention,
+    Field(discriminator="type"),
 ]
 
 
-class Mention(TypeObjectModel):
-    __type_object_map__ = {
-        MentionType.DATABASE: MentionDatabase,
-        MentionType.DATE: MentionDate,
-        MentionType.LINK_PREVIEW: MentionLinkPreview,
-        MentionType.PAGE: MentionPage,
-        MentionType.TEMPLATE_MENTION: MentionTemplate,
-        MentionType.USER: MentionUser,
-    }
-
-    type: Annotated[
-        str | MentionType,
-        BeforeValidator(lambda v: validate_enum(v, (MentionType,))),
-    ]
-
-    type_object: MentionObjects
-
-
-# ---------------------- RichText ---------------------- #
-RichTextHref: TypeAlias = _NotionUrl
-
-
-class BaseRichText(TypeObjectModel, ABC):
-    """Base class for rich text objects.
-
-    Attributes:
-        type: The type of the rich text object.
-        type_object: The data related to this particular rich text object.
-
-    """
-
-    __type_object_map__ = {
-        RichTextType.TEXT: Text,
-        RichTextType.EQUATION: Equation,
-        RichTextType.MENTION: Mention,
-    }
-
-    type: Annotated[
-        str | RichTextType,
-        BeforeValidator(lambda v: validate_enum(v, (RichTextType,))),
-        Field(frozen=True),
-    ]
-    type_object: Text | Equation | Mention
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_abstract_clz(cls, values: Any) -> Any:
-        if cls == BaseRichText:
-            raise TypeError("Cannot instantiate abstract class BaseRichText")
-
-        return values
-
-
-class TxRichText(BaseRichText):
+class _BaseRichText(BaseNotionModel):
     """Represents a rich text object.
 
     Attributes:
-        type: The type of the rich text object.
-        type_object: The data related to this particular rich text object.
-        annotations: The information is used to style the rich text object.
-
-    References:
-        https://developers.notion.com/reference/rich-text
-    """
-
-    annotations: Annotations = Field(default_factory=Annotations)
-
-
-class RxRichText(BaseRichText):
-    """Represents a rich text object.
-
-    Attributes:
-        type: The type of the rich text object.
-        type_object: The data related to this particular rich text object.
         annotations: The information is used to style the rich text object.
         plain_text: The plain text without annotations.
         href: The URL of any link or Notion mentioned in this text, if any.
@@ -247,10 +210,28 @@ class RxRichText(BaseRichText):
         https://developers.notion.com/reference/rich-text
     """
 
-    type_object: Text | Equation | Mention = Field(frozen=True)
-    annotations: Annotations = Field(frozen=True)
-    plain_text: str | None = Field(frozen=True)
-    href: RichTextHref | None = Field(frozen=True)
+    __no_instance__ = True
+
+    annotations: Optional[Annotations] = Field(default=None)
+    plain_text: Optional[str] = Field(default=None)
+    href: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(default=None)
 
 
-RichText: TypeAlias = TxRichText | RxRichText
+class TextRichText(_BaseRichText):
+    type: Literal[RichTextType.TEXT] = Field(default=RichTextType.TEXT)
+    text: Text
+
+
+class EquationRichText(_BaseRichText):
+    type: Literal[RichTextType.EQUATION] = Field(default=RichTextType.EQUATION)
+    equation: Equation
+
+
+class MentionRichText(_BaseRichText):
+    type: Literal[RichTextType.MENTION] = Field(default=RichTextType.MENTION)
+    mention: Mention
+
+
+RichText = Annotated[
+    TextRichText | EquationRichText | MentionRichText, Field(discriminator="type")
+]
