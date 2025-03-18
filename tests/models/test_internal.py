@@ -157,14 +157,6 @@ def test_validate_uuid4_invalid_type():
         validate_uuid4([])
 
 
-def test_no_instances():
-    class TestModel(BaseNotionModel):
-        __no_instance__ = True
-
-    with pytest.raises(TypeError, match="Cannot instantiate non-instance class"):
-        TestModel()
-
-
 def test_invalid_email():
     with pytest.raises(ValueError, match="Invalid email address"):
         validate_email("invalid-email")

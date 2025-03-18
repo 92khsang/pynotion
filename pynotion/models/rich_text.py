@@ -210,8 +210,6 @@ class _BaseRichText(BaseNotionModel):
         https://developers.notion.com/reference/rich-text
     """
 
-    __no_instance__ = True
-
     annotations: Optional[Annotations] = Field(default=None)
     plain_text: Optional[str] = Field(default=None)
     href: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(default=None)

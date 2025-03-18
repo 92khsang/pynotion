@@ -249,8 +249,6 @@ class ProgrammingLanguage(StrEnum):
 
 
 class _BaseBlock(BaseNotionModel):
-    __no_instance__ = True
-
     object: Literal[NotionObjectType.BLOCK] = Field(
         default=NotionObjectType.BLOCK, frozen=True
     )
@@ -286,8 +284,6 @@ class _TextBaseBlockObject(BaseNotionModel):
         color: the color of the block.
         children: the nested child blocks.
     """
-
-    __no_instance__ = True
 
     rich_text: list[RichText] = Field(default_factory=list)
     color: Color | BackgroundColor | None = Field(default=None)

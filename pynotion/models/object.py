@@ -43,34 +43,3 @@ class NotionObjectRef(BaseNotionModel):
     """
 
     id: NotionObjectId
-
-
-# class NormalNotionObjectModel(BaseNotionModel):
-#     __no_instance__ = True
-#
-#     object: Literal[
-#         NotionObjectType.DATABASE,
-#         NotionObjectType.PAGE,
-#         NotionObjectType.BLOCK,
-#         NotionObjectType.Comment,
-#     ] = Field(frozen=True)
-#
-#     id: Optional[NotionObjectId] = Field(default=None, frozen=True)
-#     parent: Optional[Parent] = Field(default=None, frozen=True)
-#     created_time: Optional[CreatedTime] = Field(default=None, frozen=True)
-#     last_edited_time: Optional[LastEditedTime] = Field(default=None, frozen=True)
-#     created_by: Optional["UserRef"] = Field(default=None, frozen=True)
-#
-#
-# class FullNotionObjectModel(NormalNotionObjectModel):
-#     __no_instance__ = True
-#
-#     object: Literal[
-#         NotionObjectType.DATABASE,
-#         NotionObjectType.PAGE,
-#         NotionObjectType.BLOCK,
-#     ] = Field(frozen=True)
-#
-#     last_edited_by: Optional["UserRef"] = Field(default=None, frozen=True)
-#     archived: Optional[bool] = Field(default=None, frozen=True)
-#     in_trash: Optional[bool] = Field(default=None, frozen=True)

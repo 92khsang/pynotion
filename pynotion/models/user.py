@@ -135,8 +135,6 @@ class UserRef(BaseNotionModel):
 
 
 class _BaseUser(UserRef):
-    __no_instance__ = True
-
     name: Optional[str] = Field(default=None)
     avatar_url: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(
         default=None
