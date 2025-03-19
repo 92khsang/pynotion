@@ -207,12 +207,12 @@ class NotionDate(BaseNotionModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _pre_init(cls, values: Any) -> Any:
+    def _pre_init(cls, input_values: Any) -> Any:
         """
         Pre-validates and transforms date inputs before model initialization.
 
         Args:
-            values: Raw input values (dictionary or ArgsKwargs).
+            input_values: Raw input values (dictionary or ArgsKwargs).
 
         Returns:
             Validated and transformed input values.
@@ -220,6 +220,7 @@ class NotionDate(BaseNotionModel):
         Raises:
             ValueError: If datetime values fail validation.
         """
+        values = input_values.copy()
         data = getattr(values, "kwargs", values)
 
         if data:
