@@ -24,15 +24,15 @@ class NotionObjectType(str, Enum):
         DATABASE: Database object type.
         PAGE: Page object type.
         BLOCK: Block object type.
-        User: User object type.
-        Comment: Comment object type.
+        USER: User object type.
+        COMMENT: Comment object type.
     """
 
     DATABASE = "database"
     PAGE = "page"
     BLOCK = "block"
-    User = "user"
-    Comment = "comment"
+    USER = "user"
+    COMMENT = "comment"
 
 
 class NotionObjectRef(BaseNotionModel):

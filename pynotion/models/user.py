@@ -128,8 +128,8 @@ class UserRef(BaseNotionModel):
         object: Always 'user', confirming this is a user reference.
     """
 
-    object: Literal[NotionObjectType.User] = Field(
-        default=NotionObjectType.User, frozen=True
+    object: Literal[NotionObjectType.USER] = Field(
+        default=NotionObjectType.USER, frozen=True
     )
     id: NotionObjectId = Field(frozen=True)
 

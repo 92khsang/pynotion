@@ -621,11 +621,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': False,
@@ -665,11 +665,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': False,
@@ -756,11 +756,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -776,11 +776,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'type': BlockType.BREADCRUMB,
@@ -817,11 +817,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -891,11 +891,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'in_trash': False,
@@ -1022,11 +1022,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': False,
@@ -1093,11 +1093,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': False,
@@ -1528,11 +1528,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -1548,11 +1548,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'has_children': False,
@@ -1788,11 +1788,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -1869,11 +1869,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'has_children': True,
@@ -2012,11 +2012,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -2093,11 +2093,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'has_children': False,
@@ -2236,11 +2236,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': True,
@@ -2317,11 +2317,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': True,
@@ -2462,11 +2462,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': True,
@@ -2485,11 +2485,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': True,
@@ -2880,11 +2880,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': True,
@@ -2954,11 +2954,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': True,
@@ -3438,11 +3438,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -3460,11 +3460,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'in_trash': True,
@@ -3850,11 +3850,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': None,
@@ -3924,11 +3924,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'in_trash': True,
@@ -4073,11 +4073,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     ),
                     'last_edited_by': UserRef(
-                        object=NotionObjectType.User,
+                        object=NotionObjectType.USER,
                         id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     ),
                     'archived': True,
@@ -4137,11 +4137,11 @@ def test_invalid_block_model_creation(invalid_data):
                     'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
                     'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
                     'created_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
                     },
                     'last_edited_by': {
-                        'object': NotionObjectType.User,
+                        'object': NotionObjectType.USER,
                         'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
                     },
                     'archived': True,

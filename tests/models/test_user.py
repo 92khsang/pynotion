@@ -65,7 +65,7 @@ def test_bot_owner_model(sample_bot_owner_workspace, sample_bot_owner_user):
 
 def test_notion_user_ref():
     with pytest.raises(
-        ValueError, match=r"Input should be <NotionObjectType.User: 'user'>"
+        ValueError, match=r"Input should be <NotionObjectType.USER: 'user'>"
     ):
         UserRef(object=NotionObjectType.PAGE, id=uuid4())
 
