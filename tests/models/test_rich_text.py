@@ -3,6 +3,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
+from pynotion.models.object import NotionObjectType
 from pynotion.models.rich_text import *
 from pynotion.models.user import UserRef
 from tests.models.model_test_utils import (
@@ -42,7 +43,7 @@ def test_annotations():
     """Test Annotations model instantiation."""
     sample_annotations = Annotations(bold=True, color="red")
     assert sample_annotations.bold is True
-    assert sample_annotations.italic is None
+    assert sample_annotations.italic is False
     assert sample_annotations.color == "red"
 
     with pytest.raises(ValueError):
@@ -75,124 +76,15 @@ def test_invalid_text_model():
 
 
 @pytest.mark.parametrize(
-    "annotated_clz, expected_clz, input_data",
-    [
-        (
-            Mention,
-            DatabaseMention,
-            {
-                "type": "database",
-                "database": {
-                    "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
-                },
-            },
-        ),
-        (
-            Mention,
-            DateMention,
-            {
-                "type": "date",
-                "date": {
-                    "start": "2022-01-01",
-                    "end": "2022-12-31",
-                },
-            },
-        ),
-        (
-            Mention,
-            LinkPreviewMention,
-            {
-                "type": "link_preview",
-                "link_preview": {
-                    "url": "https://notion.so",
-                },
-            },
-        ),
-        (
-            Mention,
-            PageMention,
-            {
-                "type": "page",
-                "page": {
-                    "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
-                },
-            },
-        ),
-        (
-            Mention,
-            TemplateMention,
-            {
-                "type": "template_mention",
-                "template_mention": {
-                    "type": "template_mention_date",
-                    "template_mention_date": "today",
-                },
-            },
-        ),
-        (
-            RichText,
-            TextRichText,
-            {
-                "type": "text",
-                "text": {"content": "Test Text", "link": {"url": "https://notion.so"}},
-                "annotations": {"bold": True, "color": "gray_background"},
-                "plain_text": "Test Text",
-                "href": "https://notion.so",
-            },
-        ),
-        (
-            RichText,
-            EquationRichText,
-            {
-                "type": "equation",
-                "equation": {"expression": "a = b + c"},
-                "annotations": {"italic": True, "color": "gray"},
-            },
-        ),
-        (
-            RichText,
-            MentionRichText,
-            {
-                "type": "mention",
-                "mention": {
-                    "type": "user",
-                    "user": {
-                        "object": "user",
-                        "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
-                    },
-                },
-                "annotations": {"bold": True, "color": "gray_background"},
-                "plain_text": "Test User",
-                "href": "https://notion.so",
-            },
-        ),
-    ],
-    ids=[
-        "mention_database",
-        "mention_date",
-        "mention_link_preview",
-        "mention_page",
-        "mention_template_mention",
-        "rich_text_text",
-        "rich_text_equation",
-        "rich_text_mention_user",
-    ],
-)
-def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data: dict):
-    """Test valid User model instantiation with the type 'person' or 'bot'."""
-    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
-
-
-@pytest.mark.parametrize(
     "clz, invalid_data, expected_error",
     [
         (
-            TextRichText,
+            TxTextRichText,
             {"type": "text", "text": {"invalid_field": "value"}},
             "2 validation errors for",
         ),
         (
-            MentionRichText,
+            TxMentionRichText,
             {"type": "mention", "mention": {"type": "invalid_type"}},
             "1 validation error for",
         ),
@@ -205,256 +97,463 @@ def test_rich_text_validation_errors(clz, invalid_data, expected_error):
 
 
 @pytest.mark.parametrize(
+    "annotated_clz, expected_clz, input_data",
+    [
+        (
+            TxRichText,
+            TxTextRichText,
+            {
+                "type": "text",
+                "text": {
+                    "content": "Food discussion table place capital.",
+                    "link": {"url": "http://booth-cooper.com/"},
+                },
+            },
+        ),
+        (
+            TxRichText,
+            TxEquationRichText,
+            {
+                "annotations": {
+                    "bold": True,
+                    "italic": False,
+                    "strikethrough": False,
+                    "underline": False,
+                    "code": True,
+                    "color": "brown",
+                },
+                "type": "equation",
+                "equation": {
+                    "expression": "Organization series protect paper figure though want cost. Item computer TV forward option next leader. Area attorney everyone although.\nMillion product treat save forward bank. Whether age open leg."
+                },
+            },
+        ),
+        (
+            TxRichText,
+            TxMentionRichText,
+            {
+                "annotations": {
+                    "bold": True,
+                    "italic": False,
+                    "strikethrough": True,
+                    "underline": True,
+                    "code": True,
+                    "color": "brown",
+                },
+                "type": "mention",
+                "mention": {
+                    "type": "database",
+                    "database": {"id": "1bf3dcc5-be6b-441c-91c6-b3c0730edb63"},
+                },
+            },
+        ),
+    ],
+)
+def test_tx_rich_text_discriminated_model(
+    annotated_clz: type, expected_clz: type, input_data: dict
+):
+    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
+
+
+@pytest.mark.parametrize(
+    "annotated_clz, expected_clz, input_data",
+    [
+        (
+            RxRichText,
+            RxTextRichText,
+            {
+                "annotations": {
+                    "bold": True,
+                    "italic": False,
+                    "strikethrough": True,
+                    "underline": True,
+                    "code": False,
+                    "color": "red",
+                },
+                "plain_text": "Little be environment. Our finally arrive.",
+                "href": "http://www.johnson.info/",
+                "type": "text",
+                "text": {
+                    "content": "Require already available significant through.",
+                    "link": {"url": "http://hayes.net/"},
+                },
+            },
+        ),
+        (
+            RxRichText,
+            RxEquationRichText,
+            {
+                "annotations": {
+                    "bold": True,
+                    "italic": False,
+                    "strikethrough": True,
+                    "underline": True,
+                    "code": False,
+                    "color": "red",
+                },
+                "plain_text": "Little be environment. Our finally arrive.",
+                "href": "https://taylor-hansen.com/",
+                "type": "equation",
+                "equation": {
+                    "expression": "Factor language chair blood play he. Near together between protect.\nTwo stock serve never government life onto. Really think appear interview before spend."
+                },
+            },
+        ),
+        (
+            RxRichText,
+            RxMentionRichText,
+            {
+                "annotations": {
+                    "bold": True,
+                    "italic": False,
+                    "strikethrough": True,
+                    "underline": True,
+                    "code": False,
+                    "color": "red",
+                },
+                "plain_text": "Little be environment. Our finally arrive.",
+                "href": "http://murphy.biz/",
+                "type": "mention",
+                "mention": {
+                    "type": "database",
+                    "database": {"id": "133d621d-f0b0-4996-bb4e-8a536ea802e3"},
+                },
+            },
+        ),
+    ],
+)
+def test_rx_rich_text_discriminated_model(
+    annotated_clz: type, expected_clz: type, input_data: dict
+):
+    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
+
+
+@pytest.mark.parametrize(
     "clz, test_data",
     [
         (
-            TextRichText,
+            TxTextRichText,
             (
                 {
-                    "type": RichTextType.TEXT,
-                    "text": Text(
-                        content="Test Text",
-                        link=NotionUrlObject(url="https://notion.so"),
+                    'annotations': Annotations(
+                        bold=False,
+                        italic=False,
+                        strikethrough=False,
+                        underline=False,
+                        code=False,
+                        color=Color.YELLOW,
                     ),
-                    "annotations": Annotations(bold=True),
-                    "plain_text": "Test Text",
-                    "href": "https://notion.so",
+                    'type': RichTextType.TEXT,
+                    'text': Text(
+                        content='My factor page rate exist put.',
+                        link=NotionUrlObject(url='http://www.armstrong.com/'),
+                    ),
                 },
                 {
-                    "type": RichTextType.TEXT,
-                    "text": {
-                        "content": "Test Text",
-                        "link": {
-                            "url": "https://notion.so",
-                        },
+                    'annotations': {
+                        'bold': False,
+                        'italic': False,
+                        'strikethrough': False,
+                        'underline': False,
+                        'code': False,
+                        'color': Color.YELLOW,
                     },
+                    'type': RichTextType.TEXT,
+                    'text': {
+                        'content': 'My factor page rate exist put.',
+                        'link': {'url': 'http://www.armstrong.com/'},
+                    },
+                },
+                {
                     "annotations": {
-                        "bold": True,
+                        "bold": False,
+                        "italic": False,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": False,
+                        "color": "yellow",
                     },
-                    "plain_text": "Test Text",
-                    "href": "https://notion.so",
-                },
-                {
                     "type": "text",
                     "text": {
-                        "content": "Test Text",
-                        "link": {"url": "https://notion.so"},
+                        "content": "My factor page rate exist put.",
+                        "link": {"url": "http://www.armstrong.com/"},
                     },
-                    "annotations": {"bold": True},
-                    "plain_text": "Test Text",
-                    "href": "https://notion.so",
                 },
             ),
         ),
         (
-            EquationRichText,
+            TxEquationRichText,
             (
                 {
-                    "type": RichTextType.EQUATION,
-                    "equation": Equation(expression="E = mc^2"),
-                    "annotations": Annotations(bold=True, italic=True, color=Color.RED),
-                    "plain_text": "E = mc^2",
-                    "href": None,
+                    'annotations': None,
+                    'type': RichTextType.EQUATION,
+                    'equation': Equation(
+                        expression='Very among late husband question prove either main. Be by person seven science he.\nBeat someone central kind usually. Respond much despite reach half watch party example.'
+                    ),
                 },
                 {
-                    "type": RichTextType.EQUATION,
-                    "equation": {
-                        "expression": "E = mc^2",
+                    'type': RichTextType.EQUATION,
+                    'equation': {
+                        'expression': 'Very among late husband question prove either main. Be by person seven science he.\nBeat someone central kind usually. Respond much despite reach half watch party example.'
                     },
-                    "annotations": {
-                        "bold": True,
-                        "italic": True,
-                        "color": Color.RED,
-                    },
-                    "plain_text": "E = mc^2",
                 },
                 {
                     "type": "equation",
                     "equation": {
-                        "expression": "E = mc^2",
+                        "expression": "Very among late husband question prove either main. Be by person seven science he.\nBeat someone central kind usually. Respond much despite reach half watch party example."
                     },
-                    "annotations": {
-                        "bold": True,
-                        "italic": True,
-                        "color": "red",
-                    },
-                    "plain_text": "E = mc^2",
                 },
             ),
         ),
         (
-            MentionRichText,
+            TxMentionRichText,
             (
                 {
-                    "type": RichTextType.MENTION,
-                    "mention": UserMention(
-                        type=MentionType.USER,
-                        user=UserRef(
-                            object="user", id="a7db80bd-b3e3-4394-b134-a21b05412c7c"
-                        ),
-                    ),
-                    "annotations": Annotations(
+                    'annotations': Annotations(
                         bold=True,
-                        italic=False,
-                        strikethrough=True,
+                        italic=True,
+                        strikethrough=False,
                         underline=False,
                         code=True,
-                        color=BackgroundColor.RED_BACKGROUND,
+                        color=Color.YELLOW,
                     ),
-                    "plain_text": "Test User",
-                    "href": None,
-                },
-                {
-                    "type": RichTextType.MENTION,
-                    "mention": {
-                        "type": MentionType.USER,
-                        "user": {
-                            "object": "user",
-                            "id": UUID("a7db80bd-b3e3-4394-b134-a21b05412c7c"),
-                        },
-                    },
-                    "annotations": {
-                        "bold": True,
-                        "italic": False,
-                        "strikethrough": True,
-                        "underline": False,
-                        "code": True,
-                        "color": BackgroundColor.RED_BACKGROUND,
-                    },
-                    "plain_text": "Test User",
-                },
-                {
-                    "type": "mention",
-                    "mention": {
-                        "type": MentionType.USER.value,
-                        "user": {
-                            "object": "user",
-                            "id": "a7db80bd-b3e3-4394-b134-a21b05412c7c",
-                        },
-                    },
-                    "annotations": {
-                        "bold": True,
-                        "italic": False,
-                        "strikethrough": True,
-                        "underline": False,
-                        "code": True,
-                        "color": BackgroundColor.RED_BACKGROUND.value,
-                    },
-                    "plain_text": "Test User",
-                },
-            ),
-        ),
-        (
-            MentionRichText,
-            (
-                {
-                    "type": RichTextType.MENTION,
-                    "mention": TemplateMention(
+                    'type': RichTextType.MENTION,
+                    'mention': TemplateMention(
                         type=MentionType.TEMPLATE_MENTION,
                         template_mention=TemplateMentionDate(
                             type=TemplateMentionType.TEMPLATE_MENTION_DATE,
-                            template_mention_date="now",
+                            template_mention_date='today',
                         ),
                     ),
-                    "annotations": Annotations(
-                        italic=True, underline=True, color=Color.YELLOW
+                },
+                {
+                    'annotations': {
+                        'bold': True,
+                        'italic': True,
+                        'strikethrough': False,
+                        'underline': False,
+                        'code': True,
+                        'color': Color.YELLOW,
+                    },
+                    'type': RichTextType.MENTION,
+                    'mention': {
+                        'type': MentionType.TEMPLATE_MENTION,
+                        'template_mention': {
+                            'type': TemplateMentionType.TEMPLATE_MENTION_DATE,
+                            'template_mention_date': 'today',
+                        },
+                    },
+                },
+                {
+                    "annotations": {
+                        "bold": True,
+                        "italic": True,
+                        "strikethrough": False,
+                        "underline": False,
+                        "code": True,
+                        "color": "yellow",
+                    },
+                    "type": "mention",
+                    "mention": {
+                        "type": "template_mention",
+                        "template_mention": {
+                            "type": "template_mention_date",
+                            "template_mention_date": "today",
+                        },
+                    },
+                },
+            ),
+        ),
+    ],
+)
+def test_tx_rich_models_serialization(
+    clz: type[BaseNotionModel], test_data: tuple[dict, dict, dict]
+):
+    PydanticModelTester(clz, test_data).run_all_tests()
+
+
+@pytest.mark.parametrize(
+    "clz, test_data",
+    [
+        (
+            RxTextRichText,
+            (
+                {
+                    'annotations': Annotations(
+                        bold=False,
+                        italic=True,
+                        strikethrough=False,
+                        underline=True,
+                        code=True,
+                        color=Color.GRAY,
                     ),
-                    "plain_text": "now",
-                    "href": None,
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'https://hartman-villegas.com/',
+                    'type': RichTextType.TEXT,
+                    'text': Text(
+                        content='Positive yeah how. Actually account challenge.',
+                        link=NotionUrlObject(url='https://mcdaniel-robinson.com/'),
+                    ),
                 },
                 {
-                    "type": RichTextType.MENTION,
-                    "mention": {
-                        "type": MentionType.TEMPLATE_MENTION,
-                        "template_mention": {
-                            "type": TemplateMentionType.TEMPLATE_MENTION_DATE,
-                            "template_mention_date": "now",
-                        },
+                    'annotations': {
+                        'bold': False,
+                        'italic': True,
+                        'strikethrough': False,
+                        'underline': True,
+                        'code': True,
+                        'color': Color.GRAY,
                     },
-                    "annotations": {
-                        "italic": True,
-                        "underline": True,
-                        "color": Color.YELLOW,
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'https://hartman-villegas.com/',
+                    'type': RichTextType.TEXT,
+                    'text': {
+                        'content': 'Positive yeah how. Actually account challenge.',
+                        'link': {'url': 'https://mcdaniel-robinson.com/'},
                     },
-                    "plain_text": "now",
                 },
                 {
-                    "type": RichTextType.MENTION.value,
-                    "mention": {
-                        "type": MentionType.TEMPLATE_MENTION.value,
-                        "template_mention": {
-                            "type": TemplateMentionType.TEMPLATE_MENTION_DATE.value,
-                            "template_mention_date": "now",
-                        },
-                    },
                     "annotations": {
+                        "bold": False,
                         "italic": True,
+                        "strikethrough": False,
                         "underline": True,
-                        "color": Color.YELLOW.value,
+                        "code": True,
+                        "color": "gray",
                     },
-                    "plain_text": "now",
+                    "plain_text": "Mind hot wait event.",
+                    "href": "https://hartman-villegas.com/",
+                    "type": "text",
+                    "text": {
+                        "content": "Positive yeah how. Actually account challenge.",
+                        "link": {"url": "https://mcdaniel-robinson.com/"},
+                    },
                 },
             ),
         ),
         (
-            MentionRichText,
+            RxEquationRichText,
             (
                 {
-                    "type": RichTextType.MENTION,
-                    "mention": TemplateMention(
-                        type=MentionType.TEMPLATE_MENTION,
-                        template_mention=TemplateMentionUser(),
+                    'annotations': Annotations(
+                        bold=False,
+                        italic=True,
+                        strikethrough=False,
+                        underline=True,
+                        code=True,
+                        color=Color.GRAY,
                     ),
-                    "annotations": Annotations(
-                        strikethrough=True, code=True, color=Color.PURPLE
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'https://kelley-harris.com/',
+                    'type': RichTextType.EQUATION,
+                    'equation': Equation(
+                        expression='Other federal main star near actually receive theory. Buy project wear play.\nClose role Mr both fact. List class statement trial. Traditional compare and always month later else cell.'
                     ),
-                    "plain_text": "now",
-                    "href": None,
                 },
                 {
-                    "type": RichTextType.MENTION,
-                    "mention": {
-                        "type": MentionType.TEMPLATE_MENTION,
-                        "template_mention": {
-                            "type": TemplateMentionType.TEMPLATE_MENTION_USER,
-                            "template_mention_user": "me",
-                        },
+                    'annotations': {
+                        'bold': False,
+                        'italic': True,
+                        'strikethrough': False,
+                        'underline': True,
+                        'code': True,
+                        'color': Color.GRAY,
                     },
-                    "annotations": {
-                        "strikethrough": True,
-                        "code": True,
-                        "color": Color.PURPLE,
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'https://kelley-harris.com/',
+                    'type': RichTextType.EQUATION,
+                    'equation': {
+                        'expression': 'Other federal main star near actually receive theory. Buy project wear play.\nClose role Mr both fact. List class statement trial. Traditional compare and always month later else cell.'
                     },
-                    "plain_text": "now",
                 },
                 {
-                    "type": RichTextType.MENTION.value,
-                    "mention": {
-                        "type": MentionType.TEMPLATE_MENTION.value,
-                        "template_mention": {
-                            "type": TemplateMentionType.TEMPLATE_MENTION_USER.value,
-                            "template_mention_user": "me",
+                    "annotations": {
+                        "bold": False,
+                        "italic": True,
+                        "strikethrough": False,
+                        "underline": True,
+                        "code": True,
+                        "color": "gray",
+                    },
+                    "plain_text": "Mind hot wait event.",
+                    "href": "https://kelley-harris.com/",
+                    "type": "equation",
+                    "equation": {
+                        "expression": "Other federal main star near actually receive theory. Buy project wear play.\nClose role Mr both fact. List class statement trial. Traditional compare and always month later else cell."
+                    },
+                },
+            ),
+        ),
+        (
+            RxMentionRichText,
+            (
+                {
+                    'annotations': Annotations(
+                        bold=False,
+                        italic=True,
+                        strikethrough=False,
+                        underline=True,
+                        code=True,
+                        color=Color.GRAY,
+                    ),
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'http://anderson.net/',
+                    'type': RichTextType.MENTION,
+                    'mention': RxUserMention(
+                        type=MentionType.USER,
+                        user=UserRef(
+                            object=NotionObjectType.USER,
+                            id=UUID('6a774092-f7b9-478e-a675-d8c67427b4cc'),
+                        ),
+                    ),
+                },
+                {
+                    'annotations': {
+                        'bold': False,
+                        'italic': True,
+                        'strikethrough': False,
+                        'underline': True,
+                        'code': True,
+                        'color': Color.GRAY,
+                    },
+                    'plain_text': 'Mind hot wait event.',
+                    'href': 'http://anderson.net/',
+                    'type': RichTextType.MENTION,
+                    'mention': {
+                        'type': MentionType.USER,
+                        'user': {
+                            'object': NotionObjectType.USER,
+                            'id': UUID('6a774092-f7b9-478e-a675-d8c67427b4cc'),
                         },
                     },
+                },
+                {
                     "annotations": {
-                        "strikethrough": True,
+                        "bold": False,
+                        "italic": True,
+                        "strikethrough": False,
+                        "underline": True,
                         "code": True,
-                        "color": Color.PURPLE.value,
+                        "color": "gray",
                     },
-                    "plain_text": "now",
+                    "plain_text": "Mind hot wait event.",
+                    "href": "http://anderson.net/",
+                    "type": "mention",
+                    "mention": {
+                        "type": "user",
+                        "user": {
+                            "object": "user",
+                            "id": "6a774092-f7b9-478e-a675-d8c67427b4cc",
+                        },
+                    },
                 },
             ),
         ),
     ],
-    ids=[
-        "RichTextText",
-        "RichTextEquation",
-        "RichTextMentionUser",
-        "RichTextMentionTemplateDate",
-        "RichTextMentionTemplateUser",
-    ],
 )
-def test_models_serialization(
+def test_rx_rich_models_serialization(
     clz: type[BaseNotionModel], test_data: tuple[dict, dict, dict]
 ):
     PydanticModelTester(clz, test_data).run_all_tests()

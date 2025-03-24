@@ -7,23 +7,15 @@ from ._internal import (
     validate_enum,
     BaseNotionModel,
     validate_url,
+    FrozenNotionModel,
 )
 from .object import NotionObjectRef
 from .types import Color, BackgroundColor, NotionDate, NotionEquation, NotionUrlObject
-from .user import User
+from .user import User, UserRef
 
 
 class RichTextType(str, Enum):
-    """Defines rich text types in Notion.
-
-    Attributes:
-        TEXT: Text rich text type.
-        EQUATION: equation rich text type.
-        MENTION: mention a rich text type.
-
-    References:
-        https://developers.notion.com/reference/rich-text
-    """
+    """Rich text types in Notion."""
 
     TEXT = "text"
     EQUATION = "equation"
@@ -31,19 +23,7 @@ class RichTextType(str, Enum):
 
 
 class MentionType(str, Enum):
-    """Defines mention types in Notion.
-
-    Attributes:
-        DATABASE: database mention type.
-        DATE: date mention type.
-        LINK_PREVIEW: link preview mentions type.
-        PAGE: page a mention type.
-        TEMPLATE_MENTION: template mention type.
-        USER: user mention type.
-
-    References:
-        https://developers.notion.com/reference/rich-text#mention
-    """
+    """Mention types in Notion."""
 
     DATABASE = "database"
     DATE = "date"
@@ -54,15 +34,7 @@ class MentionType(str, Enum):
 
 
 class TemplateMentionType(str, Enum):
-    """Defines template mention types in Notion.
-
-    Attributes:
-        TEMPLATE_MENTION_DATE: a template mention type is date.
-        TEMPLATE_MENTION_USER: a template mention type is user.
-
-    References:
-        https://developers.notion.com/reference/rich-text#template-mention-type-object
-    """
+    """Defines template mention types in Notion."""
 
     TEMPLATE_MENTION_DATE = "template_mention_date"
     TEMPLATE_MENTION_USER = "template_mention_user"
@@ -84,17 +56,16 @@ class Annotations(BaseNotionModel):
         https://developers.notion.com/reference/rich-text#the-annotation-object
     """
 
-    bold: Optional[bool] = Field(default=None)
-    italic: Optional[bool] = Field(default=None)
-    strikethrough: Optional[bool] = Field(default=None)
-    underline: Optional[bool] = Field(default=None)
-    code: Optional[bool] = Field(default=None)
-    color: Optional[
-        Annotated[
-            Color | BackgroundColor | str,
-            BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
-        ]
-    ] = Field(default=None)
+    bold: bool = False
+    italic: bool = False
+    strikethrough: bool = False
+    underline: bool = False
+    code: bool = False
+    color: Annotated[
+        Color | BackgroundColor | str,
+        BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
+        Field(default=Color.DEFAULT),
+    ]
 
 
 class Text(BaseNotionModel):
@@ -106,7 +77,7 @@ class Text(BaseNotionModel):
     """
 
     content: Annotated[str, Field(max_length=2000)]
-    link: Optional[NotionUrlObject] = Field(default=None)
+    link: Optional[NotionUrlObject] = None
 
 
 class Equation(NotionEquation):
@@ -182,23 +153,38 @@ class TemplateMention(BaseNotionModel):
     ]
 
 
-class UserMention(BaseNotionModel):
+class RxUserMention(BaseNotionModel):
     type: Literal[MentionType.USER] = Field(default=MentionType.USER, frozen=True)
     user: User
 
 
-Mention = Annotated[
+class TxUserMention(BaseNotionModel):
+    type: Literal[MentionType.USER] = Field(default=MentionType.USER, frozen=True)
+    user: UserRef
+
+
+RxMention = Annotated[
     DatabaseMention
     | DateMention
     | LinkPreviewMention
     | PageMention
     | TemplateMention
-    | UserMention,
+    | RxUserMention,
+    Field(discriminator="type"),
+]
+
+TxMention = Annotated[
+    DatabaseMention
+    | DateMention
+    | LinkPreviewMention
+    | PageMention
+    | TemplateMention
+    | TxUserMention,
     Field(discriminator="type"),
 ]
 
 
-class _BaseRichText(BaseNotionModel):
+class _RxBaseRichText(FrozenNotionModel):
     """Represents a rich text object.
 
     Attributes:
@@ -210,26 +196,59 @@ class _BaseRichText(BaseNotionModel):
         https://developers.notion.com/reference/rich-text
     """
 
-    annotations: Optional[Annotations] = Field(default=None)
-    plain_text: Optional[str] = Field(default=None)
-    href: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(default=None)
+    annotations: Annotations
+    plain_text: Optional[str]
+    href: Optional[Annotated[str, BeforeValidator(validate_url)]]
 
 
-class TextRichText(_BaseRichText):
+class RxTextRichText(_RxBaseRichText):
     type: Literal[RichTextType.TEXT] = Field(default=RichTextType.TEXT)
     text: Text
 
 
-class EquationRichText(_BaseRichText):
+class RxEquationRichText(_RxBaseRichText):
     type: Literal[RichTextType.EQUATION] = Field(default=RichTextType.EQUATION)
     equation: Equation
 
 
-class MentionRichText(_BaseRichText):
+class RxMentionRichText(_RxBaseRichText):
     type: Literal[RichTextType.MENTION] = Field(default=RichTextType.MENTION)
-    mention: Mention
+    mention: RxMention
 
 
-RichText = Annotated[
-    TextRichText | EquationRichText | MentionRichText, Field(discriminator="type")
+RxRichText = Annotated[
+    RxTextRichText | RxEquationRichText | RxMentionRichText, Field(discriminator="type")
+]
+
+
+class _TxBaseRichText(BaseNotionModel):
+    """Represents a rich text object.
+
+    Attributes:
+        annotations: The information is used to style the rich text object.
+
+    References:
+        https://developers.notion.com/reference/rich-text
+    """
+
+    annotations: Optional[Annotations] = None
+
+
+class TxTextRichText(_TxBaseRichText):
+    type: Literal[RichTextType.TEXT] = Field(default=RichTextType.TEXT)
+    text: Text
+
+
+class TxEquationRichText(_TxBaseRichText):
+    type: Literal[RichTextType.EQUATION] = Field(default=RichTextType.EQUATION)
+    equation: Equation
+
+
+class TxMentionRichText(_TxBaseRichText):
+    type: Literal[RichTextType.MENTION] = Field(default=RichTextType.MENTION)
+    mention: TxMention
+
+
+TxRichText = Annotated[
+    TxTextRichText | TxEquationRichText | TxMentionRichText, Field(discriminator="type")
 ]
