@@ -1,13 +1,17 @@
 from __future__ import annotations as _annotations
 
-from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Literal, Optional, Annotated
 
-from pydantic import Field, BeforeValidator, ConfigDict
+from pydantic import Field, BeforeValidator, ConfigDict, Discriminator, Tag
 
-from ._internal import BaseNotionModel, validate_datetime, validate_url
-from .emoji import Emojis
+from ._internal import (
+    BaseNotionModel,
+    FrozenNotionModel,
+    validate_url,
+    validate_enum,
+)
+from .emoji import Emoji
 from .file import (
     HostedFile,
     ExternalFile,
@@ -17,49 +21,19 @@ from .file import (
 )
 from .object import NotionObjectId, NotionObjectType
 from .parent import Parent
-from .rich_text import RichText
-from .types import BackgroundColor, Color, NotionUrlObject, NotionEquation
+from .rich_text import RxRichText, TxRichText
+from .types import (
+    BackgroundColor,
+    Color,
+    NotionUrlObject,
+    NotionEquation,
+    NotionDatetime,
+)
 from .user import UserRef
 
 
-class BlockType(StrEnum):
-    """Enumeration of block types supported by the Notion API.
-
-    This enum represents all available block types that can be created, retrieved, or
-    updated through the Notion API. Each block type corresponds to a specific content
-    structure that can be rendered in Notion pages.
-
-    Attributes:
-        BOOKMARK: A bookmark block that displays a link with a preview.
-        BREADCRUMB: A breadcrumb navigation block showing page hierarchy.
-        BULLETED_LIST_ITEM: An item in a bulleted (unordered) list.
-        CALLOUT: A callout block with an icon and background, used to highlight content.
-        CHILD_DATABASE: A database embedded within a page.
-        CHILD_PAGE: A page embedded within another page.
-        CODE: A code block with syntax highlighting for various programming languages.
-        COLUMN: A single column within a column list block.
-        COLUMN_LIST: A container block that holds multiple columns in a row.
-        DIVIDER: A horizontal divider line to separate content.
-        EMBED: An embedded external resource (website, video, etc.).
-        EQUATION: A block displaying a mathematical equation using LaTeX.
-        FILE: An uploaded file.
-        HEADING_1: A large heading (H1).
-        HEADING_2: A medium heading (H2).
-        HEADING_3: A small heading (H3).
-        IMAGE: An image block.
-        NUMBERED_LIST_ITEM: An item in a numbered (ordered) list.
-        PARAGRAPH: A basic text block.
-        PDF: A PDF file viewer.
-        QUOTE: A block for quoted text with special formatting.
-        SYNCED_BLOCK: A block that can be synced across multiple pages.
-        TABLE: A table block containing rows and cells.
-        TABLE_OF_CONTENTS: An auto-generated table of contents.
-        TABLE_ROW: A row within a table.
-        TO_DO: A task with a checkbox.
-        TOGGLE: A collapsible toggle block.
-        UNSUPPORTED: A block type not currently supported by the API.
-        VIDEO: A video block.
-    """
+class BlockType(str, Enum):
+    """Enumeration of block types supported by the Notion API."""
 
     BOOKMARK = "bookmark"
     BREADCRUMB = "breadcrumb"
@@ -92,87 +66,8 @@ class BlockType(StrEnum):
     VIDEO = "video"
 
 
-class ProgrammingLanguage(StrEnum):
-    """Enumeration of supported programming languages for Notion code blocks.
-
-    This enum provides all programming languages officially supported for syntax
-    highlighting in Notion code blocks. The string value of each enum member matches
-    exactly with the expected language identifier in the Notion API.
-
-    Attributes:
-        ABAP: ABAP programming language.
-        ARDUINO: Arduino programming language.
-        BASH: Bash shell scripting language.
-        BASIC: BASIC programming language.
-        C: C programming language.
-        CLOJURE: Clojure programming language.
-        COFFEESCRIPT: CoffeeScript programming language.
-        CPP: C++ programming language.
-        CSHARP: C# programming language.
-        CSS: Cascading Style Sheets language.
-        DART: Dart programming language.
-        DIFF: Diff/patch file format.
-        DOCKER: Dockerfile format.
-        ELIXIR: Elixir programming language.
-        ELM: Elm programming language.
-        ERLANG: Erlang programming language.
-        FLOW: Flow static type checker for JavaScript.
-        FORTRAN: Fortran programming language.
-        FSHARP: F# programming language.
-        GHERKIN: Gherkin language for behavior-driven development.
-        GLSL: OpenGL Shading Language.
-        GO: Go programming language.
-        GRAPHQL: GraphQL query language.
-        GROOVY: Groovy programming language.
-        HASKELL: Haskell programming language.
-        HTML: HTML markup language.
-        JAVA: Java programming language.
-        JAVASCRIPT: JavaScript programming language.
-        JSON: JSON data format.
-        JULIA: Julia programming language.
-        KOTLIN: Kotlin programming language.
-        LATEX: LaTeX document preparation system.
-        LESS: Less CSS preprocessor.
-        LISP: Lisp programming language.
-        LIVESCRIPT: LiveScript programming language.
-        LUA: Lua programming language.
-        MAKEFILE: Makefile format.
-        MARKDOWN: Markdown markup language.
-        MARKUP: Generic markup language.
-        MATLAB: MATLAB programming language.
-        MERMAID: Mermaid diagram syntax.
-        NIX: Nix expression language.
-        OBJECTIVE_C: Objective-C programming language.
-        OCAML: OCaml programming language.
-        PASCAL: Pascal programming language.
-        PERL: Perl programming language.
-        PHP: PHP programming language.
-        PLAIN_TEXT: Plain text with no syntax highlighting.
-        POWERSHELL: PowerShell scripting language.
-        PROLOG: Prolog programming language.
-        PROTOBUF: Protocol Buffers format.
-        PYTHON: Python programming language.
-        R: R programming language.
-        REASON: ReasonML programming language.
-        RUBY: Ruby programming language.
-        RUST: Rust programming language.
-        SASS: Sass CSS preprocessor.
-        SCALA: Scala programming language.
-        SCHEME: Scheme programming language.
-        SCSS: SCSS CSS preprocessor.
-        SHELL: Generic shell scripting.
-        SQL: SQL query language.
-        SWIFT: Swift programming language.
-        TYPESCRIPT: TypeScript programming language.
-        VB_NET: VB.NET programming language.
-        VERILOG: Verilog hardware description language.
-        VHDL: VHDL hardware description language.
-        VISUAL_BASIC: Visual Basic programming language.
-        WEBASSEMBLY: WebAssembly format.
-        XML: XML markup language.
-        YAML: YAML data format.
-        JAVA_C_CPP_CSHARP: Generic highlight for Java/C/C++/C# family.
-    """
+class ProgrammingLanguage(str, Enum):
+    """Enumeration of supported programming languages for Notion code blocks."""
 
     ABAP = "abap"
     ARDUINO = "arduino"
@@ -248,69 +143,8 @@ class ProgrammingLanguage(StrEnum):
     JAVA_C_CPP_CSHARP = "java/c/c++/c#"
 
 
-class _BaseBlock(BaseNotionModel):
-    object: Literal[NotionObjectType.BLOCK] = Field(
-        default=NotionObjectType.BLOCK, frozen=True
-    )
-
-    id: Optional[NotionObjectId] = Field(default=None)
-
-    parent: Optional[Parent] = Field(default=None)
-
-    created_time: Optional[
-        Annotated[str | datetime, BeforeValidator(validate_datetime)]
-    ] = Field(default=None, frozen=True)
-
-    last_edited_time: Optional[
-        Annotated[str | datetime, BeforeValidator(validate_datetime)]
-    ] = Field(default=None, frozen=True)
-
-    created_by: Optional[UserRef] = Field(default=None, frozen=True)
-
-    last_edited_by: Optional[UserRef] = Field(default=None, frozen=True)
-
-    archived: Optional[bool] = Field(default=None, frozen=True)
-
-    in_trash: Optional[bool] = Field(default=None, frozen=True)
-
-    has_children: Optional[bool] = Field(default=None, frozen=True)
-
-
-class _TextBaseBlockObject(BaseNotionModel):
-    """Represents a text-based block value.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-    """
-
-    rich_text: list[RichText] = Field(default_factory=list)
-    color: Color | BackgroundColor | None = Field(default=None)
-    children: Optional[list[Block]] = Field(default_factory=list)
-
-
-class Bookmark(BaseNotionModel):
-    caption: Optional[list[RichText]] = Field(default=None)
-    url: Annotated[str, BeforeValidator(validate_url)]
-
-
-class BulletListItem(_TextBaseBlockObject):
-    """Represents a bullet list item.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-    """
-
-    pass
-
-
-class Callout(BaseNotionModel):
-    rich_text: list[RichText] = Field(default_factory=list)
-    icon: Emojis | File | None = Field(default=None)
-    color: Color | BackgroundColor | None = Field(default=None)
+RxRichTexts = list[RxRichText]
+RxCaption = Optional[list[RxRichText]]
 
 
 class ChildDatabase(BaseNotionModel):
@@ -321,78 +155,10 @@ class ChildPage(BaseNotionModel):
     title: str
 
 
-class Code(BaseNotionModel):
-    caption: Optional[list[RichText]] = Field(default=None)
-    rich_text: list[RichText] = Field(default_factory=list)
-    language: ProgrammingLanguage
-
-
-class CaptionHostedFile(HostedFile):
-    caption: Optional[list[RichText]] = Field(default=None)
-
-
-class CaptionExternalFile(ExternalFile):
-    caption: Optional[list[RichText]] = Field(default=None)
-
-
-CaptionFile = Annotated[
-    CaptionHostedFile | CaptionExternalFile, Field(discriminator="type")
-]
-
-
-class CaptionHostedFileWithName(HostedFileWithName):
-    caption: Optional[list[RichText]] = Field(default=None)
-
-
-class CaptionExternalFileWithName(ExternalFileWithName):
-    caption: Optional[list[RichText]] = Field(default=None)
-
-
-CaptionFileWithName = Annotated[
-    CaptionHostedFileWithName | CaptionExternalFileWithName, Field(discriminator="type")
-]
-
-
-class Heading(BaseNotionModel):
-    rich_text: list[RichText] = Field(default_factory=list)
-    color: Color | BackgroundColor | None = Field(default=None)
-    is_toggleable: bool = Field(default=False)
-
-
-class NumberedListItem(_TextBaseBlockObject):
-    """Represents a numbered list item.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-    """
-
-    pass
-
-
-class Paragraph(_TextBaseBlockObject):
-    """Represents a paragraph block.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-    """
-
-    pass
-
-
-class Quote(_TextBaseBlockObject):
-    """Represents a quote block.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-    """
-
-    pass
+class Table(BaseNotionModel):
+    table_width: Annotated[int, Field(gt=0)]
+    has_column_header: bool
+    has_row_header: bool
 
 
 class SyncedFrom(BaseNotionModel):
@@ -405,248 +171,631 @@ class SyncedFrom(BaseNotionModel):
     block_id: NotionObjectId
 
 
-class OriginalSynced(BaseNotionModel):
-    synced_form: Literal[None] = Field(default=None, frozen=True)
-    children: list[Block] = Field(default_factory=list)
-
-
 class DuplicateSynced(BaseNotionModel):
     synced_from: SyncedFrom
-    children: Literal[None] = Field(default=None, frozen=True)
+    children: None = None
 
 
-class Table(BaseNotionModel):
-    table_width: Annotated[int, Field(gt=0)]
-    has_column_header: bool
-    has_row_header: bool
+def model_synced_discriminator(v):
+
+    from ._internal.utils import get_value_for_discriminator
+
+    synced_from_value = get_value_for_discriminator(v, "synced_from")
+
+    if synced_from_value is not None:
+        return "duplicated"
+    else:
+        return "original"
 
 
-class Cells(BaseNotionModel):
-    rich_text: list[RichText] = Field(default_factory=list)
-
-
-class ToDo(_TextBaseBlockObject):
-    """Represents a to-do block.
-
-    Attributes:
-        rich_text: the rich texts in the block.
-        color: the color of the block.
-        children: the nested child blocks.
-        checked: the checked status of the to-do block.
-    """
-
-    checked: Optional[bool] = Field(default=None)
-
-
-class Toggle(_TextBaseBlockObject):
-    """Represents a toggle block.
+class _RxTextBaseBlockObject(FrozenNotionModel):
+    """Represents a text-based block value.
 
     Attributes:
         rich_text: the rich texts in the block.
-        color: the color of the block.
         children: the nested child blocks.
+        color: the color of the block.
     """
 
+    rich_text: RxRichTexts
+    children: Optional[list[RxBlock]]
+    color: Color | BackgroundColor
+
+
+class RxBookmark(FrozenNotionModel):
+    caption: RxCaption = None
+    url: Annotated[str, BeforeValidator(validate_url)]
+
+
+class RxBulletListItem(_RxTextBaseBlockObject):
     pass
 
 
-class BookmarkBlock(_BaseBlock):
-    type: Literal[BlockType.BOOKMARK] = Field(default=BlockType.BOOKMARK, frozen=True)
-    bookmark: Bookmark
+class RxCallout(FrozenNotionModel):
+    rich_text: RxRichTexts
+    icon: Optional[Emoji | File]
+    color: Color | BackgroundColor
 
 
-class BreadcrumbBlock(_BaseBlock):
-    type: Literal[BlockType.BREADCRUMB] = Field(
-        default=BlockType.BREADCRUMB, frozen=True
-    )
-    breadcrumb: dict = Field(default_factory=dict, frozen=True)
+class RxCode(FrozenNotionModel):
+    caption: RxCaption = None
+    rich_text: RxRichTexts
+    language: ProgrammingLanguage
 
 
-class BulletListItemBlock(_BaseBlock):
+class RxCaptionHostedFile(HostedFile):
+    caption: RxCaption = None
+
+
+class RxCaptionExternalFile(ExternalFile):
+    caption: RxCaption = None
+
+
+RxCaptionFile = Annotated[
+    RxCaptionHostedFile | RxCaptionExternalFile, Field(discriminator="type")
+]
+
+
+class RxCaptionHostedFileWithName(HostedFileWithName):
+    caption: RxCaption = None
+
+
+class RxCaptionExternalFileWithName(ExternalFileWithName):
+    caption: RxCaption = None
+
+
+RxCaptionFileWithName = Annotated[
+    RxCaptionHostedFileWithName | RxCaptionExternalFileWithName,
+    Field(discriminator="type"),
+]
+
+
+class RxHeading(FrozenNotionModel):
+    rich_text: RxRichTexts
+    color: Color | BackgroundColor
+    is_toggleable: bool
+
+
+class RxNumberedListItem(_RxTextBaseBlockObject):
+    pass
+
+
+class RxParagraph(_RxTextBaseBlockObject):
+    pass
+
+
+class RxQuote(_RxTextBaseBlockObject):
+    pass
+
+
+class RxOriginalSynced(FrozenNotionModel):
+    synced_from: None = None
+    children: list[RxBlock]
+
+
+RxSynced = Annotated[
+    Annotated[RxOriginalSynced, Tag("original")]
+    | Annotated[DuplicateSynced, Tag("duplicated")],
+    Discriminator(model_synced_discriminator),
+]
+
+
+class RxCells(FrozenNotionModel):
+    rich_text: RxRichTexts
+
+
+class RxToDo(_RxTextBaseBlockObject):
+    checked: bool
+
+
+class RxToggle(_RxTextBaseBlockObject):
+    pass
+
+
+class _RxBaseBlock(FrozenNotionModel):
+    object: Literal[NotionObjectType.BLOCK] = NotionObjectType.BLOCK
+    id: NotionObjectId
+    parent: Optional[Parent] = None
+    created_time: Optional[NotionDatetime] = None
+    last_edited_time: Optional[NotionDatetime] = None
+    created_by: Optional[UserRef] = None
+    last_edited_by: Optional[UserRef] = None
+    archived: Optional[bool] = None
+    in_trash: Optional[bool] = None
+    has_children: Optional[bool] = None
+
+
+class RxBookmarkBlock(_RxBaseBlock):
+    type: Literal[BlockType.BOOKMARK] = Field(default=BlockType.BOOKMARK)
+    bookmark: RxBookmark
+
+
+class RxBreadcrumbBlock(_RxBaseBlock):
+    type: Literal[BlockType.BREADCRUMB] = Field(default=BlockType.BREADCRUMB)
+    breadcrumb: dict
+
+
+class RxBulletListItemBlock(_RxBaseBlock):
     type: Literal[BlockType.BULLETED_LIST_ITEM] = Field(
-        default=BlockType.BULLETED_LIST_ITEM, frozen=True
+        default=BlockType.BULLETED_LIST_ITEM
     )
-    bullet_list_item: BulletListItem
+    bullet_list_item: RxBulletListItem
 
 
-class CalloutBlock(_BaseBlock):
-    type: Literal[BlockType.CALLOUT] = Field(default=BlockType.CALLOUT, frozen=True)
-    callout: Callout
+class RxCalloutBlock(_RxBaseBlock):
+    type: Literal[BlockType.CALLOUT] = Field(default=BlockType.CALLOUT)
+    callout: RxCallout
 
 
-class ChildDatabaseBlock(_BaseBlock):
-    type: Literal[BlockType.CHILD_DATABASE] = Field(
-        default=BlockType.CHILD_DATABASE, frozen=True
-    )
+class RxChildDatabaseBlock(_RxBaseBlock):
+    type: Literal[BlockType.CHILD_DATABASE] = Field(default=BlockType.CHILD_DATABASE)
     child_database: ChildDatabase
 
 
-class ChildPageBlock(_BaseBlock):
-    type: Literal[BlockType.CHILD_PAGE] = Field(
-        default=BlockType.CHILD_PAGE, frozen=True
-    )
+class RxChildPageBlock(_RxBaseBlock):
+    type: Literal[BlockType.CHILD_PAGE] = Field(default=BlockType.CHILD_PAGE)
     child_page: ChildPage
 
 
-class CodeBlock(_BaseBlock):
-    type: Literal[BlockType.CODE] = Field(default=BlockType.CODE, frozen=True)
-    code: Code
+class RxCodeBlock(_RxBaseBlock):
+    type: Literal[BlockType.CODE] = Field(default=BlockType.CODE)
+    code: RxCode
 
 
-class ColumnListBlock(_BaseBlock):
-    type: Literal[BlockType.COLUMN_LIST] = Field(
-        default=BlockType.COLUMN_LIST, frozen=True
-    )
-    column_list: dict = Field(default_factory=dict, frozen=True)
+class RxColumnListBlock(_RxBaseBlock):
+    type: Literal[BlockType.COLUMN_LIST] = Field(default=BlockType.COLUMN_LIST)
+    column_list: dict
 
 
-class ColumnBlock(_BaseBlock):
-    type: Literal[BlockType.COLUMN] = Field(default=BlockType.COLUMN, frozen=True)
-    column: dict = Field(default_factory=dict, frozen=True)
+class RxColumnBlock(_RxBaseBlock):
+    type: Literal[BlockType.COLUMN] = Field(default=BlockType.COLUMN)
+    column: dict
 
 
-class DividerBlock(_BaseBlock):
-    type: Literal[BlockType.DIVIDER] = Field(default=BlockType.DIVIDER, frozen=True)
-    divider: dict = Field(default_factory=dict, frozen=True)
+class RxDividerBlock(_RxBaseBlock):
+    type: Literal[BlockType.DIVIDER] = Field(default=BlockType.DIVIDER)
+    divider: dict
 
 
-class EmbedBlock(_BaseBlock):
-    type: Literal[BlockType.EMBED] = Field(default=BlockType.EMBED, frozen=True)
+class RxEmbedBlock(_RxBaseBlock):
+    type: Literal[BlockType.EMBED] = Field(default=BlockType.EMBED)
     embed: NotionUrlObject
 
 
-class EquationBlock(_BaseBlock):
-    type: Literal[BlockType.EQUATION] = Field(default=BlockType.EQUATION, frozen=True)
+class RxEquationBlock(_RxBaseBlock):
+    type: Literal[BlockType.EQUATION] = Field(default=BlockType.EQUATION)
     equation: NotionEquation
 
 
-class FileBlock(_BaseBlock):
-    type: Literal[BlockType.FILE] = Field(default=BlockType.FILE, frozen=True)
-    file: CaptionFileWithName
+class RxFileBlock(_RxBaseBlock):
+    type: Literal[BlockType.FILE] = Field(default=BlockType.FILE)
+    file: RxCaptionFileWithName
 
 
-class HeadingOneBlock(_BaseBlock):
-    type: Literal[BlockType.HEADING_1] = Field(default=BlockType.HEADING_1, frozen=True)
-    heading_1: Heading
+class RxHeadingOneBlock(_RxBaseBlock):
+    type: Literal[BlockType.HEADING_1] = Field(default=BlockType.HEADING_1)
+    heading_1: RxHeading
 
 
-class HeadingTwoBlock(_BaseBlock):
-    type: Literal[BlockType.HEADING_2] = Field(default=BlockType.HEADING_2, frozen=True)
-    heading_2: Heading
+class RxHeadingTwoBlock(_RxBaseBlock):
+    type: Literal[BlockType.HEADING_2] = Field(default=BlockType.HEADING_2)
+    heading_2: RxHeading
 
 
-class HeadingThreeBlock(_BaseBlock):
-    type: Literal[BlockType.HEADING_3] = Field(default=BlockType.HEADING_3, frozen=True)
-    heading_3: Heading
+class RxHeadingThreeBlock(_RxBaseBlock):
+    type: Literal[BlockType.HEADING_3] = Field(default=BlockType.HEADING_3)
+    heading_3: RxHeading
 
 
-class ImageBlock(_BaseBlock):
-    type: Literal[BlockType.IMAGE] = Field(default=BlockType.IMAGE, frozen=True)
+class RxImageBlock(_RxBaseBlock):
+    type: Literal[BlockType.IMAGE] = Field(default=BlockType.IMAGE)
     image: File
 
 
-class NumberedListItemBlock(_BaseBlock):
+class RxNumberedListItemBlock(_RxBaseBlock):
     type: Literal[BlockType.NUMBERED_LIST_ITEM] = Field(
-        default=BlockType.NUMBERED_LIST_ITEM, frozen=True
+        default=BlockType.NUMBERED_LIST_ITEM
     )
-    numbered_list_item: NumberedListItem
+    numbered_list_item: RxNumberedListItem
 
 
-class ParagraphBlock(_BaseBlock):
-    type: Literal[BlockType.PARAGRAPH] = Field(default=BlockType.PARAGRAPH, frozen=True)
-    paragraph: Paragraph
+class RxParagraphBlock(_RxBaseBlock):
+    type: Literal[BlockType.PARAGRAPH] = Field(default=BlockType.PARAGRAPH)
+    paragraph: RxParagraph
 
 
-class PdfBlock(_BaseBlock):
-    type: Literal[BlockType.PDF] = Field(default=BlockType.PDF, frozen=True)
-    pdf: CaptionFile
+class RxPdfBlock(_RxBaseBlock):
+    type: Literal[BlockType.PDF] = Field(default=BlockType.PDF)
+    pdf: RxCaptionFile
 
 
-class QuoteBlock(_BaseBlock):
-    type: Literal[BlockType.QUOTE] = Field(default=BlockType.QUOTE, frozen=True)
-    quote: Quote
+class RxQuoteBlock(_RxBaseBlock):
+    type: Literal[BlockType.QUOTE] = Field(default=BlockType.QUOTE)
+    quote: RxQuote
 
 
-class SyncedBlock(_BaseBlock):
-    type: Literal[BlockType.SYNCED_BLOCK] = Field(
-        default=BlockType.SYNCED_BLOCK, frozen=True
-    )
-    synced_block: OriginalSynced | DuplicateSynced
+class RxSyncedBlock(_RxBaseBlock):
+    type: Literal[BlockType.SYNCED_BLOCK] = Field(default=BlockType.SYNCED_BLOCK)
+    synced_block: RxSynced
 
 
-class TableBlock(_BaseBlock):
-    type: Literal[BlockType.TABLE] = Field(default=BlockType.TABLE, frozen=True)
+class RxTableBlock(_RxBaseBlock):
+    type: Literal[BlockType.TABLE] = Field(default=BlockType.TABLE)
     table: Table
 
 
-class TableRowBlock(_BaseBlock):
-    type: Literal[BlockType.TABLE_ROW] = Field(default=BlockType.TABLE_ROW, frozen=True)
-    table_row: Cells
+class RxTableRowBlock(_RxBaseBlock):
+    type: Literal[BlockType.TABLE_ROW] = Field(default=BlockType.TABLE_ROW)
+    table_row: RxCells
 
 
-class TableContentBlock(_BaseBlock):
+class RxTableContentBlock(_RxBaseBlock):
     type: Literal[BlockType.TABLE_OF_CONTENTS] = Field(
-        default=BlockType.TABLE_OF_CONTENTS, frozen=True
+        default=BlockType.TABLE_OF_CONTENTS
     )
     table_of_contents: Color | BackgroundColor
 
 
-class ToDoBlock(_BaseBlock):
-    type: Literal[BlockType.TO_DO] = Field(default=BlockType.TO_DO, frozen=True)
-    to_do: ToDo
+class RxToDoBlock(_RxBaseBlock):
+    type: Literal[BlockType.TO_DO] = Field(default=BlockType.TO_DO)
+    to_do: RxToDo
 
 
-class ToggleBlock(_BaseBlock):
-    type: Literal[BlockType.TOGGLE] = Field(default=BlockType.TOGGLE, frozen=True)
-    toggle: Toggle
+class RxToggleBlock(_RxBaseBlock):
+    type: Literal[BlockType.TOGGLE] = Field(default=BlockType.TOGGLE)
+    toggle: RxToggle
 
 
-class VideoBlock(_BaseBlock):
-    type: Literal[BlockType.VIDEO] = Field(default=BlockType.VIDEO, frozen=True)
-    video: CaptionFile
+class RxVideoBlock(_RxBaseBlock):
+    type: Literal[BlockType.VIDEO] = Field(default=BlockType.VIDEO)
+    video: RxCaptionFile
 
 
-class UnsupportedBlock(_BaseBlock):
+class RxUnsupportedBlock(_RxBaseBlock):
     model_config = ConfigDict(
-        extra="allow",
-        populate_by_name=True,
-        arbitrary_types_allowed=True,
+        extra="allow", populate_by_name=True, arbitrary_types_allowed=True, frozen=True
     )
 
-    type: Literal[BlockType.UNSUPPORTED] = Field(
-        default=BlockType.UNSUPPORTED, frozen=True
+    type: Literal[BlockType.UNSUPPORTED] = Field(default=BlockType.UNSUPPORTED)
+    unsupported: dict
+
+
+RxBlock = Annotated[
+    RxBookmarkBlock
+    | RxBreadcrumbBlock
+    | RxBulletListItemBlock
+    | RxCalloutBlock
+    | RxChildDatabaseBlock
+    | RxChildPageBlock
+    | RxCodeBlock
+    | RxColumnBlock
+    | RxColumnListBlock
+    | RxDividerBlock
+    | RxEmbedBlock
+    | RxEquationBlock
+    | RxFileBlock
+    | RxHeadingOneBlock
+    | RxHeadingTwoBlock
+    | RxHeadingThreeBlock
+    | RxImageBlock
+    | RxNumberedListItemBlock
+    | RxParagraphBlock
+    | RxPdfBlock
+    | RxQuoteBlock
+    | RxSyncedBlock
+    | RxTableBlock
+    | RxTableRowBlock
+    | RxTableContentBlock
+    | RxToDoBlock
+    | RxToggleBlock
+    | RxVideoBlock
+    | RxUnsupportedBlock,
+    Field(discriminator="type"),
+]
+
+TxRichTexts = list[TxRichText]
+TxCaption = Optional[list[TxRichText]]
+
+TxColor = Optional[
+    Annotated[
+        str | Color | BackgroundColor,
+        BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
+    ]
+]
+
+
+class _TxTextBaseBlockObject(BaseNotionModel):
+    """Represents a text-based block value.
+
+    Attributes:
+        rich_text: the rich texts in the block.
+        children: the nested child blocks.
+        color: the color of the block.
+    """
+
+    rich_text: TxRichTexts = Field(default_factory=list)
+    children: Optional[list[TxBlock]] = None
+    color: TxColor = None
+
+
+class TxBookmark(BaseNotionModel):
+    caption: TxCaption = None
+    url: Annotated[str, BeforeValidator(validate_url)]
+
+
+class TxBulletListItem(_TxTextBaseBlockObject):
+    pass
+
+
+class TxCallout(BaseNotionModel):
+    rich_text: TxRichTexts
+    icon: Optional[Emoji | File] = None
+    color: TxColor = None
+
+
+class TxCode(BaseNotionModel):
+    caption: TxCaption = None
+    rich_text: TxRichTexts
+    language: ProgrammingLanguage
+
+
+class TxCaptionHostedFile(HostedFile):
+    caption: TxCaption = None
+
+
+class TxCaptionExternalFile(ExternalFile):
+    caption: TxCaption = None
+
+
+TxCaptionFile = Annotated[
+    TxCaptionHostedFile | TxCaptionExternalFile, Field(discriminator="type")
+]
+
+
+class TxCaptionHostedFileWithName(HostedFileWithName):
+    caption: TxCaption = None
+
+
+class TxCaptionExternalFileWithName(ExternalFileWithName):
+    caption: TxCaption = None
+
+
+TxCaptionFileWithName = Annotated[
+    TxCaptionHostedFileWithName | TxCaptionExternalFileWithName,
+    Field(discriminator="type"),
+]
+
+
+class TxHeading(BaseNotionModel):
+    rich_text: TxRichTexts
+    color: TxColor = None
+    is_toggleable: Optional[bool] = None
+
+
+class TxNumberedListItem(_TxTextBaseBlockObject):
+    pass
+
+
+class TxParagraph(_TxTextBaseBlockObject):
+    pass
+
+
+class TxQuote(_TxTextBaseBlockObject):
+    pass
+
+
+class TxOriginalSynced(BaseNotionModel):
+    synced_from: None = None
+    children: list[TxBlock] = Field(default_factory=list)
+
+
+TxSynced = Annotated[
+    Annotated[TxOriginalSynced, Tag("original")]
+    | Annotated[DuplicateSynced, Tag("duplicated")],
+    Discriminator(model_synced_discriminator),
+]
+
+
+class TxCells(BaseNotionModel):
+    rich_text: TxRichTexts
+
+
+class TxToDo(_TxTextBaseBlockObject):
+    checked: Optional[bool] = None
+
+
+class TxToggle(_TxTextBaseBlockObject):
+    pass
+
+
+class _TxBaseBlock(BaseNotionModel):
+    object: Literal[NotionObjectType.BLOCK] = NotionObjectType.BLOCK
+
+
+class TxBookmarkBlock(_TxBaseBlock):
+    type: Literal[BlockType.BOOKMARK] = BlockType.BOOKMARK
+    bookmark: TxBookmark
+
+
+class TxBreadcrumbBlock(_TxBaseBlock):
+    type: Literal[BlockType.BREADCRUMB] = Field(default=BlockType.BREADCRUMB)
+    breadcrumb: dict = Field(default_factory=dict)
+
+
+class TxBulletListItemBlock(_TxBaseBlock):
+    type: Literal[BlockType.BULLETED_LIST_ITEM] = Field(
+        default=BlockType.BULLETED_LIST_ITEM
+    )
+    bullet_list_item: TxBulletListItem
+
+
+class TxCalloutBlock(_TxBaseBlock):
+    type: Literal[BlockType.CALLOUT] = Field(default=BlockType.CALLOUT)
+    callout: TxCallout
+
+
+class TxChildDatabaseBlock(_TxBaseBlock):
+    type: Literal[BlockType.CHILD_DATABASE] = Field(default=BlockType.CHILD_DATABASE)
+    child_database: ChildDatabase
+
+
+class TxChildPageBlock(_TxBaseBlock):
+    type: Literal[BlockType.CHILD_PAGE] = Field(default=BlockType.CHILD_PAGE)
+    child_page: ChildPage
+
+
+class TxCodeBlock(_TxBaseBlock):
+    type: Literal[BlockType.CODE] = Field(default=BlockType.CODE)
+    code: TxCode
+
+
+class TxColumnListBlock(_TxBaseBlock):
+    type: Literal[BlockType.COLUMN_LIST] = Field(default=BlockType.COLUMN_LIST)
+    column_list: dict = Field(default_factory=dict)
+
+
+class TxColumnBlock(_TxBaseBlock):
+    type: Literal[BlockType.COLUMN] = Field(default=BlockType.COLUMN)
+    column: dict = Field(default_factory=dict)
+
+
+class TxDividerBlock(_TxBaseBlock):
+    type: Literal[BlockType.DIVIDER] = Field(default=BlockType.DIVIDER)
+    divider: dict = Field(default_factory=dict)
+
+
+class TxEmbedBlock(_TxBaseBlock):
+    type: Literal[BlockType.EMBED] = Field(default=BlockType.EMBED)
+    embed: NotionUrlObject
+
+
+class TxEquationBlock(_TxBaseBlock):
+    type: Literal[BlockType.EQUATION] = Field(default=BlockType.EQUATION)
+    equation: NotionEquation
+
+
+class TxFileBlock(_TxBaseBlock):
+    type: Literal[BlockType.FILE] = Field(default=BlockType.FILE)
+    file: TxCaptionFileWithName
+
+
+class TxHeadingOneBlock(_TxBaseBlock):
+    type: Literal[BlockType.HEADING_1] = Field(default=BlockType.HEADING_1)
+    heading_1: TxHeading
+
+
+class TxHeadingTwoBlock(_TxBaseBlock):
+    type: Literal[BlockType.HEADING_2] = Field(default=BlockType.HEADING_2)
+    heading_2: TxHeading
+
+
+class TxHeadingThreeBlock(_TxBaseBlock):
+    type: Literal[BlockType.HEADING_3] = Field(default=BlockType.HEADING_3)
+    heading_3: TxHeading
+
+
+class TxImageBlock(_TxBaseBlock):
+    type: Literal[BlockType.IMAGE] = Field(default=BlockType.IMAGE)
+    image: File
+
+
+class TxNumberedListItemBlock(_TxBaseBlock):
+    type: Literal[BlockType.NUMBERED_LIST_ITEM] = Field(
+        default=BlockType.NUMBERED_LIST_ITEM
+    )
+    numbered_list_item: TxNumberedListItem
+
+
+class TxParagraphBlock(_TxBaseBlock):
+    type: Literal[BlockType.PARAGRAPH] = Field(default=BlockType.PARAGRAPH)
+    paragraph: TxParagraph
+
+
+class TxPdfBlock(_TxBaseBlock):
+    type: Literal[BlockType.PDF] = Field(default=BlockType.PDF)
+    pdf: TxCaptionFile
+
+
+class TxQuoteBlock(_TxBaseBlock):
+    type: Literal[BlockType.QUOTE] = Field(default=BlockType.QUOTE)
+    quote: TxQuote
+
+
+class TxSyncedBlock(_TxBaseBlock):
+    type: Literal[BlockType.SYNCED_BLOCK] = Field(default=BlockType.SYNCED_BLOCK)
+    synced_block: TxSynced
+
+
+class TxTableBlock(_TxBaseBlock):
+    type: Literal[BlockType.TABLE] = Field(default=BlockType.TABLE)
+    table: Table
+
+
+class TxTableRowBlock(_TxBaseBlock):
+    type: Literal[BlockType.TABLE_ROW] = Field(default=BlockType.TABLE_ROW)
+    table_row: TxCells
+
+
+class TxTableContentBlock(_TxBaseBlock):
+    type: Literal[BlockType.TABLE_OF_CONTENTS] = Field(
+        default=BlockType.TABLE_OF_CONTENTS
+    )
+    table_of_contents: TxColor
+
+
+class TxToDoBlock(_TxBaseBlock):
+    type: Literal[BlockType.TO_DO] = Field(default=BlockType.TO_DO)
+    to_do: TxToDo
+
+
+class TxToggleBlock(_TxBaseBlock):
+    type: Literal[BlockType.TOGGLE] = Field(default=BlockType.TOGGLE)
+    toggle: TxToggle
+
+
+class TxVideoBlock(_TxBaseBlock):
+    type: Literal[BlockType.VIDEO] = Field(default=BlockType.VIDEO)
+    video: TxCaptionFile
+
+
+class TxUnsupportedBlock(_TxBaseBlock):
+    model_config = ConfigDict(
+        extra="allow", populate_by_name=True, arbitrary_types_allowed=True, frozen=True
     )
 
+    type: Literal[BlockType.UNSUPPORTED] = Field(default=BlockType.UNSUPPORTED)
+    unsupported: dict = Field(default_factory=dict)
 
-Block = Annotated[
-    BookmarkBlock
-    | BreadcrumbBlock
-    | BulletListItemBlock
-    | CalloutBlock
-    | ChildDatabaseBlock
-    | ChildPageBlock
-    | CodeBlock
-    | ColumnBlock
-    | ColumnListBlock
-    | DividerBlock
-    | EmbedBlock
-    | EquationBlock
-    | FileBlock
-    | HeadingOneBlock
-    | HeadingTwoBlock
-    | HeadingThreeBlock
-    | ImageBlock
-    | NumberedListItemBlock
-    | ParagraphBlock
-    | PdfBlock
-    | QuoteBlock
-    | SyncedBlock
-    | TableBlock
-    | TableRowBlock
-    | TableContentBlock
-    | ToDoBlock
-    | ToggleBlock
-    | VideoBlock
-    | UnsupportedBlock,
+
+TxBlock = Annotated[
+    TxBookmarkBlock
+    | TxBreadcrumbBlock
+    | TxBulletListItemBlock
+    | TxCalloutBlock
+    | TxChildDatabaseBlock
+    | TxChildPageBlock
+    | TxCodeBlock
+    | TxColumnBlock
+    | TxColumnListBlock
+    | TxDividerBlock
+    | TxEmbedBlock
+    | TxEquationBlock
+    | TxFileBlock
+    | TxHeadingOneBlock
+    | TxHeadingTwoBlock
+    | TxHeadingThreeBlock
+    | TxImageBlock
+    | TxNumberedListItemBlock
+    | TxParagraphBlock
+    | TxPdfBlock
+    | TxQuoteBlock
+    | TxSyncedBlock
+    | TxTableBlock
+    | TxTableRowBlock
+    | TxTableContentBlock
+    | TxToDoBlock
+    | TxToggleBlock
+    | TxVideoBlock
+    | TxUnsupportedBlock,
     Field(discriminator="type"),
 ]

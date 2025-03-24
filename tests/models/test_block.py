@@ -1,29 +1,24 @@
+from datetime import datetime
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from pynotion.models.block import *
-from pynotion.models.emoji import EmojiType, CustomEmoji, CustomEmojiObject
-from pynotion.models.file import FileType, ExternalFileObject
+from pynotion.models.file import FileType, ExternalFileObject, HostedFileObject
 from pynotion.models.object import NotionObjectRef
-from pynotion.models.parent import ParentType, WorkspaceParent
 from pynotion.models.rich_text import (
-    TemplateMentionType,
-    TemplateMentionDate,
-    TemplateMention,
-    MentionRichText,
-    Annotations,
     RichTextType,
-    MentionType,
+    TxMentionRichText,
+    Annotations,
     DateMention,
-    Equation,
-    EquationRichText,
-    LinkPreviewMention,
-    Text,
-    TextRichText,
+    MentionType,
     DatabaseMention,
+    TxEquationRichText,
+    Equation,
+    TxTextRichText,
+    Text,
+    LinkPreviewMention,
 )
 from pynotion.models.types import NotionDate
 from tests.models.model_test_utils import DiscriminatedModelTester, PydanticModelTester
@@ -35,544 +30,28 @@ def test_block_type_enum(block_type):
 
 
 @pytest.mark.parametrize(
-    "annotated_clz, expected_clz, input_data",
-    [
-        (
-            Block,
-            BookmarkBlock,
-            {
-                "object": "block",
-                "type": "bookmark",
-                "bookmark": {
-                    "caption": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "ZUPXodHrFVyZkktikSMw",
-                            "href": "https://manning.com/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "url": "http://www.adams.com/",
-                },
-            },
-        ),
-        (
-            Block,
-            BreadcrumbBlock,
-            {"object": "block", "type": "breadcrumb", "breadcrumb": {}},
-        ),
-        (
-            Block,
-            BulletListItemBlock,
-            {
-                "object": "block",
-                "type": "bulleted_list_item",
-                "bullet_list_item": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [
-                        {
-                            "object": "block",
-                            "type": "child_database",
-                            "child_database": {"title": "Gloria Murphy"},
-                        }
-                    ],
-                },
-            },
-        ),
-        (
-            Block,
-            CalloutBlock,
-            {
-                "object": "block",
-                "type": "callout",
-                "callout": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "href": "https://jensen.com/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        },
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "CXALqfUuErIvXsspmdzB",
-                            "href": "http://www.ryan.org/",
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Mrs very high long week prevent. Ok cause follow southern.\nSubject light notice sometimes night. Truth again face especially despite player. Be kitchen include serious girl performance region."
-                            },
-                        },
-                    ],
-                    "color": "purple",
-                },
-            },
-        ),
-        (
-            Block,
-            ChildDatabaseBlock,
-            {
-                "object": "block",
-                "type": "child_database",
-                "child_database": {"title": "Joseph Martinez"},
-            },
-        ),
-        (
-            Block,
-            ChildPageBlock,
-            {
-                "object": "block",
-                "type": "child_page",
-                "child_page": {"title": "Richard Dominguez"},
-            },
-        ),
-        (
-            Block,
-            CodeBlock,
-            {
-                "object": "block",
-                "type": "code",
-                "code": {
-                    "caption": [],
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "yGzeqKFJHozBEQimadPl",
-                            "href": "https://nelson.com/",
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Through get require none couple become. Student hard ahead raise thus morning soon.\nCatch somebody several treat. Feel pattern development history moment. Ago plan catch instead among painting."
-                            },
-                        }
-                    ],
-                    "language": "java",
-                },
-            },
-        ),
-        (Block, ColumnBlock, {"object": "block", "type": "column", "column": {}}),
-        (
-            Block,
-            ColumnListBlock,
-            {"object": "block", "type": "column_list", "column_list": {}},
-        ),
-        (Block, DividerBlock, {"object": "block", "type": "divider", "divider": {}}),
-        (
-            Block,
-            EmbedBlock,
-            {
-                "object": "block",
-                "type": "embed",
-                "embed": {"url": "http://www.santiago.net/"},
-            },
-        ),
-        (
-            Block,
-            EquationBlock,
-            {
-                "object": "block",
-                "type": "equation",
-                "equation": {"expression": "ZbesfMcXStsEnKQjqQcy"},
-            },
-        ),
-        (
-            Block,
-            FileBlock,
-            {
-                "object": "block",
-                "type": "file",
-                "file": {
-                    "type": "external",
-                    "external": {"url": "https://www.ponce.org/"},
-                    "caption": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "eeeGsiTSIFCevLCBkinX",
-                            "href": "https://www.gomez.com/",
-                            "type": "mention",
-                            "mention": {
-                                "type": "template_mention",
-                                "template_mention": {
-                                    "type": "template_mention_date",
-                                    "template_mention_date": "now",
-                                },
-                            },
-                        },
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "href": "https://www.hobbs.org/",
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Where tax high control truth subject give among. Operation tonight occur kitchen young west number moment.\nCapital blue fly century player say TV."
-                            },
-                        },
-                    ],
-                    "name": "Kenneth Martin",
-                },
-            },
-        ),
-        (
-            Block,
-            HeadingOneBlock,
-            {
-                "object": "block",
-                "type": "heading_1",
-                "heading_1": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "IQXBPJrSAnZZmYYTIsBk",
-                            "href": "http://mccoy-schultz.com/",
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Raise president attention miss mission. Increase all forward firm these.\nIts mother town mind. Today heart smile under ten either add. Up red general in admit."
-                            },
-                        },
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "href": "https://www.henry.com/",
-                            "type": "mention",
-                            "mention": {
-                                "type": "user",
-                                "user": {
-                                    "object": "user",
-                                    "id": "dab841c9-8cac-4e63-b0fc-87bee80e552b",
-                                    "name": "Emma Williams",
-                                    "avatar_url": "https://www.romero.com/",
-                                    "type": "bot",
-                                    "bot": {
-                                        "owner": {
-                                            "type": "workspace",
-                                            "workspace": True,
-                                        },
-                                        "workspace_name": "Sample Workspace",
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                    "color": "pink",
-                    "is_toggleable": False,
-                },
-            },
-        ),
-        (
-            Block,
-            ImageBlock,
-            {
-                "object": "block",
-                "type": "image",
-                "image": {
-                    "type": "file",
-                    "file": {
-                        "url": "https://miller-price.net/",
-                        "expiry_time": "2022-03-18T19:28:42.149062",
-                    },
-                },
-            },
-        ),
-        (
-            Block,
-            NumberedListItemBlock,
-            {
-                "object": "block",
-                "type": "numbered_list_item",
-                "numbered_list_item": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [{"object": "block", "type": "column", "column": {}}],
-                },
-            },
-        ),
-        (
-            Block,
-            ParagraphBlock,
-            {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [
-                        {
-                            "object": "block",
-                            "type": "equation",
-                            "equation": {"expression": "NCXHDCasrnVWDaUImsth"},
-                        }
-                    ],
-                },
-            },
-        ),
-        (
-            Block,
-            PdfBlock,
-            {
-                "object": "block",
-                "type": "pdf",
-                "pdf": {
-                    "type": "external",
-                    "external": {"url": "http://leach.org/"},
-                    "caption": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "spaZtPpKrlEZaOqamyqK",
-                            "href": "https://www.david.com/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        },
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "aClEuvtdEEGgnpWPEtRw",
-                            "href": "http://www.gonzalez-cunningham.com/",
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Protect mean fear easy serve will five. Theory probably want technology provide Republican.\nEye attack form serve arrive. Mind source cup local prove."
-                            },
-                        },
-                    ],
-                },
-            },
-        ),
-        (
-            Block,
-            QuoteBlock,
-            {
-                "object": "block",
-                "type": "quote",
-                "quote": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [
-                        {"object": "block", "type": "breadcrumb", "breadcrumb": {}}
-                    ],
-                },
-            },
-        ),
-        (
-            Block,
-            SyncedBlock,
-            {
-                "object": "block",
-                "type": "synced_block",
-                "synced_block": {"children": []},
-            },
-        ),
-        (
-            Block,
-            TableBlock,
-            {
-                "object": "block",
-                "type": "table",
-                "table": {
-                    "table_width": 3,
-                    "has_column_header": True,
-                    "has_row_header": True,
-                },
-            },
-        ),
-        (
-            Block,
-            TableContentBlock,
-            {
-                "object": "block",
-                "type": "table_of_contents",
-                "table_of_contents": "red_background",
-            },
-        ),
-        (
-            Block,
-            TableRowBlock,
-            {
-                "object": "block",
-                "type": "table_row",
-                "table_row": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "ZRHeklfLKMFPahVybpiN",
-                            "href": "https://williams.com/",
-                            "type": "mention",
-                            "mention": {
-                                "type": "template_mention",
-                                "template_mention": {
-                                    "type": "template_mention_date",
-                                    "template_mention_date": "now",
-                                },
-                            },
-                        }
-                    ]
-                },
-            },
-        ),
-        (
-            Block,
-            ToDoBlock,
-            {
-                "object": "block",
-                "type": "to_do",
-                "to_do": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [
-                        {"object": "block", "type": "column_list", "column_list": {}}
-                    ],
-                },
-            },
-        ),
-        (
-            Block,
-            ToggleBlock,
-            {
-                "object": "block",
-                "type": "toggle",
-                "toggle": {
-                    "rich_text": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "oVYWrfQcUZZdDZlIpAIB",
-                            "href": "http://www.stokes.info/",
-                            "type": "text",
-                            "text": {
-                                "content": "Exactly success wonder before by present.",
-                                "link": {"url": "http://gardner.com/"},
-                            },
-                        }
-                    ],
-                    "color": "green_background",
-                    "children": [
-                        {
-                            "object": "block",
-                            "type": "embed",
-                            "embed": {"url": "http://www.thomas-barker.org/"},
-                        }
-                    ],
-                },
-            },
-        ),
-        (Block, UnsupportedBlock, {"object": "block", "type": "unsupported"}),
-        (
-            Block,
-            VideoBlock,
-            {
-                "object": "block",
-                "type": "video",
-                "video": {
-                    "type": "file",
-                    "file": {
-                        "url": "http://chan.org/",
-                        "expiry_time": "2022-03-18T19:28:42.149062",
-                    },
-                    "caption": [
-                        {
-                            "annotations": {"color": "orange_background"},
-                            "plain_text": "ThvcbQMCNzKftJdWjMOE",
-                            "href": "https://www.dominguez.org/",
-                            "type": "mention",
-                            "mention": {
-                                "type": "template_mention",
-                                "template_mention": {
-                                    "type": "template_mention_date",
-                                    "template_mention_date": "now",
-                                },
-                            },
-                        }
-                    ],
-                },
-            },
-        ),
-    ],
-)
-def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data: dict):
-    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
-
-
-@pytest.mark.parametrize(
     "invalid_data",
     [
-        (BookmarkBlock, {"url": None, "caption": []}),
+        (TxBookmarkBlock, {"url": None, "caption": []}),
         (
-            BookmarkBlock,
+            TxBookmarkBlock,
             {"url": "https://example.com", "caption": "Invalid Type"},
         ),  # Caption should be a list
         (
-            QuoteBlock,
+            TxQuoteBlock,
             {"rich_text": None, "color": Color.BLUE, "children": []},
         ),  # rich_text should be a list
         (
-            CalloutBlock,
+            TxCalloutBlock,
             {"rich_text": [], "icon": None, "color": Color.PINK},
         ),  # Icon is required
         (
-            CodeBlock,
+            TxCodeBlock,
             {"caption": [], "rich_text": [], "language": None},
         ),  # Language is required
-        # (EmbedBlock, {"url": ""}),  # URL cannot be empty
+        (TxEmbedBlock, {"url": ""}),  # URL cannot be empty
         (
-            FileBlock,
+            TxFileBlock,
             {
                 "caption": [],
                 "name": None,
@@ -581,21 +60,21 @@ def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data
             },
         ),  # Name is required
         (
-            HeadingOneBlock,
+            TxHeadingOneBlock,
             {"rich_text": [], "color": Color.DEFAULT, "is_toggleable": None},
         ),  # is_toggleable required
         (
-            PdfBlock,
+            TxPdfBlock,
             {"caption": [], "type": "external", "type_object": None},
         ),  # type_object is required
         (
-            TableBlock,
+            TxTableBlock,
             {"table_width": 0, "has_column_header": True, "has_row_header": False},
         ),  # Table width must be greater than 0
-        (TableRowBlock, {"cells": None}),  # Cells should be a list
-        (TableContentBlock, {"color": None}),  # Color is required
+        (TxTableRowBlock, {"cells": None}),  # Cells should be a list
+        (TxTableContentBlock, {"color": None}),  # Color is required
         (
-            ToDoBlock,
+            TxToDoBlock,
             {"rich_text": [], "checked": "Invalid Type"},
         ),  # Checked should be a boolean
     ],
@@ -607,749 +86,2251 @@ def test_invalid_block_model_creation(invalid_data):
 
 
 @pytest.mark.parametrize(
+    "annotated_clz, expected_clz, input_data",
+    [
+        (
+            TxBlock,
+            TxBookmarkBlock,
+            {
+                "object": "block",
+                "type": "bookmark",
+                "bookmark": {"url": "http://www.brewer-jones.net/"},
+            },
+        ),
+        (
+            TxBlock,
+            TxBreadcrumbBlock,
+            {"object": "block", "type": "breadcrumb", "breadcrumb": {}},
+        ),
+        (
+            TxBlock,
+            TxBulletListItemBlock,
+            {
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bullet_list_item": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxCalloutBlock,
+            {
+                "object": "block",
+                "type": "callout",
+                "callout": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": True,
+                                "italic": False,
+                                "strikethrough": False,
+                                "underline": True,
+                                "code": False,
+                                "color": "red_background",
+                            },
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "color": "green_background",
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxChildDatabaseBlock,
+            {
+                "object": "block",
+                "type": "child_database",
+                "child_database": {"title": "Timothy Hill DDS"},
+            },
+        ),
+        (
+            TxBlock,
+            TxChildPageBlock,
+            {
+                "object": "block",
+                "type": "child_page",
+                "child_page": {"title": "Melissa Dorsey"},
+            },
+        ),
+        (
+            TxBlock,
+            TxCodeBlock,
+            {
+                "object": "block",
+                "type": "code",
+                "code": {
+                    "caption": [
+                        {
+                            "type": "mention",
+                            "mention": {
+                                "type": "database",
+                                "database": {
+                                    "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                },
+                            },
+                        }
+                    ],
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": False,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Degree you reason TV eye. Task its short beautiful. Major direction cut baby move to.\nSee whom ahead owner raise save. Left baby seat evidence."
+                            },
+                        }
+                    ],
+                    "language": "markup",
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxColumnBlock,
+            {"object": "block", "type": "column", "column": {}},
+        ),
+        (
+            TxBlock,
+            TxColumnListBlock,
+            {"object": "block", "type": "column_list", "column_list": {}},
+        ),
+        (
+            TxBlock,
+            TxDividerBlock,
+            {"object": "block", "type": "divider", "divider": {}},
+        ),
+        (
+            TxBlock,
+            TxEmbedBlock,
+            {
+                "object": "block",
+                "type": "embed",
+                "embed": {"url": "https://www.ford-bryant.com/"},
+            },
+        ),
+        (
+            TxBlock,
+            TxEquationBlock,
+            {
+                "object": "block",
+                "type": "equation",
+                "equation": {"expression": "AHZKFUdwexLOoEISrOLb"},
+            },
+        ),
+        (
+            TxBlock,
+            TxFileBlock,
+            {
+                "object": "block",
+                "type": "file",
+                "file": {
+                    "type": "external",
+                    "external": {"url": "http://www.vasquez.com/"},
+                    "name": "Katrina Young",
+                    "caption": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": False,
+                                "strikethrough": False,
+                                "underline": False,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "type": "mention",
+                            "mention": {
+                                "type": "date",
+                                "date": {"start": "1976-05-08T10:54:25.796193"},
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxHeadingOneBlock,
+            {
+                "object": "block",
+                "type": "heading_1",
+                "heading_1": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxHeadingTwoBlock,
+            {
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "is_toggleable": False,
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxHeadingThreeBlock,
+            {
+                "object": "block",
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "is_toggleable": True,
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxImageBlock,
+            {
+                "object": "block",
+                "type": "image",
+                "image": {
+                    "type": "file",
+                    "file": {
+                        "url": "http://thomas.net/",
+                        "expiry_time": "2015-02-01T17:05:36.823754",
+                    },
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxNumberedListItemBlock,
+            {
+                "object": "block",
+                "type": "numbered_list_item",
+                "numbered_list_item": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxParagraphBlock,
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "type": "heading_3",
+                            "heading_3": {
+                                "rich_text": [
+                                    {
+                                        "type": "text",
+                                        "text": {
+                                            "content": "Section week kitchen.",
+                                            "link": {
+                                                "url": "https://www.cox-king.com/"
+                                            },
+                                        },
+                                    }
+                                ],
+                                "is_toggleable": True,
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxPdfBlock,
+            {
+                "object": "block",
+                "type": "pdf",
+                "pdf": {
+                    "type": "file",
+                    "file": {
+                        "url": "http://fernandez.org/",
+                        "expiry_time": "2015-02-01T17:05:36.823754",
+                    },
+                    "caption": [
+                        {
+                            "type": "mention",
+                            "mention": {
+                                "type": "link_preview",
+                                "link_preview": {"url": "http://gill.com/"},
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxQuoteBlock,
+            {
+                "object": "block",
+                "type": "quote",
+                "quote": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxSyncedBlock,
+            {
+                "object": "block",
+                "type": "synced_block",
+                "synced_block": {
+                    "synced_from": {"block_id": "79bdfefd-6e59-43c2-8fc8-38c208e87c42"}
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxTableBlock,
+            {
+                "object": "block",
+                "type": "table",
+                "table": {
+                    "table_width": 6,
+                    "has_column_header": False,
+                    "has_row_header": False,
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxTableContentBlock,
+            {
+                "object": "block",
+                "type": "table_of_contents",
+                "table_of_contents": "orange",
+            },
+        ),
+        (
+            TxBlock,
+            TxTableRowBlock,
+            {
+                "object": "block",
+                "type": "table_row",
+                "table_row": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": False,
+                                "strikethrough": False,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Sign sea economy budget. Fly home big then clearly sure.\nState west song she speech off other. Fund last happy city measure. Plan draw benefit game source range."
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxToDoBlock,
+            {
+                "object": "block",
+                "type": "to_do",
+                "to_do": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "type": "table_of_contents",
+                            "table_of_contents": "red_background",
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxToggleBlock,
+            {
+                "object": "block",
+                "type": "toggle",
+                "toggle": {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ]
+                },
+            },
+        ),
+        (
+            TxBlock,
+            TxUnsupportedBlock,
+            {"object": "block", "type": "unsupported", "unsupported": {}},
+        ),
+        (
+            TxBlock,
+            TxVideoBlock,
+            {
+                "object": "block",
+                "type": "video",
+                "video": {
+                    "type": "file",
+                    "file": {
+                        "url": "http://johns.com/",
+                        "expiry_time": "2015-02-01T17:05:36.823754",
+                    },
+                    "caption": [
+                        {
+                            "type": "mention",
+                            "mention": {
+                                "type": "link_preview",
+                                "link_preview": {"url": "http://gill.com/"},
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+    ],
+)
+def test_tx_block_discriminated_model(
+    annotated_clz: type, expected_clz: type, input_data: dict
+):
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
+
+
+@pytest.mark.parametrize(
+    "annotated_clz, expected_clz, input_data",
+    [
+        (
+            RxBlock,
+            RxBookmarkBlock,
+            {
+                "object": "block",
+                "id": "696f62bd-f584-4137-b13c-4b10ea2c6d98",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "has_children": False,
+                "type": "bookmark",
+                "bookmark": {"url": "https://www.flores.biz/"},
+            },
+        ),
+        (
+            RxBlock,
+            RxBreadcrumbBlock,
+            {
+                "object": "block",
+                "id": "dd0796c7-19cb-4e35-a70f-f6c7f6a3e47d",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "in_trash": False,
+                "type": "breadcrumb",
+                "breadcrumb": {},
+            },
+        ),
+        (
+            RxBlock,
+            RxBulletListItemBlock,
+            {
+                "object": "block",
+                "id": "3d4f5aef-0c22-4282-8f4a-bcd4bc7f425b",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "has_children": False,
+                "type": "bulleted_list_item",
+                "bullet_list_item": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "6a3d0988-4914-49c3-ade8-3c36efa6ee52",
+                            "type": "table",
+                            "table": {
+                                "table_width": 2,
+                                "has_column_header": False,
+                                "has_row_header": True,
+                            },
+                        }
+                    ],
+                    "color": "pink_background",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxCalloutBlock,
+            {
+                "object": "block",
+                "id": "4d3a1385-083b-4a7a-9b14-35ff04d63a85",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "in_trash": False,
+                "has_children": False,
+                "type": "callout",
+                "callout": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://riddle-douglas.biz/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "database",
+                                "database": {
+                                    "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                },
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://rios.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                },
+                            },
+                        },
+                    ],
+                    "icon": {
+                        "type": "custom_emoji",
+                        "custom_emoji": {
+                            "id": "ccd3e41f-230c-4eca-9828-2d1928acebfc",
+                            "name": "Anthony Myers",
+                            "url": "https://dean.biz/",
+                        },
+                    },
+                    "color": "pink",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxChildDatabaseBlock,
+            {
+                "object": "block",
+                "id": "f52c6a69-1c96-4984-88d9-a6bc639687d8",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "type": "child_database",
+                "child_database": {"title": "Nathaniel Stewart"},
+            },
+        ),
+        (
+            RxBlock,
+            RxChildPageBlock,
+            {
+                "object": "block",
+                "id": "6fd69614-39fd-4e6c-88da-67c6a642b910",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "in_trash": False,
+                "has_children": False,
+                "type": "child_page",
+                "child_page": {"title": "Curtis Reyes"},
+            },
+        ),
+        (
+            RxBlock,
+            RxCodeBlock,
+            {
+                "object": "block",
+                "id": "1b2d5fc9-ed59-4b81-b4c9-211923914882",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "type": "code",
+                "code": {
+                    "caption": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://johnson.com/",
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://www.adams.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "date",
+                                "date": {"start": "1976-05-08T10:54:25.796193"},
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.mcclure.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                },
+                            },
+                        },
+                    ],
+                    "language": "glsl",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxColumnBlock,
+            {
+                "object": "block",
+                "id": "928c6cf4-ee48-4447-8bae-0ec20d9f92f7",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": False,
+                "has_children": False,
+                "type": "column",
+                "column": {},
+            },
+        ),
+        (
+            RxBlock,
+            RxColumnListBlock,
+            {
+                "object": "block",
+                "id": "1a1defa0-1465-4498-a3b2-58cb4127207b",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "type": "column_list",
+                "column_list": {},
+            },
+        ),
+        (
+            RxBlock,
+            RxDividerBlock,
+            {
+                "object": "block",
+                "id": "40046371-2110-4c70-a4c1-42cafcaf6b2a",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "has_children": False,
+                "type": "divider",
+                "divider": {},
+            },
+        ),
+        (
+            RxBlock,
+            RxEmbedBlock,
+            {
+                "object": "block",
+                "id": "052fa6bf-e2c2-4cf7-91f8-c76211c3c05e",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "in_trash": False,
+                "has_children": False,
+                "type": "embed",
+                "embed": {"url": "https://stewart.com/"},
+            },
+        ),
+        (
+            RxBlock,
+            RxEquationBlock,
+            {
+                "object": "block",
+                "id": "0c7bb267-df45-4788-8068-81257cd4dd94",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "has_children": False,
+                "type": "equation",
+                "equation": {"expression": "BshavfjIuyhOhQEQsuIx"},
+            },
+        ),
+        (
+            RxBlock,
+            RxFileBlock,
+            {
+                "object": "block",
+                "id": "a04dcae0-81ba-4fd5-a916-42f737d901d3",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": False,
+                "type": "file",
+                "file": {
+                    "type": "external",
+                    "external": {"url": "http://www.rogers.info/"},
+                    "name": "Chad Campbell",
+                    "caption": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.shaw-vega.biz/",
+                            "type": "text",
+                            "text": {
+                                "content": "Section week kitchen.",
+                                "link": {"url": "https://www.cox-king.com/"},
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxHeadingOneBlock,
+            {
+                "object": "block",
+                "id": "02379efb-183d-4987-94eb-0ddc26ba778f",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "type": "heading_1",
+                "heading_1": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://www.benson-ward.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "database",
+                                "database": {
+                                    "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                },
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://anderson.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                },
+                            },
+                        },
+                    ],
+                    "color": "blue",
+                    "is_toggleable": False,
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxHeadingTwoBlock,
+            {
+                "object": "block",
+                "id": "85bc9fe3-0b6f-45d9-b980-8d998c7ae667",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": True,
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://www.benson-ward.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "database",
+                                "database": {
+                                    "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                },
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://anderson.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                },
+                            },
+                        },
+                    ],
+                    "color": "blue",
+                    "is_toggleable": False,
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxHeadingThreeBlock,
+            {
+                "object": "block",
+                "id": "dae46ae1-bf50-410c-b303-683ed5b8e043",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": True,
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://www.benson-ward.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "database",
+                                "database": {
+                                    "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                },
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://anderson.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                },
+                            },
+                        },
+                    ],
+                    "color": "blue",
+                    "is_toggleable": False,
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxImageBlock,
+            {
+                "object": "block",
+                "id": "1b5b0b2f-2aa3-4b63-9f72-6722b9c8b559",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": True,
+                "has_children": True,
+                "type": "image",
+                "image": {
+                    "type": "file",
+                    "file": {
+                        "url": "https://craig.info/",
+                        "expiry_time": "2015-02-01T17:05:36.823754",
+                    },
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxNumberedListItemBlock,
+            {
+                "object": "block",
+                "id": "21011e1c-9816-4f53-bf9e-c46b26b2396e",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "type": "numbered_list_item",
+                "numbered_list_item": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "48a7cfc3-3b3b-4662-8feb-3ecf10e9a081",
+                            "type": "divider",
+                            "divider": {},
+                        }
+                    ],
+                    "color": "pink_background",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxParagraphBlock,
+            {
+                "object": "block",
+                "id": "1b5f3c34-1b11-4ed9-8f30-aa26da227b4a",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "has_children": False,
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "5d6f8221-f2a6-41e1-9d1f-5ec32a1babed",
+                            "type": "child_page",
+                            "child_page": {"title": "Richard Hicks"},
+                        }
+                    ],
+                    "color": "pink_background",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxPdfBlock,
+            {
+                "object": "block",
+                "id": "887b051f-1a14-4863-916b-1a06bc095726",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": False,
+                "type": "pdf",
+                "pdf": {
+                    "type": "external",
+                    "external": {"url": "https://sutton.net/"},
+                    "caption": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://www.reese.net/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "link_preview",
+                                "link_preview": {"url": "http://gill.com/"},
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxQuoteBlock,
+            {
+                "object": "block",
+                "id": "e007b9ae-e901-49a8-a165-ff6d54041eef",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "in_trash": True,
+                "type": "quote",
+                "quote": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "03e453dd-9b01-47b8-a987-82cb0ec05ad7",
+                            "type": "image",
+                            "image": {
+                                "type": "file",
+                                "file": {
+                                    "url": "http://www.black.biz/",
+                                    "expiry_time": "2015-02-01T17:05:36.823754",
+                                },
+                            },
+                        }
+                    ],
+                    "color": "pink_background",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxSyncedBlock,
+            {
+                "object": "block",
+                "id": "5642e863-1714-406f-a6e8-91b24057388c",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "in_trash": True,
+                "type": "synced_block",
+                "synced_block": {
+                    "synced_from": {"block_id": "79bdfefd-6e59-43c2-8fc8-38c208e87c42"}
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxTableBlock,
+            {
+                "object": "block",
+                "id": "29d7645c-aeb6-4db4-9d85-b6398c89a358",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "type": "table",
+                "table": {
+                    "table_width": 1,
+                    "has_column_header": True,
+                    "has_row_header": False,
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxTableContentBlock,
+            {
+                "object": "block",
+                "id": "63564813-8eec-4f74-8c79-1a7195b18f82",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "type": "table_of_contents",
+                "table_of_contents": "pink",
+            },
+        ),
+        (
+            RxBlock,
+            RxTableRowBlock,
+            {
+                "object": "block",
+                "id": "e9fac224-413c-4f05-b953-45fbd73f4000",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "has_children": True,
+                "type": "table_row",
+                "table_row": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://diaz.biz/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "template_mention",
+                                "template_mention": {
+                                    "type": "template_mention_date",
+                                    "template_mention_date": "today",
+                                },
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.hunter.org/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Meeting system appear before about alone. Everybody science across school anything animal evening save. Price into really whole wait."
+                            },
+                        },
+                    ]
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxToDoBlock,
+            {
+                "object": "block",
+                "id": "9a7e3b31-b76f-4c38-9138-81ecffd9eae6",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "type": "to_do",
+                "to_do": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "9cb3c029-dcdc-48e1-843c-e1450b92c2df",
+                            "type": "code",
+                            "code": {
+                                "caption": [
+                                    {
+                                        "annotations": {
+                                            "bold": False,
+                                            "italic": True,
+                                            "strikethrough": True,
+                                            "underline": True,
+                                            "code": True,
+                                            "color": "red_background",
+                                        },
+                                        "plain_text": "Six necessary husband production power.",
+                                        "href": "http://johnson.com/",
+                                        "type": "text",
+                                        "text": {
+                                            "content": "Section week kitchen.",
+                                            "link": {
+                                                "url": "https://www.cox-king.com/"
+                                            },
+                                        },
+                                    }
+                                ],
+                                "rich_text": [
+                                    {
+                                        "annotations": {
+                                            "bold": False,
+                                            "italic": True,
+                                            "strikethrough": True,
+                                            "underline": True,
+                                            "code": True,
+                                            "color": "red_background",
+                                        },
+                                        "plain_text": "Six necessary husband production power.",
+                                        "href": "http://www.adams.com/",
+                                        "type": "mention",
+                                        "mention": {
+                                            "type": "date",
+                                            "date": {
+                                                "start": "1976-05-08T10:54:25.796193"
+                                            },
+                                        },
+                                    },
+                                    {
+                                        "annotations": {
+                                            "bold": False,
+                                            "italic": True,
+                                            "strikethrough": True,
+                                            "underline": True,
+                                            "code": True,
+                                            "color": "red_background",
+                                        },
+                                        "plain_text": "Six necessary husband production power.",
+                                        "href": "https://www.mcclure.com/",
+                                        "type": "mention",
+                                        "mention": {
+                                            "type": "user",
+                                            "user": {
+                                                "object": "user",
+                                                "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                            },
+                                        },
+                                    },
+                                ],
+                                "language": "matlab",
+                            },
+                        }
+                    ],
+                    "color": "pink_background",
+                    "checked": True,
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxToggleBlock,
+            {
+                "object": "block",
+                "id": "d78c53fe-bb7f-42f8-94d2-7fe326b3aa59",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "in_trash": False,
+                "has_children": False,
+                "type": "toggle",
+                "toggle": {
+                    "rich_text": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "http://castro.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Financial them today whose approach front. Data before ability. Bar mission buy data.\nProfessional reduce for case dog gun.\nBase leave country that enter. Picture party under guy until."
+                            },
+                        },
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://www.stevens-ward.com/",
+                            "type": "equation",
+                            "equation": {
+                                "expression": "Current interest three. Student turn challenge husband reveal do enjoy."
+                            },
+                        },
+                    ],
+                    "children": [
+                        {
+                            "object": "block",
+                            "id": "37fc09de-e0d4-4831-a3f9-a5f59b1fba95",
+                            "type": "heading_3",
+                            "heading_3": {
+                                "rich_text": [
+                                    {
+                                        "annotations": {
+                                            "bold": False,
+                                            "italic": True,
+                                            "strikethrough": True,
+                                            "underline": True,
+                                            "code": True,
+                                            "color": "red_background",
+                                        },
+                                        "plain_text": "Six necessary husband production power.",
+                                        "href": "http://www.benson-ward.com/",
+                                        "type": "mention",
+                                        "mention": {
+                                            "type": "database",
+                                            "database": {
+                                                "id": "caaeaa12-2a27-4bf4-bcb6-57e8b2b5dcd7"
+                                            },
+                                        },
+                                    },
+                                    {
+                                        "annotations": {
+                                            "bold": False,
+                                            "italic": True,
+                                            "strikethrough": True,
+                                            "underline": True,
+                                            "code": True,
+                                            "color": "red_background",
+                                        },
+                                        "plain_text": "Six necessary husband production power.",
+                                        "href": "http://anderson.com/",
+                                        "type": "mention",
+                                        "mention": {
+                                            "type": "user",
+                                            "user": {
+                                                "object": "user",
+                                                "id": "a12ea4b4-b096-4a58-976b-29dfe44245f0",
+                                            },
+                                        },
+                                    },
+                                ],
+                                "color": "blue",
+                                "is_toggleable": False,
+                            },
+                        }
+                    ],
+                    "color": "pink_background",
+                },
+            },
+        ),
+        (
+            RxBlock,
+            RxUnsupportedBlock,
+            {
+                "object": "block",
+                "id": "f7ac779b-6265-49b8-bd1b-7f325570a2e0",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": False,
+                "has_children": False,
+                "type": "unsupported",
+                "unsupported": {},
+            },
+        ),
+        (
+            RxBlock,
+            RxVideoBlock,
+            {
+                "object": "block",
+                "id": "aca6b6ab-f5d0-4c9e-9968-1bc6036a7885",
+                "created_time": "2011-12-01T09:02:40.368811",
+                "last_edited_time": "2006-10-22T12:36:05.810100",
+                "created_by": {
+                    "object": "user",
+                    "id": "3e3048dd-be9f-415e-a9b6-adc6769803d6",
+                },
+                "last_edited_by": {
+                    "object": "user",
+                    "id": "6fee47e2-f161-4dad-8788-90c571263dbe",
+                },
+                "archived": True,
+                "type": "video",
+                "video": {
+                    "type": "external",
+                    "external": {"url": "http://flores.net/"},
+                    "caption": [
+                        {
+                            "annotations": {
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": True,
+                                "color": "red_background",
+                            },
+                            "plain_text": "Six necessary husband production power.",
+                            "href": "https://hernandez.com/",
+                            "type": "mention",
+                            "mention": {
+                                "type": "template_mention",
+                                "template_mention": {
+                                    "type": "template_mention_date",
+                                    "template_mention_date": "today",
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+        ),
+    ],
+)
+def test_rx_block_discriminated_model(
+    annotated_clz: type, expected_clz: type, input_data: dict
+):
+    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
+
+
+@pytest.mark.parametrize(
     "clz, test_data",
     [
         (
-            BookmarkBlock,
+            TxBookmarkBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('b9b40b5b-2995-4570-b534-8de8b44505c1'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': False,
-                    'in_trash': False,
-                    'has_children': None,
                     'type': BlockType.BOOKMARK,
-                    'bookmark': Bookmark(
+                    'bookmark': TxBookmark(
                         caption=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://douglas-sanchez.com/',
-                                type=RichTextType.MENTION,
-                                mention=TemplateMention(
-                                    type=MentionType.TEMPLATE_MENTION,
-                                    template_mention=TemplateMentionDate(
-                                        type=TemplateMentionType.TEMPLATE_MENTION_DATE,
-                                        template_mention_date='today',
-                                    ),
+                            TxTextRichText(
+                                annotations=None,
+                                type=RichTextType.TEXT,
+                                text=Text(
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             )
                         ],
-                        url='http://www.oliver.com/',
+                        url='https://ortiz.info/',
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('b9b40b5b-2995-4570-b534-8de8b44505c1'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': False,
-                    'in_trash': False,
                     'type': BlockType.BOOKMARK,
                     'bookmark': {
                         'caption': [
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://douglas-sanchez.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.TEMPLATE_MENTION,
-                                    'template_mention': {
-                                        'type': TemplateMentionType.TEMPLATE_MENTION_DATE,
-                                        'template_mention_date': 'today',
-                                    },
+                                'type': RichTextType.TEXT,
+                                'text': {
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             }
                         ],
-                        'url': 'http://www.oliver.com/',
+                        'url': 'https://ortiz.info/',
                     },
                 },
                 {
                     "object": "block",
-                    "id": "b9b40b5b-2995-4570-b534-8de8b44505c1",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": False,
-                    "in_trash": False,
                     "type": "bookmark",
                     "bookmark": {
                         "caption": [
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://douglas-sanchez.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "template_mention",
-                                    "template_mention": {
-                                        "type": "template_mention_date",
-                                        "template_mention_date": "today",
-                                    },
+                                "type": "text",
+                                "text": {
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             }
                         ],
-                        "url": "http://www.oliver.com/",
+                        "url": "https://ortiz.info/",
                     },
                 },
             ),
         ),
         (
-            BreadcrumbBlock,
+            TxBreadcrumbBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('43d0de9e-641b-48a4-be4a-64ec416fc7ab'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.BREADCRUMB,
                     'breadcrumb': {},
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('43d0de9e-641b-48a4-be4a-64ec416fc7ab'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
                     'type': BlockType.BREADCRUMB,
                     'breadcrumb': {},
                 },
-                {
-                    "object": "block",
-                    "id": "43d0de9e-641b-48a4-be4a-64ec416fc7ab",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "type": "breadcrumb",
-                    "breadcrumb": {},
-                },
+                {"object": "block", "type": "breadcrumb", "breadcrumb": {}},
             ),
         ),
         (
-            BulletListItemBlock,
+            TxBulletListItemBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('1b6659b8-156d-4360-b2b6-d8fcb1c3949f'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': False,
-                    'has_children': False,
                     'type': BlockType.BULLETED_LIST_ITEM,
-                    'bullet_list_item': BulletListItem(
+                    'bullet_list_item': TxBulletListItem(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
-                        children=[
-                            TableContentBlock(
-                                object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.TABLE_OF_CONTENTS,
-                                table_of_contents=BackgroundColor.GRAY_BACKGROUND,
-                            )
-                        ],
+                        children=None,
+                        color=BackgroundColor.GRAY_BACKGROUND,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('1b6659b8-156d-4360-b2b6-d8fcb1c3949f'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'in_trash': False,
-                    'has_children': False,
                     'type': BlockType.BULLETED_LIST_ITEM,
                     'bullet_list_item': {
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
-                        'children': [
-                            {
-                                'object': NotionObjectType.BLOCK,
-                                'type': BlockType.TABLE_OF_CONTENTS,
-                                'table_of_contents': BackgroundColor.GRAY_BACKGROUND,
-                            }
-                        ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "1b6659b8-156d-4360-b2b6-d8fcb1c3949f",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "in_trash": False,
-                    "has_children": False,
                     "type": "bulleted_list_item",
                     "bullet_list_item": {
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
-                        "children": [
-                            {
-                                "object": "block",
-                                "type": "table_of_contents",
-                                "table_of_contents": "gray_background",
-                            }
-                        ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            CalloutBlock,
+            TxCalloutBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('0d54876e-ffa4-48b3-af80-4d8ca34d2af8'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': False,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.CALLOUT,
-                    'callout': Callout(
+                    'callout': TxCallout(
                         rich_text=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://stevenson.com/',
-                                type=RichTextType.MENTION,
-                                mention=TemplateMention(
-                                    type=MentionType.TEMPLATE_MENTION,
-                                    template_mention=TemplateMentionDate(
-                                        type=TemplateMentionType.TEMPLATE_MENTION_DATE,
-                                        template_mention_date='today',
-                                    ),
+                            TxTextRichText(
+                                annotations=None,
+                                type=RichTextType.TEXT,
+                                text=Text(
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://www.roberson.com/',
-                                type=RichTextType.MENTION,
-                                mention=LinkPreviewMention(
-                                    type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
-                                        url='https://chavez.org/'
-                                    ),
+                            TxEquationRichText(
+                                annotations=None,
+                                type=RichTextType.EQUATION,
+                                equation=Equation(
+                                    expression='More area piece light develop water despite. Especially score project school listen increase one.\nChild glass discussion force. Involve put home various.'
                                 ),
                             ),
                         ],
-                        icon=CustomEmoji(
-                            type=EmojiType.CUSTOM_EMOJI,
-                            custom_emoji=CustomEmojiObject(
-                                id=UUID('e8d36775-ee3c-4ecf-845d-a40d549f8720'),
-                                name='Crystal White',
-                                url='http://www.goodman.com/',
+                        icon=HostedFile(
+                            type=FileType.FILE,
+                            file=HostedFileObject(
+                                url='http://www.rivera.net/',
+                                expiry_time=datetime(2008, 9, 19, 4, 19, 54, 80617),
                             ),
                         ),
-                        color=BackgroundColor.ORANGE_BACKGROUND,
+                        color=None,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('0d54876e-ffa4-48b3-af80-4d8ca34d2af8'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': False,
                     'type': BlockType.CALLOUT,
                     'callout': {
                         'rich_text': [
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://stevenson.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.TEMPLATE_MENTION,
-                                    'template_mention': {
-                                        'type': TemplateMentionType.TEMPLATE_MENTION_DATE,
-                                        'template_mention_date': 'today',
-                                    },
+                                'type': RichTextType.TEXT,
+                                'text': {
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://www.roberson.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.LINK_PREVIEW,
-                                    'link_preview': {'url': 'https://chavez.org/'},
+                                'type': RichTextType.EQUATION,
+                                'equation': {
+                                    'expression': 'More area piece light develop water despite. Especially score project school listen increase one.\nChild glass discussion force. Involve put home various.'
                                 },
                             },
                         ],
                         'icon': {
-                            'type': EmojiType.CUSTOM_EMOJI,
-                            'custom_emoji': {
-                                'id': UUID('e8d36775-ee3c-4ecf-845d-a40d549f8720'),
-                                'name': 'Crystal White',
-                                'url': 'http://www.goodman.com/',
+                            'type': FileType.FILE,
+                            'file': {
+                                'url': 'http://www.rivera.net/',
+                                'expiry_time': datetime(2008, 9, 19, 4, 19, 54, 80617),
                             },
                         },
-                        'color': BackgroundColor.ORANGE_BACKGROUND,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "0d54876e-ffa4-48b3-af80-4d8ca34d2af8",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": False,
                     "type": "callout",
                     "callout": {
                         "rich_text": [
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://stevenson.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "template_mention",
-                                    "template_mention": {
-                                        "type": "template_mention_date",
-                                        "template_mention_date": "today",
-                                    },
+                                "type": "text",
+                                "text": {
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://www.roberson.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "link_preview",
-                                    "link_preview": {"url": "https://chavez.org/"},
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "More area piece light develop water despite. Especially score project school listen increase one.\nChild glass discussion force. Involve put home various."
                                 },
                             },
                         ],
                         "icon": {
-                            "type": "custom_emoji",
-                            "custom_emoji": {
-                                "id": "e8d36775-ee3c-4ecf-845d-a40d549f8720",
-                                "name": "Crystal White",
-                                "url": "http://www.goodman.com/",
+                            "type": "file",
+                            "file": {
+                                "url": "http://www.rivera.net/",
+                                "expiry_time": "2008-09-19T04:19:54.080617",
                             },
                         },
-                        "color": "orange_background",
                     },
                 },
             ),
         ),
         (
-            ChildDatabaseBlock,
+            TxChildDatabaseBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.CHILD_DATABASE,
-                    'child_database': ChildDatabase(title='Linda Willis'),
+                    'child_database': ChildDatabase(title='James Snyder'),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.CHILD_DATABASE,
-                    'child_database': {'title': 'Linda Willis'},
+                    'child_database': {'title': 'James Snyder'},
                 },
                 {
                     "object": "block",
                     "type": "child_database",
-                    "child_database": {"title": "Linda Willis"},
+                    "child_database": {"title": "James Snyder"},
                 },
             ),
         ),
         (
-            ChildPageBlock,
+            TxChildPageBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.CHILD_PAGE,
-                    'child_page': ChildPage(title='Natasha Coleman'),
+                    'child_page': ChildPage(title='Raymond Thompson'),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.CHILD_PAGE,
-                    'child_page': {'title': 'Natasha Coleman'},
+                    'child_page': {'title': 'Raymond Thompson'},
                 },
                 {
                     "object": "block",
                     "type": "child_page",
-                    "child_page": {"title": "Natasha Coleman"},
+                    "child_page": {"title": "Raymond Thompson"},
                 },
             ),
         ),
         (
-            CodeBlock,
+            TxCodeBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.CODE,
-                    'code': Code(
+                    'code': TxCode(
                         caption=[
-                            EquationRichText(
+                            TxMentionRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
+                                    bold=False,
+                                    italic=True,
                                     strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
+                                    underline=True,
+                                    code=True,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='https://tran.com/',
-                                type=RichTextType.EQUATION,
-                                equation=Equation(
-                                    expression='History television seem partner local measure change. Medical well understand floor song may mention.'
-                                ),
-                            )
-                        ],
-                        rich_text=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.reed-young.com/',
                                 type=RichTextType.MENTION,
                                 mention=DateMention(
                                     type=MentionType.DATE,
                                     date=NotionDate(
-                                        start=datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        end=datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        time_zone='Africa/Asmera',
+                                        start=datetime(1991, 9, 13, 4, 30, 38, 559479),
+                                        end=None,
+                                        time_zone=None,
                                     ),
                                 ),
                             )
+                        ],
+                        rich_text=[
+                            TxMentionRichText(
+                                annotations=Annotations(
+                                    bold=True,
+                                    italic=True,
+                                    strikethrough=False,
+                                    underline=True,
+                                    code=True,
+                                    color=BackgroundColor.PINK_BACKGROUND,
+                                ),
+                                type=RichTextType.MENTION,
+                                mention=DatabaseMention(
+                                    type=MentionType.DATABASE,
+                                    database=NotionObjectRef(
+                                        id=UUID('c1fcbfc1-6149-4090-8960-f330c74d21cd')
+                                    ),
+                                ),
+                            ),
+                            TxEquationRichText(
+                                annotations=Annotations(
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=False,
+                                    underline=True,
+                                    code=True,
+                                    color=BackgroundColor.PINK_BACKGROUND,
+                                ),
+                                type=RichTextType.EQUATION,
+                                equation=Equation(
+                                    expression='Exist economy east always. Situation professor artist several television image research. Do father door worry science. Campaign especially TV figure.'
+                                ),
+                            ),
                         ],
                         language=ProgrammingLanguage.PHP,
                     ),
@@ -1361,17 +2342,21 @@ def test_invalid_block_model_creation(invalid_data):
                         'caption': [
                             {
                                 'annotations': {
-                                    'bold': True,
+                                    'bold': False,
+                                    'italic': True,
                                     'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
+                                    'underline': True,
+                                    'code': True,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://tran.com/',
-                                'type': RichTextType.EQUATION,
-                                'equation': {
-                                    'expression': 'History television seem partner local measure change. Medical well understand floor song may mention.'
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.DATE,
+                                    'date': {
+                                        'start': datetime(
+                                            1991, 9, 13, 4, 30, 38, 559479
+                                        )
+                                    },
                                 },
                             }
                         ],
@@ -1379,41 +2364,36 @@ def test_invalid_block_model_creation(invalid_data):
                             {
                                 'annotations': {
                                     'bold': True,
+                                    'italic': True,
                                     'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
+                                    'underline': True,
+                                    'code': True,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.reed-young.com/',
                                 'type': RichTextType.MENTION,
                                 'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'end': datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'time_zone': 'Africa/Asmera',
+                                    'type': MentionType.DATABASE,
+                                    'database': {
+                                        'id': UUID(
+                                            'c1fcbfc1-6149-4090-8960-f330c74d21cd'
+                                        )
                                     },
                                 },
-                            }
+                            },
+                            {
+                                'annotations': {
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': False,
+                                    'underline': True,
+                                    'code': True,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
+                                },
+                                'type': RichTextType.EQUATION,
+                                'equation': {
+                                    'expression': 'Exist economy east always. Situation professor artist several television image research. Do father door worry science. Campaign especially TV figure.'
+                                },
+                            },
                         ],
                         'language': ProgrammingLanguage.PHP,
                     },
@@ -1425,17 +2405,17 @@ def test_invalid_block_model_creation(invalid_data):
                         "caption": [
                             {
                                 "annotations": {
-                                    "bold": True,
+                                    "bold": False,
+                                    "italic": True,
                                     "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
+                                    "underline": True,
+                                    "code": True,
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "https://tran.com/",
-                                "type": "equation",
-                                "equation": {
-                                    "expression": "History television seem partner local measure change. Medical well understand floor song may mention."
+                                "type": "mention",
+                                "mention": {
+                                    "type": "date",
+                                    "date": {"start": "1991-09-13T04:30:38.559479"},
                                 },
                             }
                         ],
@@ -1443,23 +2423,34 @@ def test_invalid_block_model_creation(invalid_data):
                             {
                                 "annotations": {
                                     "bold": True,
+                                    "italic": True,
                                     "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
+                                    "underline": True,
+                                    "code": True,
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.reed-young.com/",
                                 "type": "mention",
                                 "mention": {
-                                    "type": "date",
-                                    "date": {
-                                        "start": "1997-10-29T06:34:04.949878+03:00",
-                                        "end": "2005-01-02T12:15:42.844224+03:00",
-                                        "time_zone": "Africa/Asmera",
+                                    "type": "database",
+                                    "database": {
+                                        "id": "c1fcbfc1-6149-4090-8960-f330c74d21cd"
                                     },
                                 },
-                            }
+                            },
+                            {
+                                "annotations": {
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": False,
+                                    "underline": True,
+                                    "code": True,
+                                    "color": "pink_background",
+                                },
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "Exist economy east always. Situation professor artist several television image research. Do father door worry science. Campaign especially TV figure."
+                                },
+                            },
                         ],
                         "language": "php",
                     },
@@ -1467,19 +2458,10 @@ def test_invalid_block_model_creation(invalid_data):
             ),
         ),
         (
-            ColumnBlock,
+            TxColumnBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.COLUMN,
                     'column': {},
                 },
@@ -1492,19 +2474,10 @@ def test_invalid_block_model_creation(invalid_data):
             ),
         ),
         (
-            ColumnListBlock,
+            TxColumnListBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.COLUMN_LIST,
                     'column_list': {},
                 },
@@ -1517,1149 +2490,380 @@ def test_invalid_block_model_creation(invalid_data):
             ),
         ),
         (
-            DividerBlock,
+            TxDividerBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('17ad000c-9f1b-400d-af52-e652357733a9'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': False,
                     'type': BlockType.DIVIDER,
                     'divider': {},
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('17ad000c-9f1b-400d-af52-e652357733a9'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'has_children': False,
                     'type': BlockType.DIVIDER,
                     'divider': {},
                 },
-                {
-                    "object": "block",
-                    "id": "17ad000c-9f1b-400d-af52-e652357733a9",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "has_children": False,
-                    "type": "divider",
-                    "divider": {},
-                },
+                {"object": "block", "type": "divider", "divider": {}},
             ),
         ),
         (
-            EmbedBlock,
+            TxEmbedBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.EMBED,
-                    'embed': NotionUrlObject(url='https://www.ruiz.com/'),
+                    'embed': NotionUrlObject(url='https://www.mcdaniel-nelson.net/'),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.EMBED,
-                    'embed': {'url': 'https://www.ruiz.com/'},
+                    'embed': {'url': 'https://www.mcdaniel-nelson.net/'},
                 },
                 {
                     "object": "block",
                     "type": "embed",
-                    "embed": {"url": "https://www.ruiz.com/"},
+                    "embed": {"url": "https://www.mcdaniel-nelson.net/"},
                 },
             ),
         ),
         (
-            EquationBlock,
+            TxEquationBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.EQUATION,
-                    'equation': NotionEquation(expression='oPcXhAkayitnjlbcharN'),
+                    'equation': NotionEquation(expression='SBWnZKYOCXkIukujsIaQ'),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.EQUATION,
-                    'equation': {'expression': 'oPcXhAkayitnjlbcharN'},
+                    'equation': {'expression': 'SBWnZKYOCXkIukujsIaQ'},
                 },
                 {
                     "object": "block",
                     "type": "equation",
-                    "equation": {"expression": "oPcXhAkayitnjlbcharN"},
+                    "equation": {"expression": "SBWnZKYOCXkIukujsIaQ"},
                 },
             ),
         ),
         (
-            FileBlock,
+            TxFileBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.FILE,
-                    'file': CaptionExternalFileWithName(
-                        type=FileType.EXTERNAL,
-                        external=ExternalFileObject(url='https://tyler.com/'),
+                    'file': TxCaptionHostedFileWithName(
+                        type=FileType.FILE,
+                        file=HostedFileObject(
+                            url='http://miranda.com/',
+                            expiry_time=datetime(2008, 9, 19, 4, 19, 54, 80617),
+                        ),
+                        name='Martin Smith',
                         caption=[
-                            EquationRichText(
+                            TxMentionRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
+                                    bold=False,
+                                    italic=True,
+                                    strikethrough=True,
+                                    underline=True,
+                                    code=True,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://www.green.biz/',
-                                type=RichTextType.EQUATION,
-                                equation=Equation(
-                                    expression='Job audience stop remain discussion rock. Life grow simply increase focus structure tree.\nAgree agent old piece gun. Simple management various. Record get production because.'
+                                type=RichTextType.MENTION,
+                                mention=DateMention(
+                                    type=MentionType.DATE,
+                                    date=NotionDate(
+                                        start=datetime(1991, 9, 13, 4, 30, 38, 559479),
+                                        end=None,
+                                        time_zone=None,
+                                    ),
                                 ),
-                            ),
-                            EquationRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://www.burgess.biz/',
-                                type=RichTextType.EQUATION,
-                                equation=Equation(
-                                    expression='Senior direction show under stage among perform. Left best market note kind. Prepare wear final back edge result rate between.\nCheck character high party pattern. Ten wait before time.'
-                                ),
-                            ),
+                            )
                         ],
-                        name='Mark Miller',
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.FILE,
                     'file': {
-                        'type': FileType.EXTERNAL,
-                        'external': {'url': 'https://tyler.com/'},
+                        'type': FileType.FILE,
+                        'file': {
+                            'url': 'http://miranda.com/',
+                            'expiry_time': datetime(2008, 9, 19, 4, 19, 54, 80617),
+                        },
+                        'name': 'Martin Smith',
                         'caption': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
+                                    'bold': False,
+                                    'italic': True,
+                                    'strikethrough': True,
+                                    'underline': True,
+                                    'code': True,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.green.biz/',
-                                'type': RichTextType.EQUATION,
-                                'equation': {
-                                    'expression': 'Job audience stop remain discussion rock. Life grow simply increase focus structure tree.\nAgree agent old piece gun. Simple management various. Record get production because.'
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.DATE,
+                                    'date': {
+                                        'start': datetime(
+                                            1991, 9, 13, 4, 30, 38, 559479
+                                        )
+                                    },
                                 },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://www.burgess.biz/',
-                                'type': RichTextType.EQUATION,
-                                'equation': {
-                                    'expression': 'Senior direction show under stage among perform. Left best market note kind. Prepare wear final back edge result rate between.\nCheck character high party pattern. Ten wait before time.'
-                                },
-                            },
+                            }
                         ],
-                        'name': 'Mark Miller',
                     },
                 },
                 {
                     "object": "block",
                     "type": "file",
                     "file": {
-                        "type": "external",
-                        "external": {"url": "https://tyler.com/"},
+                        "type": "file",
+                        "file": {
+                            "url": "http://miranda.com/",
+                            "expiry_time": "2008-09-19T04:19:54.080617",
+                        },
+                        "name": "Martin Smith",
                         "caption": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
+                                    "bold": False,
+                                    "italic": True,
+                                    "strikethrough": True,
+                                    "underline": True,
+                                    "code": True,
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.green.biz/",
-                                "type": "equation",
-                                "equation": {
-                                    "expression": "Job audience stop remain discussion rock. Life grow simply increase focus structure tree.\nAgree agent old piece gun. Simple management various. Record get production because."
+                                "type": "mention",
+                                "mention": {
+                                    "type": "date",
+                                    "date": {"start": "1991-09-13T04:30:38.559479"},
                                 },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://www.burgess.biz/",
-                                "type": "equation",
-                                "equation": {
-                                    "expression": "Senior direction show under stage among perform. Left best market note kind. Prepare wear final back edge result rate between.\nCheck character high party pattern. Ten wait before time."
-                                },
-                            },
+                            }
                         ],
-                        "name": "Mark Miller",
                     },
                 },
             ),
         ),
         (
-            HeadingOneBlock,
+            TxHeadingOneBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('0cbc8611-9f84-4c95-ab7a-3f7a50f42cfe'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': True,
                     'type': BlockType.HEADING_1,
-                    'heading_1': Heading(
+                    'heading_1': TxHeading(
                         rich_text=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
+                            TxEquationRichText(
+                                annotations=None,
+                                type=RichTextType.EQUATION,
+                                equation=Equation(
+                                    expression='Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://white.com/',
-                                type=RichTextType.MENTION,
-                                mention=DateMention(
-                                    type=MentionType.DATE,
-                                    date=NotionDate(
-                                        start=datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        end=datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        time_zone='Africa/Asmera',
-                                    ),
-                                ),
-                            ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://www.woodward.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
-                                ),
-                            ),
+                            )
                         ],
-                        color=BackgroundColor.BROWN_BACKGROUND,
-                        is_toggleable=False,
+                        color=None,
+                        is_toggleable=None,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('0cbc8611-9f84-4c95-ab7a-3f7a50f42cfe'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'has_children': True,
                     'type': BlockType.HEADING_1,
                     'heading_1': {
                         'rich_text': [
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
+                                'type': RichTextType.EQUATION,
+                                'equation': {
+                                    'expression': 'Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://white.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'end': datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'time_zone': 'Africa/Asmera',
-                                    },
-                                },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://www.woodward.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
-                                },
-                            },
-                        ],
-                        'color': BackgroundColor.BROWN_BACKGROUND,
-                        'is_toggleable': False,
+                            }
+                        ]
                     },
                 },
                 {
                     "object": "block",
-                    "id": "0cbc8611-9f84-4c95-ab7a-3f7a50f42cfe",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "has_children": True,
                     "type": "heading_1",
                     "heading_1": {
                         "rich_text": [
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member."
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://white.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "date",
-                                    "date": {
-                                        "start": "1997-10-29T06:34:04.949878+03:00",
-                                        "end": "2005-01-02T12:15:42.844224+03:00",
-                                        "time_zone": "Africa/Asmera",
-                                    },
-                                },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://www.woodward.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
-                                },
-                            },
-                        ],
-                        "color": "brown_background",
-                        "is_toggleable": False,
+                            }
+                        ]
                     },
                 },
             ),
         ),
         (
-            HeadingTwoBlock,
+            TxHeadingTwoBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('91dfcceb-b7a2-48da-bbb3-4f8db4bbed63'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': False,
                     'type': BlockType.HEADING_2,
-                    'heading_2': Heading(
+                    'heading_2': TxHeading(
                         rich_text=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
+                            TxEquationRichText(
+                                annotations=None,
+                                type=RichTextType.EQUATION,
+                                equation=Equation(
+                                    expression='Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://white.com/',
-                                type=RichTextType.MENTION,
-                                mention=DateMention(
-                                    type=MentionType.DATE,
-                                    date=NotionDate(
-                                        start=datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        end=datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        time_zone='Africa/Asmera',
-                                    ),
-                                ),
-                            ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://www.woodward.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
-                                ),
-                            ),
+                            )
                         ],
-                        color=BackgroundColor.BROWN_BACKGROUND,
-                        is_toggleable=False,
-                    ),
-                },
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'id': UUID('91dfcceb-b7a2-48da-bbb3-4f8db4bbed63'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'has_children': False,
-                    'type': BlockType.HEADING_2,
-                    'heading_2': {
-                        'rich_text': [
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://white.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'end': datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'time_zone': 'Africa/Asmera',
-                                    },
-                                },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://www.woodward.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
-                                },
-                            },
-                        ],
-                        'color': BackgroundColor.BROWN_BACKGROUND,
-                        'is_toggleable': False,
-                    },
-                },
-                {
-                    "object": "block",
-                    "id": "91dfcceb-b7a2-48da-bbb3-4f8db4bbed63",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "has_children": False,
-                    "type": "heading_2",
-                    "heading_2": {
-                        "rich_text": [
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://white.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "date",
-                                    "date": {
-                                        "start": "1997-10-29T06:34:04.949878+03:00",
-                                        "end": "2005-01-02T12:15:42.844224+03:00",
-                                        "time_zone": "Africa/Asmera",
-                                    },
-                                },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://www.woodward.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
-                                },
-                            },
-                        ],
-                        "color": "brown_background",
-                        "is_toggleable": False,
-                    },
-                },
-            ),
-        ),
-        (
-            HeadingThreeBlock,
-            (
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'id': UUID('90fa06ea-6322-40ed-8a2c-26cbfc56b232'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': True,
-                    'in_trash': False,
-                    'has_children': None,
-                    'type': BlockType.HEADING_3,
-                    'heading_3': Heading(
-                        rich_text=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://white.com/',
-                                type=RichTextType.MENTION,
-                                mention=DateMention(
-                                    type=MentionType.DATE,
-                                    date=NotionDate(
-                                        start=datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        end=datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        time_zone='Africa/Asmera',
-                                    ),
-                                ),
-                            ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://www.woodward.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
-                                ),
-                            ),
-                        ],
-                        color=BackgroundColor.BROWN_BACKGROUND,
+                        color=None,
                         is_toggleable=True,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('90fa06ea-6322-40ed-8a2c-26cbfc56b232'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': True,
-                    'in_trash': False,
-                    'type': BlockType.HEADING_3,
-                    'heading_3': {
+                    'type': BlockType.HEADING_2,
+                    'heading_2': {
                         'rich_text': [
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
+                                'type': RichTextType.EQUATION,
+                                'equation': {
+                                    'expression': 'Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://white.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'end': datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'time_zone': 'Africa/Asmera',
-                                    },
-                                },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://www.woodward.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
-                                },
-                            },
+                            }
                         ],
-                        'color': BackgroundColor.BROWN_BACKGROUND,
                         'is_toggleable': True,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "90fa06ea-6322-40ed-8a2c-26cbfc56b232",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": True,
-                    "in_trash": False,
-                    "type": "heading_3",
-                    "heading_3": {
+                    "type": "heading_2",
+                    "heading_2": {
                         "rich_text": [
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member."
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://white.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "date",
-                                    "date": {
-                                        "start": "1997-10-29T06:34:04.949878+03:00",
-                                        "end": "2005-01-02T12:15:42.844224+03:00",
-                                        "time_zone": "Africa/Asmera",
-                                    },
-                                },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://www.woodward.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
-                                },
-                            },
+                            }
                         ],
-                        "color": "brown_background",
                         "is_toggleable": True,
                     },
                 },
             ),
         ),
         (
-            ImageBlock,
+            TxHeadingThreeBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('3cc2a298-822e-4c49-9e0f-1b6da7a2a31d'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': True,
-                    'in_trash': None,
-                    'has_children': True,
-                    'type': BlockType.IMAGE,
-                    'image': ExternalFile(
-                        type=FileType.EXTERNAL,
-                        external=ExternalFileObject(url='http://rodriguez-juarez.com/'),
+                    'type': BlockType.HEADING_3,
+                    'heading_3': TxHeading(
+                        rich_text=[
+                            TxEquationRichText(
+                                annotations=None,
+                                type=RichTextType.EQUATION,
+                                equation=Equation(
+                                    expression='Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
+                                ),
+                            )
+                        ],
+                        color=None,
+                        is_toggleable=False,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('3cc2a298-822e-4c49-9e0f-1b6da7a2a31d'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': True,
-                    'has_children': True,
-                    'type': BlockType.IMAGE,
-                    'image': {
-                        'type': FileType.EXTERNAL,
-                        'external': {'url': 'http://rodriguez-juarez.com/'},
+                    'type': BlockType.HEADING_3,
+                    'heading_3': {
+                        'rich_text': [
+                            {
+                                'type': RichTextType.EQUATION,
+                                'equation': {
+                                    'expression': 'Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member.'
+                                },
+                            }
+                        ],
+                        'is_toggleable': False,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "3cc2a298-822e-4c49-9e0f-1b6da7a2a31d",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": True,
-                    "has_children": True,
-                    "type": "image",
-                    "image": {
-                        "type": "external",
-                        "external": {"url": "http://rodriguez-juarez.com/"},
+                    "type": "heading_3",
+                    "heading_3": {
+                        "rich_text": [
+                            {
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "Girl special policy garden.\nWho couple information rise meet who focus. Now simple vote system turn member."
+                                },
+                            }
+                        ],
+                        "is_toggleable": False,
                     },
                 },
             ),
         ),
         (
-            NumberedListItemBlock,
+            TxImageBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
+                    'type': BlockType.IMAGE,
+                    'image': ExternalFile(
+                        type=FileType.EXTERNAL,
+                        external=ExternalFileObject(url='https://camacho.info/'),
+                    ),
+                },
+                {
+                    'object': NotionObjectType.BLOCK,
+                    'type': BlockType.IMAGE,
+                    'image': {
+                        'type': FileType.EXTERNAL,
+                        'external': {'url': 'https://camacho.info/'},
+                    },
+                },
+                {
+                    "object": "block",
+                    "type": "image",
+                    "image": {
+                        "type": "external",
+                        "external": {"url": "https://camacho.info/"},
+                    },
+                },
+            ),
+        ),
+        (
+            TxNumberedListItemBlock,
+            (
+                {
+                    'object': NotionObjectType.BLOCK,
                     'type': BlockType.NUMBERED_LIST_ITEM,
-                    'numbered_list_item': NumberedListItem(
+                    'numbered_list_item': TxNumberedListItem(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
-                        children=[
-                            HeadingTwoBlock(
-                                object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.HEADING_2,
-                                heading_2=Heading(
-                                    rich_text=[
-                                        MentionRichText(
-                                            annotations=Annotations(
-                                                bold=True,
-                                                italic=None,
-                                                strikethrough=False,
-                                                underline=False,
-                                                code=False,
-                                                color=Color.GREEN,
-                                            ),
-                                            plain_text='A one company hour.',
-                                            href='http://white.com/',
-                                            type=RichTextType.MENTION,
-                                            mention=DateMention(
-                                                type=MentionType.DATE,
-                                                date=NotionDate(
-                                                    start=datetime(
-                                                        1997,
-                                                        10,
-                                                        29,
-                                                        6,
-                                                        34,
-                                                        4,
-                                                        949878,
-                                                        tzinfo=ZoneInfo(
-                                                            key='Africa/Asmera'
-                                                        ),
-                                                    ),
-                                                    end=datetime(
-                                                        2005,
-                                                        1,
-                                                        2,
-                                                        12,
-                                                        15,
-                                                        42,
-                                                        844224,
-                                                        tzinfo=ZoneInfo(
-                                                            key='Africa/Asmera'
-                                                        ),
-                                                    ),
-                                                    time_zone='Africa/Asmera',
-                                                ),
-                                            ),
-                                        ),
-                                        TextRichText(
-                                            annotations=Annotations(
-                                                bold=True,
-                                                italic=None,
-                                                strikethrough=False,
-                                                underline=False,
-                                                code=False,
-                                                color=Color.GREEN,
-                                            ),
-                                            plain_text='A one company hour.',
-                                            href='https://www.woodward.com/',
-                                            type=RichTextType.TEXT,
-                                            text=Text(
-                                                content='These someone avoid.',
-                                                link=NotionUrlObject(
-                                                    url='https://www.arnold.com/'
-                                                ),
-                                            ),
-                                        ),
-                                    ],
-                                    color=BackgroundColor.BROWN_BACKGROUND,
-                                    is_toggleable=False,
-                                ),
-                            )
-                        ],
+                        children=None,
+                        color=BackgroundColor.GRAY_BACKGROUND,
                     ),
                 },
                 {
@@ -2669,110 +2873,28 @@ def test_invalid_block_model_creation(invalid_data):
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
-                        'children': [
-                            {
-                                'object': NotionObjectType.BLOCK,
-                                'type': BlockType.HEADING_2,
-                                'heading_2': {
-                                    'rich_text': [
-                                        {
-                                            'annotations': {
-                                                'bold': True,
-                                                'strikethrough': False,
-                                                'underline': False,
-                                                'code': False,
-                                                'color': Color.GREEN,
-                                            },
-                                            'plain_text': 'A one company hour.',
-                                            'href': 'http://white.com/',
-                                            'type': RichTextType.MENTION,
-                                            'mention': {
-                                                'type': MentionType.DATE,
-                                                'date': {
-                                                    'start': datetime(
-                                                        1997,
-                                                        10,
-                                                        29,
-                                                        6,
-                                                        34,
-                                                        4,
-                                                        949878,
-                                                        tzinfo=ZoneInfo(
-                                                            key='Africa/Asmera'
-                                                        ),
-                                                    ),
-                                                    'end': datetime(
-                                                        2005,
-                                                        1,
-                                                        2,
-                                                        12,
-                                                        15,
-                                                        42,
-                                                        844224,
-                                                        tzinfo=ZoneInfo(
-                                                            key='Africa/Asmera'
-                                                        ),
-                                                    ),
-                                                    'time_zone': 'Africa/Asmera',
-                                                },
-                                            },
-                                        },
-                                        {
-                                            'annotations': {
-                                                'bold': True,
-                                                'strikethrough': False,
-                                                'underline': False,
-                                                'code': False,
-                                                'color': Color.GREEN,
-                                            },
-                                            'plain_text': 'A one company hour.',
-                                            'href': 'https://www.woodward.com/',
-                                            'type': RichTextType.TEXT,
-                                            'text': {
-                                                'content': 'These someone avoid.',
-                                                'link': {
-                                                    'url': 'https://www.arnold.com/'
-                                                },
-                                            },
-                                        },
-                                    ],
-                                    'color': BackgroundColor.BROWN_BACKGROUND,
-                                    'is_toggleable': False,
-                                },
-                            }
-                        ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
@@ -2782,348 +2904,159 @@ def test_invalid_block_model_creation(invalid_data):
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
-                        "children": [
-                            {
-                                "object": "block",
-                                "type": "heading_2",
-                                "heading_2": {
-                                    "rich_text": [
-                                        {
-                                            "annotations": {
-                                                "bold": True,
-                                                "strikethrough": False,
-                                                "underline": False,
-                                                "code": False,
-                                                "color": "green",
-                                            },
-                                            "plain_text": "A one company hour.",
-                                            "href": "http://white.com/",
-                                            "type": "mention",
-                                            "mention": {
-                                                "type": "date",
-                                                "date": {
-                                                    "start": "1997-10-29T06:34:04.949878+03:00",
-                                                    "end": "2005-01-02T12:15:42.844224+03:00",
-                                                    "time_zone": "Africa/Asmera",
-                                                },
-                                            },
-                                        },
-                                        {
-                                            "annotations": {
-                                                "bold": True,
-                                                "strikethrough": False,
-                                                "underline": False,
-                                                "code": False,
-                                                "color": "green",
-                                            },
-                                            "plain_text": "A one company hour.",
-                                            "href": "https://www.woodward.com/",
-                                            "type": "text",
-                                            "text": {
-                                                "content": "These someone avoid.",
-                                                "link": {
-                                                    "url": "https://www.arnold.com/"
-                                                },
-                                            },
-                                        },
-                                    ],
-                                    "color": "brown_background",
-                                    "is_toggleable": False,
-                                },
-                            }
-                        ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            ParagraphBlock,
+            TxParagraphBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('12f87753-6a01-4d05-b07f-539257c64938'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': True,
-                    'in_trash': True,
-                    'has_children': None,
                     'type': BlockType.PARAGRAPH,
-                    'paragraph': Paragraph(
+                    'paragraph': TxParagraph(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
-                        children=[
-                            DividerBlock(
-                                object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.DIVIDER,
-                                divider={},
-                            )
-                        ],
+                        children=None,
+                        color=BackgroundColor.GRAY_BACKGROUND,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('12f87753-6a01-4d05-b07f-539257c64938'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': True,
-                    'in_trash': True,
                     'type': BlockType.PARAGRAPH,
                     'paragraph': {
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
-                        'children': [
-                            {
-                                'object': NotionObjectType.BLOCK,
-                                'type': BlockType.DIVIDER,
-                                'divider': {},
-                            }
-                        ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "12f87753-6a01-4d05-b07f-539257c64938",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": True,
-                    "in_trash": True,
                     "type": "paragraph",
                     "paragraph": {
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
-                        "children": [
-                            {"object": "block", "type": "divider", "divider": {}}
-                        ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            PdfBlock,
+            TxPdfBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.PDF,
-                    'pdf': CaptionExternalFile(
+                    'pdf': TxCaptionExternalFile(
                         type=FileType.EXTERNAL,
-                        external=ExternalFileObject(url='https://neal.org/'),
+                        external=ExternalFileObject(url='https://young-escobar.net/'),
                         caption=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
+                                    bold=False,
+                                    italic=False,
                                     strikethrough=False,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='https://sanchez.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
-                            ),
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://wright.com/',
-                                type=RichTextType.MENTION,
-                                mention=DatabaseMention(
-                                    type=MentionType.DATABASE,
-                                    database=NotionObjectRef(
-                                        id=UUID('7e5fd597-ae50-4594-8d94-8f909b448e86')
-                                    ),
-                                ),
-                            ),
+                            )
                         ],
                     ),
                 },
@@ -3132,44 +3065,23 @@ def test_invalid_block_model_creation(invalid_data):
                     'type': BlockType.PDF,
                     'pdf': {
                         'type': FileType.EXTERNAL,
-                        'external': {'url': 'https://neal.org/'},
+                        'external': {'url': 'https://young-escobar.net/'},
                         'caption': [
                             {
                                 'annotations': {
-                                    'bold': True,
+                                    'bold': False,
+                                    'italic': False,
                                     'strikethrough': False,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://sanchez.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://wright.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATABASE,
-                                    'database': {
-                                        'id': UUID(
-                                            '7e5fd597-ae50-4594-8d94-8f909b448e86'
-                                        )
-                                    },
-                                },
-                            },
+                            }
                         ],
                     },
                 },
@@ -3178,116 +3090,105 @@ def test_invalid_block_model_creation(invalid_data):
                     "type": "pdf",
                     "pdf": {
                         "type": "external",
-                        "external": {"url": "https://neal.org/"},
+                        "external": {"url": "https://young-escobar.net/"},
                         "caption": [
                             {
                                 "annotations": {
-                                    "bold": True,
+                                    "bold": False,
+                                    "italic": False,
                                     "strikethrough": False,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "https://sanchez.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://wright.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "database",
-                                    "database": {
-                                        "id": "7e5fd597-ae50-4594-8d94-8f909b448e86"
-                                    },
-                                },
-                            },
+                            }
                         ],
                     },
                 },
             ),
         ),
         (
-            QuoteBlock,
+            TxQuoteBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.QUOTE,
-                    'quote': Quote(
+                    'quote': TxQuote(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
                         children=[
-                            BreadcrumbBlock(
+                            TxFileBlock(
                                 object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.BREADCRUMB,
-                                breadcrumb={},
+                                type=BlockType.FILE,
+                                file=TxCaptionExternalFileWithName(
+                                    type=FileType.EXTERNAL,
+                                    external=ExternalFileObject(
+                                        url='https://www.mack-lara.info/'
+                                    ),
+                                    name='Denise Cantu',
+                                    caption=[
+                                        TxTextRichText(
+                                            annotations=None,
+                                            type=RichTextType.TEXT,
+                                            text=Text(
+                                                content='Miss page set than bank democratic million.',
+                                                link=NotionUrlObject(
+                                                    url='http://clarke.com/'
+                                                ),
+                                            ),
+                                        ),
+                                        TxTextRichText(
+                                            annotations=Annotations(
+                                                bold=True,
+                                                italic=False,
+                                                strikethrough=True,
+                                                underline=True,
+                                                code=True,
+                                                color=BackgroundColor.PINK_BACKGROUND,
+                                            ),
+                                            type=RichTextType.TEXT,
+                                            text=Text(
+                                                content='Miss page set than bank democratic million.',
+                                                link=NotionUrlObject(
+                                                    url='http://clarke.com/'
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
                             )
                         ],
+                        color=BackgroundColor.GRAY_BACKGROUND,
                     ),
                 },
                 {
@@ -3297,45 +3198,63 @@ def test_invalid_block_model_creation(invalid_data):
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
                         'children': [
                             {
                                 'object': NotionObjectType.BLOCK,
-                                'type': BlockType.BREADCRUMB,
-                                'breadcrumb': {},
+                                'type': BlockType.FILE,
+                                'file': {
+                                    'type': FileType.EXTERNAL,
+                                    'external': {'url': 'https://www.mack-lara.info/'},
+                                    'name': 'Denise Cantu',
+                                    'caption': [
+                                        {
+                                            'type': RichTextType.TEXT,
+                                            'text': {
+                                                'content': 'Miss page set than bank democratic million.',
+                                                'link': {'url': 'http://clarke.com/'},
+                                            },
+                                        },
+                                        {
+                                            'annotations': {
+                                                'bold': True,
+                                                'italic': False,
+                                                'strikethrough': True,
+                                                'underline': True,
+                                                'code': True,
+                                                'color': BackgroundColor.PINK_BACKGROUND,
+                                            },
+                                            'type': RichTextType.TEXT,
+                                            'text': {
+                                                'content': 'Miss page set than bank democratic million.',
+                                                'link': {'url': 'http://clarke.com/'},
+                                            },
+                                        },
+                                    ],
+                                },
                             }
                         ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
@@ -3345,242 +3264,164 @@ def test_invalid_block_model_creation(invalid_data):
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
                         "children": [
-                            {"object": "block", "type": "breadcrumb", "breadcrumb": {}}
+                            {
+                                "object": "block",
+                                "type": "file",
+                                "file": {
+                                    "type": "external",
+                                    "external": {"url": "https://www.mack-lara.info/"},
+                                    "name": "Denise Cantu",
+                                    "caption": [
+                                        {
+                                            "type": "text",
+                                            "text": {
+                                                "content": "Miss page set than bank democratic million.",
+                                                "link": {"url": "http://clarke.com/"},
+                                            },
+                                        },
+                                        {
+                                            "annotations": {
+                                                "bold": True,
+                                                "italic": False,
+                                                "strikethrough": True,
+                                                "underline": True,
+                                                "code": True,
+                                                "color": "pink_background",
+                                            },
+                                            "type": "text",
+                                            "text": {
+                                                "content": "Miss page set than bank democratic million.",
+                                                "link": {"url": "http://clarke.com/"},
+                                            },
+                                        },
+                                    ],
+                                },
+                            }
                         ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            SyncedBlock,
+            TxSyncedBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.SYNCED_BLOCK,
-                    'synced_block': DuplicateSynced(
-                        synced_from=SyncedFrom(
-                            block_id=UUID('5d1cafdf-4f6e-427f-a222-66ee6037a882')
-                        ),
-                        children=None,
-                    ),
+                    'synced_block': TxOriginalSynced(synced_from=None, children=[]),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.SYNCED_BLOCK,
-                    'synced_block': {
-                        'synced_from': {
-                            'block_id': UUID('5d1cafdf-4f6e-427f-a222-66ee6037a882')
-                        }
-                    },
+                    'synced_block': {'children': []},
                 },
                 {
                     "object": "block",
                     "type": "synced_block",
-                    "synced_block": {
-                        "synced_from": {
-                            "block_id": "5d1cafdf-4f6e-427f-a222-66ee6037a882"
-                        }
-                    },
+                    "synced_block": {"children": []},
                 },
             ),
         ),
         (
-            TableBlock,
+            TxTableBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('8d6c1452-7a20-46d6-98d4-f18d6cd71aad'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': True,
-                    'has_children': True,
                     'type': BlockType.TABLE,
                     'table': Table(
-                        table_width=5, has_column_header=True, has_row_header=False
+                        table_width=1, has_column_header=True, has_row_header=True
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('8d6c1452-7a20-46d6-98d4-f18d6cd71aad'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'in_trash': True,
-                    'has_children': True,
                     'type': BlockType.TABLE,
                     'table': {
-                        'table_width': 5,
+                        'table_width': 1,
                         'has_column_header': True,
-                        'has_row_header': False,
+                        'has_row_header': True,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "8d6c1452-7a20-46d6-98d4-f18d6cd71aad",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "in_trash": True,
-                    "has_children": True,
                     "type": "table",
                     "table": {
-                        "table_width": 5,
+                        "table_width": 1,
                         "has_column_header": True,
-                        "has_row_header": False,
+                        "has_row_header": True,
                     },
                 },
             ),
         ),
         (
-            TableContentBlock,
+            TxTableContentBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.TABLE_OF_CONTENTS,
-                    'table_of_contents': Color.RED,
+                    'table_of_contents': BackgroundColor.BLUE_BACKGROUND,
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE_OF_CONTENTS,
-                    'table_of_contents': Color.RED,
+                    'table_of_contents': BackgroundColor.BLUE_BACKGROUND,
                 },
                 {
                     "object": "block",
                     "type": "table_of_contents",
-                    "table_of_contents": "red",
+                    "table_of_contents": "blue_background",
                 },
             ),
         ),
         (
-            TableRowBlock,
+            TxTableRowBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.TABLE_ROW,
-                    'table_row': Cells(
+                    'table_row': TxCells(
                         rich_text=[
-                            TextRichText(
+                            TxMentionRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://www.johns.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                type=RichTextType.MENTION,
+                                mention=DateMention(
+                                    type=MentionType.DATE,
+                                    date=NotionDate(
+                                        start=datetime(1991, 9, 13, 4, 30, 38, 559479),
+                                        end=None,
+                                        time_zone=None,
+                                    ),
                                 ),
-                            ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://hunt.net/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
-                                ),
-                            ),
+                            )
                         ]
                     ),
                 },
@@ -3591,36 +3432,23 @@ def test_invalid_block_model_creation(invalid_data):
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.johns.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.DATE,
+                                    'date': {
+                                        'start': datetime(
+                                            1991, 9, 13, 4, 30, 38, 559479
+                                        )
+                                    },
                                 },
-                            },
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://hunt.net/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
-                                },
-                            },
+                            }
                         ]
                     },
                 },
@@ -3631,112 +3459,60 @@ def test_invalid_block_model_creation(invalid_data):
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.johns.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "date",
+                                    "date": {"start": "1991-09-13T04:30:38.559479"},
                                 },
-                            },
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://hunt.net/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
-                                },
-                            },
+                            }
                         ]
                     },
                 },
             ),
         ),
         (
-            ToDoBlock,
+            TxToDoBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.TO_DO,
-                    'to_do': ToDo(
+                    'to_do': TxToDo(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
-                        children=[
-                            ChildDatabaseBlock(
-                                object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.CHILD_DATABASE,
-                                child_database=ChildDatabase(
-                                    title='James Anderson Jr.'
-                                ),
-                            )
-                        ],
+                        children=None,
+                        color=BackgroundColor.GRAY_BACKGROUND,
                         checked=None,
                     ),
                 },
@@ -3747,45 +3523,28 @@ def test_invalid_block_model_creation(invalid_data):
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
-                        'children': [
-                            {
-                                'object': NotionObjectType.BLOCK,
-                                'type': BlockType.CHILD_DATABASE,
-                                'child_database': {'title': 'James Anderson Jr.'},
-                            }
-                        ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
@@ -3795,445 +3554,176 @@ def test_invalid_block_model_creation(invalid_data):
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
-                        "children": [
-                            {
-                                "object": "block",
-                                "type": "child_database",
-                                "child_database": {"title": "James Anderson Jr."},
-                            }
-                        ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            ToggleBlock,
+            TxToggleBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('65ffe5c6-f67b-4ce4-8aa6-d296a1dbd216'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': None,
-                    'in_trash': True,
-                    'has_children': None,
                     'type': BlockType.TOGGLE,
-                    'toggle': Toggle(
+                    'toggle': TxToggle(
                         rich_text=[
-                            TextRichText(
+                            TxTextRichText(
                                 annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
+                                    bold=False,
+                                    italic=False,
+                                    strikethrough=True,
                                     underline=False,
                                     code=False,
-                                    color=Color.GREEN,
+                                    color=BackgroundColor.PINK_BACKGROUND,
                                 ),
-                                plain_text='A one company hour.',
-                                href='http://barker.com/',
                                 type=RichTextType.TEXT,
                                 text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                                    content='Miss page set than bank democratic million.',
+                                    link=NotionUrlObject(url='http://clarke.com/'),
                                 ),
                             ),
-                            TextRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='http://www.hammond.com/',
-                                type=RichTextType.TEXT,
-                                text=Text(
-                                    content='These someone avoid.',
-                                    link=NotionUrlObject(url='https://www.arnold.com/'),
+                            TxMentionRichText(
+                                annotations=None,
+                                type=RichTextType.MENTION,
+                                mention=LinkPreviewMention(
+                                    type=MentionType.LINK_PREVIEW,
+                                    link_preview=NotionUrlObject(
+                                        url='http://barber.com/'
+                                    ),
                                 ),
                             ),
                         ],
-                        color=Color.PURPLE,
-                        children=[
-                            EmbedBlock(
-                                object=NotionObjectType.BLOCK,
-                                id=None,
-                                parent=None,
-                                created_time=None,
-                                last_edited_time=None,
-                                created_by=None,
-                                last_edited_by=None,
-                                archived=None,
-                                in_trash=None,
-                                has_children=None,
-                                type=BlockType.EMBED,
-                                embed=NotionUrlObject(url='http://www.ramsey.com/'),
-                            )
-                        ],
+                        children=None,
+                        color=BackgroundColor.GRAY_BACKGROUND,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('65ffe5c6-f67b-4ce4-8aa6-d296a1dbd216'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'in_trash': True,
                     'type': BlockType.TOGGLE,
                     'toggle': {
                         'rich_text': [
                             {
                                 'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
+                                    'bold': False,
+                                    'italic': False,
+                                    'strikethrough': True,
                                     'underline': False,
                                     'code': False,
-                                    'color': Color.GREEN,
+                                    'color': BackgroundColor.PINK_BACKGROUND,
                                 },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://barker.com/',
                                 'type': RichTextType.TEXT,
                                 'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                    'content': 'Miss page set than bank democratic million.',
+                                    'link': {'url': 'http://clarke.com/'},
                                 },
                             },
                             {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'http://www.hammond.com/',
-                                'type': RichTextType.TEXT,
-                                'text': {
-                                    'content': 'These someone avoid.',
-                                    'link': {'url': 'https://www.arnold.com/'},
+                                'type': RichTextType.MENTION,
+                                'mention': {
+                                    'type': MentionType.LINK_PREVIEW,
+                                    'link_preview': {'url': 'http://barber.com/'},
                                 },
                             },
                         ],
-                        'color': Color.PURPLE,
-                        'children': [
-                            {
-                                'object': NotionObjectType.BLOCK,
-                                'type': BlockType.EMBED,
-                                'embed': {'url': 'http://www.ramsey.com/'},
-                            }
-                        ],
+                        'color': BackgroundColor.GRAY_BACKGROUND,
                     },
                 },
                 {
                     "object": "block",
-                    "id": "65ffe5c6-f67b-4ce4-8aa6-d296a1dbd216",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "in_trash": True,
                     "type": "toggle",
                     "toggle": {
                         "rich_text": [
                             {
                                 "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": True,
                                     "underline": False,
                                     "code": False,
-                                    "color": "green",
+                                    "color": "pink_background",
                                 },
-                                "plain_text": "A one company hour.",
-                                "href": "http://barker.com/",
                                 "type": "text",
                                 "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                    "content": "Miss page set than bank democratic million.",
+                                    "link": {"url": "http://clarke.com/"},
                                 },
                             },
                             {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "http://www.hammond.com/",
-                                "type": "text",
-                                "text": {
-                                    "content": "These someone avoid.",
-                                    "link": {"url": "https://www.arnold.com/"},
+                                "type": "mention",
+                                "mention": {
+                                    "type": "link_preview",
+                                    "link_preview": {"url": "http://barber.com/"},
                                 },
                             },
                         ],
-                        "color": "purple",
-                        "children": [
-                            {
-                                "object": "block",
-                                "type": "embed",
-                                "embed": {"url": "http://www.ramsey.com/"},
-                            }
-                        ],
+                        "color": "gray_background",
                     },
                 },
             ),
         ),
         (
-            UnsupportedBlock,
+            TxUnsupportedBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': None,
-                    'parent': None,
-                    'created_time': None,
-                    'last_edited_time': None,
-                    'created_by': None,
-                    'last_edited_by': None,
-                    'archived': None,
-                    'in_trash': None,
-                    'has_children': None,
                     'type': BlockType.UNSUPPORTED,
+                    'unsupported': {},
                 },
-                {'object': NotionObjectType.BLOCK, 'type': BlockType.UNSUPPORTED},
-                {"object": "block", "type": "unsupported"},
+                {
+                    'object': NotionObjectType.BLOCK,
+                    'type': BlockType.UNSUPPORTED,
+                    'unsupported': {},
+                },
+                {"object": "block", "type": "unsupported", "unsupported": {}},
             ),
         ),
         (
-            VideoBlock,
+            TxVideoBlock,
             (
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('2c70ab98-7343-41a6-9f50-236b57028679'),
-                    'parent': WorkspaceParent(
-                        type=ParentType.WORKSPACE, workspace=True
-                    ),
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    ),
-                    'last_edited_by': UserRef(
-                        object=NotionObjectType.USER,
-                        id=UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    ),
-                    'archived': True,
-                    'in_trash': True,
-                    'has_children': None,
                     'type': BlockType.VIDEO,
-                    'video': CaptionExternalFile(
+                    'video': TxCaptionExternalFile(
                         type=FileType.EXTERNAL,
-                        external=ExternalFileObject(url='http://parker.com/'),
-                        caption=[
-                            MentionRichText(
-                                annotations=Annotations(
-                                    bold=True,
-                                    italic=None,
-                                    strikethrough=False,
-                                    underline=False,
-                                    code=False,
-                                    color=Color.GREEN,
-                                ),
-                                plain_text='A one company hour.',
-                                href='https://clark.com/',
-                                type=RichTextType.MENTION,
-                                mention=DateMention(
-                                    type=MentionType.DATE,
-                                    date=NotionDate(
-                                        start=datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        end=datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        time_zone='Africa/Asmera',
-                                    ),
-                                ),
-                            )
-                        ],
+                        external=ExternalFileObject(url='https://lee.com/'),
+                        caption=None,
                     ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
-                    'id': UUID('2c70ab98-7343-41a6-9f50-236b57028679'),
-                    'parent': {'type': ParentType.WORKSPACE, 'workspace': True},
-                    'created_time': datetime(2000, 10, 23, 14, 47, 52, 738518),
-                    'last_edited_time': datetime(2002, 10, 16, 19, 12, 59, 868332),
-                    'created_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('9c30bf5b-0f43-4172-ad21-2870959f6976'),
-                    },
-                    'last_edited_by': {
-                        'object': NotionObjectType.USER,
-                        'id': UUID('22dafb54-4a0c-4e39-9900-f6281bcd0912'),
-                    },
-                    'archived': True,
-                    'in_trash': True,
                     'type': BlockType.VIDEO,
                     'video': {
                         'type': FileType.EXTERNAL,
-                        'external': {'url': 'http://parker.com/'},
-                        'caption': [
-                            {
-                                'annotations': {
-                                    'bold': True,
-                                    'strikethrough': False,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': Color.GREEN,
-                                },
-                                'plain_text': 'A one company hour.',
-                                'href': 'https://clark.com/',
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1997,
-                                            10,
-                                            29,
-                                            6,
-                                            34,
-                                            4,
-                                            949878,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'end': datetime(
-                                            2005,
-                                            1,
-                                            2,
-                                            12,
-                                            15,
-                                            42,
-                                            844224,
-                                            tzinfo=ZoneInfo(key='Africa/Asmera'),
-                                        ),
-                                        'time_zone': 'Africa/Asmera',
-                                    },
-                                },
-                            }
-                        ],
+                        'external': {'url': 'https://lee.com/'},
                     },
                 },
                 {
                     "object": "block",
-                    "id": "2c70ab98-7343-41a6-9f50-236b57028679",
-                    "parent": {"type": "workspace", "workspace": True},
-                    "created_time": "2000-10-23T14:47:52.738518",
-                    "last_edited_time": "2002-10-16T19:12:59.868332",
-                    "created_by": {
-                        "object": "user",
-                        "id": "9c30bf5b-0f43-4172-ad21-2870959f6976",
-                    },
-                    "last_edited_by": {
-                        "object": "user",
-                        "id": "22dafb54-4a0c-4e39-9900-f6281bcd0912",
-                    },
-                    "archived": True,
-                    "in_trash": True,
                     "type": "video",
                     "video": {
                         "type": "external",
-                        "external": {"url": "http://parker.com/"},
-                        "caption": [
-                            {
-                                "annotations": {
-                                    "bold": True,
-                                    "strikethrough": False,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "green",
-                                },
-                                "plain_text": "A one company hour.",
-                                "href": "https://clark.com/",
-                                "type": "mention",
-                                "mention": {
-                                    "type": "date",
-                                    "date": {
-                                        "start": "1997-10-29T06:34:04.949878+03:00",
-                                        "end": "2005-01-02T12:15:42.844224+03:00",
-                                        "time_zone": "Africa/Asmera",
-                                    },
-                                },
-                            }
-                        ],
+                        "external": {"url": "https://lee.com/"},
                     },
                 },
             ),
