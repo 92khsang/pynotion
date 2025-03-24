@@ -12,7 +12,12 @@ from ._internal import (
     validate_datetime,
     BaseNotionModel,
     validate_url,
+    validate_empty_dict,
 )
+
+NotionEmptyDict = Annotated[
+    dict, BeforeValidator(validate_empty_dict), Field(default_factory=dict)
+]
 
 
 class Color(str, Enum):
@@ -115,12 +120,6 @@ class NotionDate(BaseNotionModel):
             utc_offset_chars = ["Z", "+", "-"]
             return any(char in dt_time_format for char in utc_offset_chars)
 
-        # Validate input type
-        if not isinstance(dt, (str, datetime)):
-            raise ValueError(
-                f"`{dt_name}` should be a datetime or a string in ISO 8601 format: {dt}"
-            )
-
         # If timezone is provided, enforce timezone rules
         if time_zone:
             validate_timezone(time_zone)
@@ -132,17 +131,10 @@ class NotionDate(BaseNotionModel):
                         f"`{dt_name}` should not have a UTC offset when `time_zone` is provided: {dt}"
                     )
 
-                try:
-                    dt_obj = datetime.fromisoformat(dt)
-                except ValueError:
-                    raise ValueError(f"Invalid ISO 8601 format: {dt}")
+                dt_obj = datetime.fromisoformat(dt)
 
                 # Localize the datetime
                 return dt_obj.replace(tzinfo=ZoneInfo(time_zone)).isoformat()
-
-            # For datetime inputs
-            if dt.tzinfo and dt.tzinfo != ZoneInfo(time_zone):
-                raise ValueError(f"`{dt_name}` should be in {time_zone} timezone: {dt}")
 
         return dt
 

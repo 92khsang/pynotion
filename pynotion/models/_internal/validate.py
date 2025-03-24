@@ -164,3 +164,22 @@ def validate_phone(phone: str) -> str:
         return phone
 
     raise ValueError(f"Invalid phone number: {phone}")
+
+
+def validate_empty_dict(value: dict) -> dict:
+    """
+    Validate a given value is an empty dict.
+
+    >>> validate_empty_dict({})
+    {}
+
+    >>> validate_empty_dict({"a": 1})
+    Traceback (most recent call last):
+    ...
+    ValueError: Expected an empty dict, but got {'a': 1}
+    """
+
+    if not isinstance(value, dict) or len(value) != 0:
+        raise ValueError(f"Expected an empty dict, but got {value}")
+
+    return value

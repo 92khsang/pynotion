@@ -7,6 +7,7 @@ from .validate import (
     validate_timezone,
     validate_email,
     validate_phone,
+    validate_empty_dict,
 )
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "validate_timezone",
     "validate_email",
     "validate_phone",
+    "validate_empty_dict",
     # Base model
     "BaseNotionModel",
     "FrozenNotionModel",
