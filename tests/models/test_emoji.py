@@ -13,7 +13,7 @@ from tests.models.model_test_utils import (
 @pytest.mark.parametrize(
     "clz, emoji_type, type_object, should_raise",
     [
-        (Emoji, EmojiType.EMOJI, "🔥", False),
+        (SingleEmoji, EmojiType.EMOJI, "🔥", False),
         (
             CustomEmoji,
             EmojiType.CUSTOM_EMOJI,
@@ -26,7 +26,7 @@ from tests.models.model_test_utils import (
             CustomEmojiObject(id=uuid4(), name="custom", url="https://valid-url.com"),
             True,
         ),  # Invalid type_object
-        (Emoji, EmojiType.CUSTOM_EMOJI, "🔥", True),  # Invalid type_object
+        (SingleEmoji, EmojiType.CUSTOM_EMOJI, "🔥", True),  # Invalid type_object
     ],
 )
 def test_notion_emoji(clz, emoji_type, type_object, should_raise):
@@ -43,15 +43,15 @@ def test_notion_emoji(clz, emoji_type, type_object, should_raise):
     "annotated_clz, expected_clz, input_data",
     [
         (
-            Emojis,
             Emoji,
+            SingleEmoji,
             {
                 "type": EmojiType.EMOJI,
                 "emoji": "🔥",
             },
         ),
         (
-            Emojis,
+            Emoji,
             CustomEmoji,
             {
                 "type": EmojiType.CUSTOM_EMOJI,
@@ -70,7 +70,7 @@ def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data
     "model_class, test_data",
     [
         (
-            Emoji,
+            SingleEmoji,
             (
                 {"type": "emoji", "emoji": "🔥"},
                 {"type": EmojiType.EMOJI, "emoji": "🔥"},

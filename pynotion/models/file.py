@@ -1,6 +1,5 @@
 from __future__ import annotations as _annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import Literal, Annotated
 
@@ -9,8 +8,8 @@ from pydantic import Field, BeforeValidator
 from ._internal import (
     BaseNotionModel,
     validate_url,
-    validate_datetime,
 )
+from .types import NotionDatetime
 
 
 class FileType(str, Enum):
@@ -36,7 +35,7 @@ class HostedFileObject(BaseNotionModel):
     """
 
     url: Annotated[str, BeforeValidator(validate_url)]
-    expiry_time: Annotated[str | datetime, BeforeValidator(validate_datetime)]
+    expiry_time: NotionDatetime
 
 
 class ExternalFileObject(BaseNotionModel):

@@ -16,22 +16,7 @@ from ._internal import (
 
 
 class Color(str, Enum):
-    """Defines standard colors in Notion.
-
-    These colors are used for text, backgrounds, and other UI elements.
-
-    Attributes:
-        BLUE: Blue color.
-        BROWN: Brown color.
-        DEFAULT: Default color (usually black or determined by theme).
-        GRAY: Gray color.
-        GREEN: Green color.
-        ORANGE: Orange color.
-        PURPLE: Purple color.
-        PINK: Pink color.
-        RED: Red color.
-        YELLOW: Yellow color.
-    """
+    """Defines standard colors in Notion."""
 
     BLUE = "blue"
     BROWN = "brown"
@@ -46,21 +31,7 @@ class Color(str, Enum):
 
 
 class BackgroundColor(str, Enum):
-    """Defines background colors in Notion.
-
-    These colors are specifically for block backgrounds and highlights.
-
-    Attributes:
-        BLUE_BACKGROUND: Blue background color.
-        BROWN_BACKGROUND: Brown background color.
-        GRAY_BACKGROUND: Gray background color.
-        GREEN_BACKGROUND: Green background color.
-        ORANGE_BACKGROUND: Orange background color.
-        PURPLE_BACKGROUND: Purple background color.
-        PINK_BACKGROUND: Pink background color.
-        RED_BACKGROUND: Red background color.
-        YELLOW_BACKGROUND: Yellow background color.
-    """
+    """Defines background colors in Notion."""
 
     BLUE_BACKGROUND = "blue_background"
     BROWN_BACKGROUND = "brown_background"
@@ -93,6 +64,9 @@ class NotionUrlObject(BaseNotionModel):
     url: Annotated[str, BeforeValidator(validate_url)]
 
 
+NotionDatetime = Annotated[str | datetime, BeforeValidator(validate_datetime)]
+
+
 class NotionDate(BaseNotionModel):
     """Represents a date or datetime in Notion.
 
@@ -110,10 +84,8 @@ class NotionDate(BaseNotionModel):
         - If `time_zone` is None, `start` and `end` can contain UTC offsets.
     """
 
-    start: Annotated[str | datetime, BeforeValidator(validate_datetime)]
-    end: Optional[Annotated[str | datetime, BeforeValidator(validate_datetime)]] = (
-        Field(default=None)
-    )
+    start: NotionDatetime
+    end: Optional[NotionDatetime] = None
     time_zone: Optional[Annotated[str, BeforeValidator(validate_timezone)]] = Field(
         default=None
     )
@@ -221,7 +193,7 @@ class NotionDate(BaseNotionModel):
             ValueError: If datetime values fail validation.
         """
         values = input_values.copy()
-        data = getattr(values, "kwargs", values)
+        data = dict(values) if isinstance(values, dict) else values.kwargs
 
         if data:
 

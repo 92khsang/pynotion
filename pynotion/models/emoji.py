@@ -46,7 +46,7 @@ class CustomEmojiObject(BaseNotionModel):
     url: Annotated[str, BeforeValidator(validate_url)]
 
 
-class Emoji(BaseNotionModel):
+class SingleEmoji(BaseNotionModel):
     """Represents a standard emoji in Notion.
 
     Attributes:
@@ -72,4 +72,4 @@ class CustomEmoji(BaseNotionModel):
     custom_emoji: CustomEmojiObject
 
 
-Emojis = Annotated[Emoji | CustomEmoji, Field(discriminator="type")]
+Emoji = Annotated[SingleEmoji | CustomEmoji, Field(discriminator="type")]

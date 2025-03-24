@@ -93,7 +93,7 @@ class Bot(BaseNotionModel):
 
     owner: BotOwner
 
-    workspace_name: Optional[str] = Field(default=None)
+    workspace_name: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_workspace_name(self):
@@ -135,7 +135,7 @@ class UserRef(BaseNotionModel):
 
 
 class _BaseUser(UserRef):
-    name: Optional[str] = Field(default=None)
+    name: Optional[str] = None
     avatar_url: Optional[Annotated[str, BeforeValidator(validate_url)]] = Field(
         default=None
     )
@@ -174,10 +174,9 @@ class BotUser(_BaseUser):
 
 
 def model_user_discriminator(v):
-    if isinstance(v, dict):
-        type_value = v.get("type", None)
-    else:
-        type_value = getattr(v, "type", None)
+    from ._internal.utils import get_value_for_discriminator
+
+    type_value = get_value_for_discriminator(v, "type")
 
     match type_value:
         case None:

@@ -8,7 +8,14 @@ class BaseNotionModel(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
-        validate_assignment=True,
-        validate_default=True,
         populate_by_name=True,
+        validate_assignment=True,
+    )
+
+
+class FrozenNotionModel(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=True,
+        frozen=True,
     )

@@ -1,4 +1,4 @@
-from .base_model import BaseNotionModel
+from .base_model import BaseNotionModel, FrozenNotionModel
 from .validate import (
     validate_enum,
     validate_uuid4,
@@ -20,4 +20,5 @@ __all__ = [
     "validate_phone",
     # Base model
     "BaseNotionModel",
+    "FrozenNotionModel",
 ]
