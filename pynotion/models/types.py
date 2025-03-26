@@ -15,9 +15,7 @@ from ._internal import (
     validate_empty_dict,
 )
 
-NotionEmptyDict = Annotated[
-    dict, BeforeValidator(validate_empty_dict), Field(default_factory=dict)
-]
+NotionEmptyDict = Annotated[dict, BeforeValidator(validate_empty_dict)]
 
 
 class Color(str, Enum):

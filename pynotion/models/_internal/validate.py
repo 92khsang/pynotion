@@ -69,22 +69,34 @@ def validate_datetime(value: str | datetime) -> datetime:
 
 def validate_url(url: str) -> str:
     """
-    Validates and returns a given URL. Only 'http' or 'https' schemes are allowed.
+    Validates and returns a given URL.
+    - Allows 'http' or 'https' URLs with a valid netloc
+    - Allows relative paths (e.g., /images/foo.svg)
     """
+    if not isinstance(url, str):
+        raise TypeError(f"Expected str, got {type(url).__name__}")
+
     if not url:
         raise ValueError("URL can't be None or empty")
 
     from urllib.parse import urlparse
 
     parsed = urlparse(url)
-    if parsed.scheme not in ['http', 'https']:
-        raise ValueError(
-            f"Invalid URL scheme. Only http and https are allowed. Got: {parsed.scheme}"
-        )
-    if not parsed.netloc:
-        raise ValueError("URL must contain a valid domain")
 
-    return url
+    # Absolute URL with http/https
+    if parsed.scheme in ['http', 'https']:
+        if parsed.netloc:
+            return url
+        else:
+            raise ValueError(f"URL with scheme '{parsed.scheme}' missing domain")
+
+    # Relative path like /images/foo.svg
+    if not parsed.scheme and not parsed.netloc and parsed.path.startswith('/'):
+        return url
+
+    raise ValueError(
+        f"Invalid URL. Must be http/https URL or relative path starting with '/'. Got: {url}"
+    )
 
 
 def validate_email(email: str) -> str:
