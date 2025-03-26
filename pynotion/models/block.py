@@ -758,15 +758,6 @@ class TxVideoBlock(_TxBaseBlock):
     video: TxCaptionFile
 
 
-class TxUnsupportedBlock(_TxBaseBlock):
-    model_config = ConfigDict(
-        extra="allow", populate_by_name=True, arbitrary_types_allowed=True, frozen=True
-    )
-
-    type: Literal[BlockType.UNSUPPORTED] = Field(default=BlockType.UNSUPPORTED)
-    unsupported: dict = Field(default_factory=dict)
-
-
 TxBlock = Annotated[
     TxBookmarkBlock
     | TxBreadcrumbBlock
@@ -795,7 +786,6 @@ TxBlock = Annotated[
     | TxTableContentBlock
     | TxToDoBlock
     | TxToggleBlock
-    | TxVideoBlock
-    | TxUnsupportedBlock,
+    | TxVideoBlock,
     Field(discriminator="type"),
 ]
