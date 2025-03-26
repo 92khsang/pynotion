@@ -91,7 +91,7 @@ class Bot(BaseNotionModel):
         https://developers.notion.com/reference/user#bots
     """
 
-    owner: BotOwner
+    owner: Optional[BotOwner] = None
 
     workspace_name: Optional[str] = None
 
@@ -106,6 +106,9 @@ class Bot(BaseNotionModel):
         Returns:
             Bot: The validated Bot instance.
         """
+        if self.owner is None:
+            return self
+
         if self.owner.type == "workspace" and not self.workspace_name:
             raise ValueError(
                 "workspace_name must be set when an owner. Type is 'workspace'."  # noqa
