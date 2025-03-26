@@ -6,14 +6,10 @@ from pydantic import (
     Field,
     field_validator,
     BeforeValidator,
-    field_serializer,
+    model_serializer,
 )
 
-from .types import (
-    PropertyType,
-    FormulaValueType,
-    RollupValueType,
-)
+from .types import PropertyType, FormulaValueType, RollupValueType, RollupFunction
 from .._internal import (
     BaseNotionModel,
     validate_phone,
@@ -22,7 +18,7 @@ from .._internal import (
     FrozenNotionModel,
 )
 from ..file import FileWithName
-from ..object import NotionObjectId
+from ..object import NotionObjectRef
 from ..rich_text import RxRichText, TxRichText
 from ..types import Color, NotionDate, NotionDatetime
 from ..user import User, UserRef
@@ -65,26 +61,31 @@ FormulaValue = Annotated[
 class ArrayRollupValue(FrozenNotionModel):
     type: Literal[RollupValueType.ARRAY] = RollupValueType.ARRAY
     array: Optional[list[RxPropertyValue]] = None
+    function: RollupFunction
 
 
 class DateRollupValue(FrozenNotionModel):
     type: Literal[RollupValueType.DATE] = RollupValueType.DATE
     date: Optional[NotionDate] = None
+    function: RollupFunction
 
 
 class IncompleteRollupValue(FrozenNotionModel):
     type: Literal[RollupValueType.INCOMPLETE] = RollupValueType.INCOMPLETE
     incomplete: Optional[dict] = None
+    function: RollupFunction
 
 
 class NumberRollupValue(FrozenNotionModel):
     type: Literal[RollupValueType.NUMBER] = RollupValueType.NUMBER
     number: Optional[float | int] = None
+    function: RollupFunction
 
 
 class UnsupportedRollupValue(FrozenNotionModel):
     type: Literal[RollupValueType.UNSUPPORTED] = RollupValueType.UNSUPPORTED
     unsupported: Optional[dict] = None
+    function: RollupFunction
 
 
 RollupValue = Annotated[
@@ -212,7 +213,7 @@ class RxPhoneNumberPropertyValue(_RxBasePropertyValue):
 
 class RxRelationPropertyValue(_RxBasePropertyValue):
     type: Literal[PropertyType.RELATION] = PropertyType.RELATION
-    relation: list[NotionObjectId]
+    relation: list[NotionObjectRef]
     has_more: bool
 
 
@@ -268,6 +269,74 @@ RxPropertyValue = Annotated[
 ]
 
 
+class RxPaginatedTitlePropertyItem(_RxBasePropertyValue):
+    type: Literal[PropertyType.TITLE] = PropertyType.TITLE
+    title: RxRichText
+
+
+class RxPaginatedRichTextPropertyItem(_RxBasePropertyValue):
+    type: Literal[PropertyType.RICH_TEXT] = PropertyType.RICH_TEXT
+    rich_text: RxRichText
+
+
+class RxPaginatedRelationPropertyItem(_RxBasePropertyValue):
+    type: Literal[PropertyType.RELATION] = PropertyType.RELATION
+    relation: NotionObjectRef
+
+
+class RxPaginatedPeoplePropertyItem(_RxBasePropertyValue):
+    type: Literal[PropertyType.PEOPLE] = PropertyType.PEOPLE
+    people: User
+
+
+RxPaginatedPropertyItem = Annotated[
+    RxPaginatedTitlePropertyItem
+    | RxPaginatedRichTextPropertyItem
+    | RxPaginatedRelationPropertyItem
+    | RxPaginatedPeoplePropertyItem,
+    Field(discriminator="type"),
+]
+
+
+class _RxBasePropertyItem(_RxBasePropertyValue):
+    next_url: Optional[Annotated[str, BeforeValidator(validate_url)]]
+
+
+class RxTitlePropertyItem(_RxBasePropertyItem):
+    type: Literal[PropertyType.TITLE] = PropertyType.TITLE
+    title: dict
+
+
+class RxRichTextPropertyItem(_RxBasePropertyItem):
+    type: Literal[PropertyType.RICH_TEXT] = PropertyType.RICH_TEXT
+    rich_text: dict
+
+
+class RxRelationPropertyItem(_RxBasePropertyItem):
+    type: Literal[PropertyType.RELATION] = PropertyType.RELATION
+    relation: dict
+
+
+class RxPeoplePropertyItem(_RxBasePropertyItem):
+    type: Literal[PropertyType.PEOPLE] = PropertyType.PEOPLE
+    people: dict
+
+
+class RxRollupPropertyItem(_RxBasePropertyItem):
+    type: Literal[PropertyType.ROLLUP] = PropertyType.ROLLUP
+    rollup: RollupValue
+
+
+RxPropertyItem = Annotated[
+    RxTitlePropertyItem
+    | RxRichTextPropertyItem
+    | RxRelationPropertyItem
+    | RxPeoplePropertyItem
+    | RxRollupPropertyItem,
+    Field(discriminator="type"),
+]
+
+
 class TxOptionValue(BaseNotionModel):
     name: str
 
@@ -311,15 +380,20 @@ class TxPhoneNumberPropertyValue(BaseNotionModel):
 
 
 class TxRelationPropertyValue(BaseNotionModel):
-    relation: list[NotionObjectId] = Field(default_factory=list)
+    relation: list[NotionObjectRef] = Field(default_factory=list)
 
 
 class TxRichTextPropertyValue(BaseNotionModel):
     rich_text: list[TxRichText] = Field(default_factory=list)
 
-    @field_serializer("rich_text")
-    def ser_rich_text(self, value, _):
-        return [text.model_dump(exclude={"type"}) for text in value]
+    @model_serializer(mode="wrap")
+    def _mode_ser(self, handler):
+        data = handler(self)
+        if "rich_text" in data:
+            for item in data["rich_text"]:
+                item.pop("type", None)
+
+        return data
 
 
 class TxSelectPropertyValue(BaseNotionModel):
@@ -333,9 +407,14 @@ class TxStatusPropertyValue(BaseNotionModel):
 class TxTitlePropertyValue(BaseNotionModel):
     title: list[TxRichText] = Field(default_factory=list)
 
-    @field_serializer("title")
-    def ser_title(self, value, _):
-        return [text.model_dump(exclude={"type"}) for text in value]
+    @model_serializer(mode="wrap")
+    def _mode_ser(self, handler):
+        data = handler(self, handler)
+        if "title" in data:
+            for item in data["title"]:
+                item.pop("type", None)
+
+        return data
 
 
 class TxUrlPropertyValue(BaseNotionModel):

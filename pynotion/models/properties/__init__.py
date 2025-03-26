@@ -80,6 +80,19 @@ __all__ = [
     "RxTitlePropertyValue",
     "RxUrlPropertyValue",
     "RxPropertyValue",
+    # Rx Paginated Property Item
+    "RxPaginatedTitlePropertyItem",
+    "RxPaginatedRichTextPropertyItem",
+    "RxPaginatedRelationPropertyItem",
+    "RxPaginatedPeoplePropertyItem",
+    "RxPaginatedPropertyItem",
+    # Rx Property Item
+    "RxTitlePropertyItem",
+    "RxRichTextPropertyItem",
+    "RxRelationPropertyItem",
+    "RxPeoplePropertyItem",
+    "RxRollupPropertyItem",
+    "RxPropertyItem",
     # Tx Property Value Objects
     "TxOptionValue",
     # Tx Property Value
@@ -291,6 +304,19 @@ from .property_value import (
     RxTitlePropertyValue,
     RxUrlPropertyValue,
     RxPropertyValue,
+    # Rx Paginated Property Item
+    RxPaginatedTitlePropertyItem,
+    RxPaginatedRichTextPropertyItem,
+    RxPaginatedRelationPropertyItem,
+    RxPaginatedPeoplePropertyItem,
+    RxPaginatedPropertyItem,
+    # Rx Property Item
+    RxTitlePropertyItem,
+    RxRichTextPropertyItem,
+    RxRelationPropertyItem,
+    RxPeoplePropertyItem,
+    RxRollupPropertyItem,
+    RxPropertyItem,
     # Tx Property Value Objects
     TxOptionValue,
     # Tx Property Value

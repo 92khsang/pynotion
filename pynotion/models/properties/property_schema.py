@@ -206,11 +206,11 @@ class TxRollupSchema(BaseNotionModel):
 
 
 class TxTitlePropertySchema(BaseNotionModel):
-    title: NotionEmptyDict
+    title: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxRichTextPropertySchema(BaseNotionModel):
-    rich_text: NotionEmptyDict
+    rich_text: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxNumberPropertySchema(BaseNotionModel):
@@ -226,31 +226,31 @@ class TxMultiSelectPropertySchema(BaseNotionModel):
 
 
 class TxDatePropertySchema(BaseNotionModel):
-    date: NotionEmptyDict
+    date: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxPeoplePropertySchema(BaseNotionModel):
-    people: NotionEmptyDict
+    people: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxFilesPropertySchema(BaseNotionModel):
-    files: NotionEmptyDict
+    files: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxCheckboxPropertySchema(BaseNotionModel):
-    checkbox: NotionEmptyDict
+    checkbox: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxUrlPropertySchema(BaseNotionModel):
-    url: NotionEmptyDict
+    url: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxEmailPropertySchema(BaseNotionModel):
-    email: NotionEmptyDict
+    email: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxPhoneNumberPropertySchema(BaseNotionModel):
-    phone_number: NotionEmptyDict
+    phone_number: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxFormulaPropertySchema(BaseNotionModel):
@@ -266,19 +266,19 @@ class TxRollupPropertySchema(BaseNotionModel):
 
 
 class TxCreatedTimePropertySchema(BaseNotionModel):
-    created_time: NotionEmptyDict
+    created_time: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxCreatedByPropertySchema(BaseNotionModel):
-    created_by: NotionEmptyDict
+    created_by: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxLastEditedTimePropertySchema(BaseNotionModel):
-    last_edited_time: NotionEmptyDict
+    last_edited_time: NotionEmptyDict = Field(default_factory=dict)
 
 
 class TxLastEditedByPropertySchema(BaseNotionModel):
-    last_edited_by: NotionEmptyDict
+    last_edited_by: NotionEmptyDict = Field(default_factory=dict)
 
 
 TxPropertySchema = (
