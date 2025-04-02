@@ -4,23 +4,7 @@ from uuid import UUID
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from pynotion.models.block import *
-from pynotion.models.file import FileType, ExternalFileObject, HostedFileObject
-from pynotion.models.object import NotionObjectRef
-from pynotion.models.rich_text import (
-    RichTextType,
-    TxMentionRichText,
-    Annotations,
-    DateMention,
-    MentionType,
-    DatabaseMention,
-    TxEquationRichText,
-    Equation,
-    TxTextRichText,
-    Text,
-    LinkPreviewMention,
-)
-from pynotion.models.types import NotionDate
+from pynotion.models import *
 from tests.models.model_test_utils import DiscriminatedModelTester, PydanticModelTester
 
 
@@ -70,8 +54,8 @@ def test_block_type_enum(block_type):
         (
             TxTableBlock,
             {"table_width": 0, "has_column_header": True, "has_row_header": False},
-        ),  # Table width must be greater than 0
-        (TxTableRowBlock, {"cells": None}),  # Cells should be a list
+        ),  # TxTable width must be greater than 0
+        (TxTableRowBlock, {"cells": None}),  # TxTableRow should be a list
         (TxTableContentBlock, {"color": None}),  # Color is required
         (
             TxToDoBlock,
@@ -108,7 +92,7 @@ def test_invalid_block_model_creation(invalid_data):
             {
                 "object": "block",
                 "type": "bulleted_list_item",
-                "bullet_list_item": {
+                "bulleted_list_item": {
                     "rich_text": [
                         {
                             "type": "text",
@@ -147,24 +131,6 @@ def test_invalid_block_model_creation(invalid_data):
                     ],
                     "color": "green_background",
                 },
-            },
-        ),
-        (
-            TxBlock,
-            TxChildDatabaseBlock,
-            {
-                "object": "block",
-                "type": "child_database",
-                "child_database": {"title": "Timothy Hill DDS"},
-            },
-        ),
-        (
-            TxBlock,
-            TxChildPageBlock,
-            {
-                "object": "block",
-                "type": "child_page",
-                "child_page": {"title": "Melissa Dorsey"},
             },
         ),
         (
@@ -208,12 +174,12 @@ def test_invalid_block_model_creation(invalid_data):
         (
             TxBlock,
             TxColumnBlock,
-            {"object": "block", "type": "column", "column": {}},
+            {"object": "block", "type": "column", "column": {"children": []}},
         ),
         (
             TxBlock,
             TxColumnListBlock,
-            {"object": "block", "type": "column_list", "column_list": {}},
+            {"object": "block", "type": "column_list", "column_list": {"children": []}},
         ),
         (
             TxBlock,
@@ -464,6 +430,7 @@ def test_invalid_block_model_creation(invalid_data):
                     "table_width": 6,
                     "has_column_header": False,
                     "has_row_header": False,
+                    "children": [],
                 },
             },
         ),
@@ -473,7 +440,7 @@ def test_invalid_block_model_creation(invalid_data):
             {
                 "object": "block",
                 "type": "table_of_contents",
-                "table_of_contents": "orange",
+                "table_of_contents": {"color": "orange"},
             },
         ),
         (
@@ -483,21 +450,23 @@ def test_invalid_block_model_creation(invalid_data):
                 "object": "block",
                 "type": "table_row",
                 "table_row": {
-                    "rich_text": [
-                        {
-                            "annotations": {
-                                "bold": False,
-                                "italic": False,
-                                "strikethrough": False,
-                                "underline": True,
-                                "code": True,
-                                "color": "red_background",
-                            },
-                            "type": "equation",
-                            "equation": {
-                                "expression": "Sign sea economy budget. Fly home big then clearly sure.\nState west song she speech off other. Fund last happy city measure. Plan draw benefit game source range."
-                            },
-                        }
+                    "cells": [
+                        [
+                            {
+                                "annotations": {
+                                    "bold": False,
+                                    "italic": False,
+                                    "strikethrough": False,
+                                    "underline": True,
+                                    "code": True,
+                                    "color": "red_background",
+                                },
+                                "type": "equation",
+                                "equation": {
+                                    "expression": "Sign sea economy budget. Fly home big then clearly sure.\nState west song she speech off other. Fund last happy city measure. Plan draw benefit game source range."
+                                },
+                            }
+                        ]
                     ]
                 },
             },
@@ -518,13 +487,7 @@ def test_invalid_block_model_creation(invalid_data):
                             },
                         }
                     ],
-                    "children": [
-                        {
-                            "object": "block",
-                            "type": "table_of_contents",
-                            "table_of_contents": "red_background",
-                        }
-                    ],
+                    "children": [],
                 },
             },
         ),
@@ -546,11 +509,6 @@ def test_invalid_block_model_creation(invalid_data):
                     ]
                 },
             },
-        ),
-        (
-            TxBlock,
-            TxUnsupportedBlock,
-            {"object": "block", "type": "unsupported", "unsupported": {}},
         ),
         (
             TxBlock,
@@ -650,7 +608,7 @@ def test_tx_block_discriminated_model(
                 "archived": False,
                 "has_children": False,
                 "type": "bulleted_list_item",
-                "bullet_list_item": {
+                "bulleted_list_item": {
                     "rich_text": [
                         {
                             "annotations": {
@@ -1585,7 +1543,7 @@ def test_tx_block_discriminated_model(
                 },
                 "archived": False,
                 "type": "table_of_contents",
-                "table_of_contents": "pink",
+                "table_of_contents": {"color": "pink"},
             },
         ),
         (
@@ -1980,7 +1938,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             )
                         ],
@@ -2043,7 +2001,7 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.BULLETED_LIST_ITEM,
-                    'bullet_list_item': TxBulletListItem(
+                    'bulleted_list_item': TxBulletListItem(
                         rich_text=[
                             TxTextRichText(
                                 annotations=Annotations(
@@ -2057,7 +2015,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -2065,7 +2023,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -2078,7 +2036,7 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.BULLETED_LIST_ITEM,
-                    'bullet_list_item': {
+                    'bulleted_list_item': {
                         'rich_text': [
                             {
                                 'annotations': {
@@ -2109,7 +2067,7 @@ def test_rx_block_discriminated_model(
                 {
                     "object": "block",
                     "type": "bulleted_list_item",
-                    "bullet_list_item": {
+                    "bulleted_list_item": {
                         "rich_text": [
                             {
                                 "annotations": {
@@ -2152,7 +2110,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxEquationRichText(
@@ -2232,46 +2190,6 @@ def test_rx_block_discriminated_model(
             ),
         ),
         (
-            TxChildDatabaseBlock,
-            (
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.CHILD_DATABASE,
-                    'child_database': ChildDatabase(title='James Snyder'),
-                },
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.CHILD_DATABASE,
-                    'child_database': {'title': 'James Snyder'},
-                },
-                {
-                    "object": "block",
-                    "type": "child_database",
-                    "child_database": {"title": "James Snyder"},
-                },
-            ),
-        ),
-        (
-            TxChildPageBlock,
-            (
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.CHILD_PAGE,
-                    'child_page': ChildPage(title='Raymond Thompson'),
-                },
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.CHILD_PAGE,
-                    'child_page': {'title': 'Raymond Thompson'},
-                },
-                {
-                    "object": "block",
-                    "type": "child_page",
-                    "child_page": {"title": "Raymond Thompson"},
-                },
-            ),
-        ),
-        (
             TxCodeBlock,
             (
                 {
@@ -2312,7 +2230,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=DatabaseMention(
                                     type=MentionType.DATABASE,
-                                    database=NotionObjectRef(
+                                    database=NotionObjectIdWrapper(
                                         id=UUID('c1fcbfc1-6149-4090-8960-f330c74d21cd')
                                     ),
                                 ),
@@ -2463,14 +2381,14 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.COLUMN,
-                    'column': {},
+                    'column': {"children": []},
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.COLUMN,
-                    'column': {},
+                    'column': {"children": []},
                 },
-                {"object": "block", "type": "column", "column": {}},
+                {"object": "block", "type": "column", "column": {"children": []}},
             ),
         ),
         (
@@ -2479,14 +2397,18 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.COLUMN_LIST,
-                    'column_list': {},
+                    'column_list': {"children": []},
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.COLUMN_LIST,
-                    'column_list': {},
+                    'column_list': {"children": []},
                 },
-                {"object": "block", "type": "column_list", "column_list": {}},
+                {
+                    "object": "block",
+                    "type": "column_list",
+                    "column_list": {"children": []},
+                },
             ),
         ),
         (
@@ -2511,7 +2433,7 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.EMBED,
-                    'embed': NotionUrlObject(url='https://www.mcdaniel-nelson.net/'),
+                    'embed': NotionUrlWrapper(url='https://www.mcdaniel-nelson.net/'),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
@@ -2848,7 +2770,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -2856,7 +2778,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -2950,7 +2872,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -2958,7 +2880,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -3054,7 +2976,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             )
                         ],
@@ -3132,7 +3054,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -3140,7 +3062,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -3162,7 +3084,7 @@ def test_rx_block_discriminated_model(
                                             type=RichTextType.TEXT,
                                             text=Text(
                                                 content='Miss page set than bank democratic million.',
-                                                link=NotionUrlObject(
+                                                link=NotionUrlWrapper(
                                                     url='http://clarke.com/'
                                                 ),
                                             ),
@@ -3179,7 +3101,7 @@ def test_rx_block_discriminated_model(
                                             type=RichTextType.TEXT,
                                             text=Text(
                                                 content='Miss page set than bank democratic million.',
-                                                link=NotionUrlObject(
+                                                link=NotionUrlWrapper(
                                                     url='http://clarke.com/'
                                                 ),
                                             ),
@@ -3336,12 +3258,12 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.SYNCED_BLOCK,
-                    'synced_block': {'children': []},
+                    'synced_block': {'children': [], 'synced_from': None},
                 },
                 {
                     "object": "block",
                     "type": "synced_block",
-                    "synced_block": {"children": []},
+                    "synced_block": {"children": [], "synced_from": None},
                 },
             ),
         ),
@@ -3351,8 +3273,11 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE,
-                    'table': Table(
-                        table_width=1, has_column_header=True, has_row_header=True
+                    'table': TxTable(
+                        table_width=1,
+                        has_column_header=True,
+                        has_row_header=True,
+                        children=[],
                     ),
                 },
                 {
@@ -3362,6 +3287,7 @@ def test_rx_block_discriminated_model(
                         'table_width': 1,
                         'has_column_header': True,
                         'has_row_header': True,
+                        'children': [],
                     },
                 },
                 {
@@ -3371,6 +3297,7 @@ def test_rx_block_discriminated_model(
                         "table_width": 1,
                         "has_column_header": True,
                         "has_row_header": True,
+                        "children": [],
                     },
                 },
             ),
@@ -3381,17 +3308,19 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE_OF_CONTENTS,
-                    'table_of_contents': BackgroundColor.BLUE_BACKGROUND,
+                    'table_of_contents': TableOfContents(
+                        color=BackgroundColor.BLUE_BACKGROUND
+                    ),
                 },
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE_OF_CONTENTS,
-                    'table_of_contents': BackgroundColor.BLUE_BACKGROUND,
+                    'table_of_contents': {'color': BackgroundColor.BLUE_BACKGROUND},
                 },
                 {
                     "object": "block",
                     "type": "table_of_contents",
-                    "table_of_contents": "blue_background",
+                    "table_of_contents": {"color": "blue_background"},
                 },
             ),
         ),
@@ -3401,27 +3330,31 @@ def test_rx_block_discriminated_model(
                 {
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE_ROW,
-                    'table_row': TxCells(
-                        rich_text=[
-                            TxMentionRichText(
-                                annotations=Annotations(
-                                    bold=False,
-                                    italic=False,
-                                    strikethrough=True,
-                                    underline=False,
-                                    code=False,
-                                    color=BackgroundColor.PINK_BACKGROUND,
-                                ),
-                                type=RichTextType.MENTION,
-                                mention=DateMention(
-                                    type=MentionType.DATE,
-                                    date=NotionDate(
-                                        start=datetime(1991, 9, 13, 4, 30, 38, 559479),
-                                        end=None,
-                                        time_zone=None,
+                    'table_row': TxTableRow(
+                        cells=[
+                            [
+                                TxMentionRichText(
+                                    annotations=Annotations(
+                                        bold=False,
+                                        italic=False,
+                                        strikethrough=True,
+                                        underline=False,
+                                        code=False,
+                                        color=BackgroundColor.PINK_BACKGROUND,
                                     ),
-                                ),
-                            )
+                                    type=RichTextType.MENTION,
+                                    mention=DateMention(
+                                        type=MentionType.DATE,
+                                        date=NotionDate(
+                                            start=datetime(
+                                                1991, 9, 13, 4, 30, 38, 559479
+                                            ),
+                                            end=None,
+                                            time_zone=None,
+                                        ),
+                                    ),
+                                )
+                            ]
                         ]
                     ),
                 },
@@ -3429,26 +3362,28 @@ def test_rx_block_discriminated_model(
                     'object': NotionObjectType.BLOCK,
                     'type': BlockType.TABLE_ROW,
                     'table_row': {
-                        'rich_text': [
-                            {
-                                'annotations': {
-                                    'bold': False,
-                                    'italic': False,
-                                    'strikethrough': True,
-                                    'underline': False,
-                                    'code': False,
-                                    'color': BackgroundColor.PINK_BACKGROUND,
-                                },
-                                'type': RichTextType.MENTION,
-                                'mention': {
-                                    'type': MentionType.DATE,
-                                    'date': {
-                                        'start': datetime(
-                                            1991, 9, 13, 4, 30, 38, 559479
-                                        )
+                        'cells': [
+                            [
+                                {
+                                    'annotations': {
+                                        'bold': False,
+                                        'italic': False,
+                                        'strikethrough': True,
+                                        'underline': False,
+                                        'code': False,
+                                        'color': BackgroundColor.PINK_BACKGROUND,
                                     },
-                                },
-                            }
+                                    'type': RichTextType.MENTION,
+                                    'mention': {
+                                        'type': MentionType.DATE,
+                                        'date': {
+                                            'start': datetime(
+                                                1991, 9, 13, 4, 30, 38, 559479
+                                            )
+                                        },
+                                    },
+                                }
+                            ]
                         ]
                     },
                 },
@@ -3456,22 +3391,24 @@ def test_rx_block_discriminated_model(
                     "object": "block",
                     "type": "table_row",
                     "table_row": {
-                        "rich_text": [
-                            {
-                                "annotations": {
-                                    "bold": False,
-                                    "italic": False,
-                                    "strikethrough": True,
-                                    "underline": False,
-                                    "code": False,
-                                    "color": "pink_background",
-                                },
-                                "type": "mention",
-                                "mention": {
-                                    "type": "date",
-                                    "date": {"start": "1991-09-13T04:30:38.559479"},
-                                },
-                            }
+                        "cells": [
+                            [
+                                {
+                                    "annotations": {
+                                        "bold": False,
+                                        "italic": False,
+                                        "strikethrough": True,
+                                        "underline": False,
+                                        "code": False,
+                                        "color": "pink_background",
+                                    },
+                                    "type": "mention",
+                                    "mention": {
+                                        "type": "date",
+                                        "date": {"start": "1991-09-13T04:30:38.559479"},
+                                    },
+                                }
+                            ]
                         ]
                     },
                 },
@@ -3497,7 +3434,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -3505,7 +3442,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -3600,7 +3537,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.TEXT,
                                 text=Text(
                                     content='Miss page set than bank democratic million.',
-                                    link=NotionUrlObject(url='http://clarke.com/'),
+                                    link=NotionUrlWrapper(url='http://clarke.com/'),
                                 ),
                             ),
                             TxMentionRichText(
@@ -3608,7 +3545,7 @@ def test_rx_block_discriminated_model(
                                 type=RichTextType.MENTION,
                                 mention=LinkPreviewMention(
                                     type=MentionType.LINK_PREVIEW,
-                                    link_preview=NotionUrlObject(
+                                    link_preview=NotionUrlWrapper(
                                         url='http://barber.com/'
                                     ),
                                 ),
@@ -3680,22 +3617,6 @@ def test_rx_block_discriminated_model(
                         "color": "gray_background",
                     },
                 },
-            ),
-        ),
-        (
-            TxUnsupportedBlock,
-            (
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.UNSUPPORTED,
-                    'unsupported': {},
-                },
-                {
-                    'object': NotionObjectType.BLOCK,
-                    'type': BlockType.UNSUPPORTED,
-                    'unsupported': {},
-                },
-                {"object": "block", "type": "unsupported", "unsupported": {}},
             ),
         ),
         (
