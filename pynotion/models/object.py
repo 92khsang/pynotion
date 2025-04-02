@@ -9,20 +9,18 @@ from ._internal import (
     BaseNotionModel,
 )
 
+__all__ = [
+    "NotionObjectId",
+    "NotionObjectType",
+    "NotionObjectIdWrapper",
+]
+
+
 NotionObjectId = Annotated[str | int | bytes | UUID, BeforeValidator(validate_uuid4)]
 
 
 class NotionObjectType(str, Enum):
-    """
-    Defines main object types in Notion.
-
-    Attributes:
-        DATABASE: Database object type.
-        PAGE: Page object type.
-        BLOCK: Block object type.
-        USER: User object type.
-        COMMENT: Comment object type.
-    """
+    """Defines main object types in Notion."""
 
     DATABASE = "database"
     PAGE = "page"
@@ -31,7 +29,7 @@ class NotionObjectType(str, Enum):
     COMMENT = "comment"
 
 
-class NotionObjectRef(BaseNotionModel):
+class NotionObjectIdWrapper(BaseNotionModel):
     """Reference to a Notion object.
 
     Attributes:
