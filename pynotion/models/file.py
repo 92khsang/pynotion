@@ -1,7 +1,5 @@
-from __future__ import annotations as _annotations
-
 from enum import Enum
-from typing import Literal, Annotated
+from typing import Literal, Annotated, TYPE_CHECKING, Union
 
 from pydantic import Field, BeforeValidator
 
@@ -9,7 +7,24 @@ from ._internal import (
     BaseNotionModel,
     validate_url,
 )
-from .types import NotionDatetime
+from ._internal.utils import discriminate_field
+
+if TYPE_CHECKING:
+    from .types import NotionDatetime
+
+__all__ = [
+    "FileType",
+    "HostedFileObject",
+    "ExternalFileObject",
+    "HostedFile",
+    "HostedFileWithName",
+    "ExternalFile",
+    "ExternalFileWithName",
+    "NotionFile",
+    "NotionFileWithName",
+    "FILE_CLASS_MAP",
+    "File_WITH_NAME_CLASS_MAP",
+]
 
 
 class FileType(str, Enum):
@@ -35,7 +50,7 @@ class HostedFileObject(BaseNotionModel):
     """
 
     url: Annotated[str, BeforeValidator(validate_url)]
-    expiry_time: NotionDatetime
+    expiry_time: "NotionDatetime"
 
 
 class ExternalFileObject(BaseNotionModel):
@@ -57,19 +72,7 @@ class HostedFile(BaseNotionModel):
     """
 
     type: Literal[FileType.FILE] = Field(default=FileType.FILE, frozen=True)
-    file: HostedFileObject
-
-
-class HostedFileWithName(HostedFile):
-    """Represents a file hosted by Notion with a name.
-
-    Attributes:
-        type: The type of the file.
-        file: The hosted file object.
-        name: The name of the file.
-    """
-
-    name: str
+    file: "HostedFileObject"
 
 
 class ExternalFile(BaseNotionModel):
@@ -81,11 +84,24 @@ class ExternalFile(BaseNotionModel):
     """
 
     type: Literal[FileType.EXTERNAL] = Field(default=FileType.EXTERNAL, frozen=True)
-    external: ExternalFileObject
+    external: "ExternalFileObject"
 
 
-class ExternalFileWithName(ExternalFile):
-    """Represents an externally hosted file in Notion with a name.
+class HostedFileWithName(BaseNotionModel):
+    """Represents a file hosted by Notion.
+
+    Attributes:
+        type: The type of the file.
+        file: The hosted file object.
+    """
+
+    type: Literal[FileType.FILE] = Field(default=FileType.FILE, frozen=True)
+    file: "HostedFileObject"
+    name: str
+
+
+class ExternalFileWithName(BaseNotionModel):
+    """Represents an externally hosted file in Notion.
 
     Attributes:
         type: The type of the file.
@@ -93,10 +109,29 @@ class ExternalFileWithName(ExternalFile):
         name: The name of the file.
     """
 
+    type: Literal[FileType.EXTERNAL] = Field(default=FileType.EXTERNAL, frozen=True)
+    external: "ExternalFileObject"
     name: str
 
 
-File = Annotated[HostedFile | ExternalFile, Field(discriminator="type")]
-FileWithName = Annotated[
-    HostedFileWithName | ExternalFileWithName, Field(discriminator="type")
+FILE_CLASS_MAP = {
+    FileType.FILE: "HostedFile",
+    FileType.EXTERNAL: "ExternalFile",
+}
+
+
+NotionFile = Annotated[
+    Union[tuple(FILE_CLASS_MAP.values())],
+    BeforeValidator(lambda v: discriminate_field(v, "type", FILE_CLASS_MAP)),
+]
+
+File_WITH_NAME_CLASS_MAP = {
+    FileType.FILE: "HostedFileWithName",
+    FileType.EXTERNAL: "ExternalFileWithName",
+}
+
+
+NotionFileWithName = Annotated[
+    Union[tuple(File_WITH_NAME_CLASS_MAP.values())],
+    BeforeValidator(lambda v: discriminate_field(v, "type", File_WITH_NAME_CLASS_MAP)),
 ]

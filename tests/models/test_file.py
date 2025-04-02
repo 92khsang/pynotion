@@ -3,7 +3,14 @@ from datetime import timezone, datetime
 import pytest
 from pydantic import ValidationError
 
-from pynotion.models.file import *
+from pynotion.models import (
+    ExternalFileObject,
+    HostedFileObject,
+    NotionFile,
+    HostedFile,
+    ExternalFile,
+    FileType,
+)
 from tests.models.model_test_utils import (
     PydanticModelTester,
     DiscriminatedModelTester,
@@ -65,7 +72,7 @@ def test_notion_hosted_file(clz, values, should_raise):
     "annotated_clz, expected_clz, input_data",
     [
         (
-            File,
+            NotionFile,
             HostedFile,
             {
                 "type": FileType.FILE,
@@ -75,7 +82,7 @@ def test_notion_hosted_file(clz, values, should_raise):
             },
         ),
         (
-            File,
+            NotionFile,
             ExternalFile,
             {
                 "type": FileType.EXTERNAL,
