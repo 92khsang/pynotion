@@ -1,7 +1,7 @@
 from __future__ import annotations as _annotations
 
 from enum import Enum
-from typing import Literal, Annotated
+from typing import Literal, Annotated, Union
 from uuid import UUID
 
 from pydantic import Field, ConfigDict, BeforeValidator
@@ -11,15 +11,20 @@ from ._internal import (
     validate_uuid4,
     validate_url,
 )
+from ._internal.utils import discriminate_field
+
+__all__ = [
+    "EmojiType",
+    "CustomEmojiObject",
+    "SingleEmoji",
+    "CustomEmoji",
+    "NotionEmoji",
+    "EMOJI_CLASS_MAP",
+]
 
 
 class EmojiType(str, Enum):
-    """Defines the possible emoji types in Notion.
-
-    Attributes:
-        EMOJI: Standard Unicode emoji.
-        CUSTOM_EMOJI: Custom emoji uploaded to Notion.
-    """
+    """Defines the possible emoji types in Notion."""
 
     EMOJI = "emoji"
     CUSTOM_EMOJI = "custom_emoji"
@@ -72,4 +77,13 @@ class CustomEmoji(BaseNotionModel):
     custom_emoji: CustomEmojiObject
 
 
-Emoji = Annotated[SingleEmoji | CustomEmoji, Field(discriminator="type")]
+EMOJI_CLASS_MAP = {
+    EmojiType.EMOJI: "SingleEmoji",
+    EmojiType.CUSTOM_EMOJI: "CustomEmoji",
+}
+
+
+NotionEmoji = Annotated[
+    Union[tuple(EMOJI_CLASS_MAP.values())],
+    BeforeValidator(lambda v: discriminate_field(v, "type", EMOJI_CLASS_MAP)),
+]

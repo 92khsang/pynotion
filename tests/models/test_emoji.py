@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 import pytest
 from pydantic import ValidationError
@@ -43,7 +43,7 @@ def test_notion_emoji(clz, emoji_type, type_object, should_raise):
     "annotated_clz, expected_clz, input_data",
     [
         (
-            Emoji,
+            NotionEmoji,
             SingleEmoji,
             {
                 "type": EmojiType.EMOJI,
@@ -51,7 +51,7 @@ def test_notion_emoji(clz, emoji_type, type_object, should_raise):
             },
         ),
         (
-            Emoji,
+            NotionEmoji,
             CustomEmoji,
             {
                 "type": EmojiType.CUSTOM_EMOJI,
