@@ -3,7 +3,13 @@ from uuid import uuid4, UUID
 import pytest
 from pydantic import ValidationError
 
-from pynotion.models.parent import *
+from pynotion.models import (
+    DatabaseParent,
+    ParentType,
+    PageParent,
+    BlockParent,
+    WorkspaceParent,
+)
 from tests.models.model_test_utils import PydanticModelTester
 
 
