@@ -1,5 +1,3 @@
-from __future__ import annotations as _annotations
-
 from pydantic import BaseModel, ConfigDict
 
 
@@ -13,7 +11,7 @@ class BaseNotionModel(BaseModel):
     )
 
 
-class FrozenNotionModel(BaseModel):
+class FrozenNotionModel(BaseNotionModel):
     model_config = ConfigDict(
         extra="ignore",
         populate_by_name=True,
