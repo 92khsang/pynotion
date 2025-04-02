@@ -1,8 +1,9 @@
+from uuid import UUID
+
 import pytest
 from pydantic import BaseModel
 
-from pynotion.models.properties.property import *
-from pynotion.models.rich_text import *
+from pynotion.models import *
 from tests.models.model_test_utils import DiscriminatedModelTester, PydanticModelTester
 
 
@@ -586,7 +587,7 @@ def test_property_discriminated_model(
                     'type': PropertyType.RELATION,
                     'relation': DualRelation(
                         database_id=UUID('f9b716fd-243d-41d9-a925-3ba27d95c673'),
-                        dual_property=DualProperty(
+                        dual_property=SyncRelation(
                             synced_property_id=None,
                             synced_property_name='BzfrdohJhkdRvoTGcrno',
                         ),

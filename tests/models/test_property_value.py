@@ -4,25 +4,7 @@ from uuid import UUID
 import pytest
 from pydantic import BaseModel
 
-from pynotion.models.file import (
-    ExternalFileWithName,
-    FileType,
-    ExternalFileObject,
-    HostedFileWithName,
-    HostedFileObject,
-)
-from pynotion.models.object import NotionObjectType
-from pynotion.models.properties.property_value import *
-from pynotion.models.rich_text import *
-from pynotion.models.user import (
-    BotUser,
-    UserType,
-    Bot,
-    WorkspaceBotOwner,
-    BotOwnerType,
-    PersonUser,
-    Person,
-)
+from pynotion.models import *
 from tests.models.model_test_utils import DiscriminatedModelTester, PydanticModelTester
 
 
@@ -106,27 +88,28 @@ def test_formula_discriminated_model(
                         ],
                     },
                 ],
+                "function": "count",
             },
         ),
         (
             RollupValue,
             DateRollupValue,
-            {"type": "date"},
+            {"type": "date", "function": "max"},
         ),
         (
             RollupValue,
             IncompleteRollupValue,
-            {"type": "incomplete", "incomplete": {}},
+            {"type": "incomplete", "incomplete": {}, "function": "count"},
         ),
         (
             RollupValue,
             NumberRollupValue,
-            {"type": "number", "number": 901578739},
+            {"type": "number", "number": 901578739, "function": "count"},
         ),
         (
             RollupValue,
             UnsupportedRollupValue,
-            {"type": "unsupported", "unsupported": {}},
+            {"type": "unsupported", "unsupported": {}, "function": "count"},
         ),
     ],
 )
@@ -316,10 +299,13 @@ def test_rollup_discriminated_model(
             RxPropertyValue,
             RxRelationPropertyValue,
             {
-                "id": "ef160da7-abc9-4b3a-89b8-db95365dadb6",
+                "id": "99f582e0-c58c-4296-8c15-0c532669cb09",
                 "type": "relation",
-                "relation": ["cfddaddc-5848-4974-a5f6-78d68ed32b78"],
-                "has_more": False,
+                "relation": [
+                    {"id": "f72485ad-fb1c-4075-b179-47cb43ae7fce"},
+                    {"id": "49a0a5de-90f2-4467-a518-a5197135d55f"},
+                ],
+                "has_more": True,
             },
         ),
         (
@@ -378,7 +364,7 @@ def test_rollup_discriminated_model(
             {
                 "id": "cf2014bd-2aab-43d1-8bc2-3188366084a9",
                 "type": "rollup",
-                "rollup": {"type": "incomplete"},
+                "rollup": {"type": "incomplete", "function": "sum"},
             },
         ),
         (
@@ -500,97 +486,6 @@ def test_rx_property_value_discriminated_model(
 
 
 @pytest.mark.parametrize(
-    "annotated_clz, expected_clz, input_data",
-    [
-        (
-            TxPropertyValue,
-            TxCheckboxPropertyValue,
-            {"checkbox": False},
-        ),
-        (
-            TxPropertyValue,
-            TxDatePropertyValue,
-            {"date": {"start": "1975-10-03T22:40:52"}},
-        ),
-        (
-            TxPropertyValue,
-            TxEmailPropertyValue,
-            {"email": "alexgriffith@example.com"},
-        ),
-        (
-            TxPropertyValue,
-            TxFilesPropertyValue,
-            {
-                "files": [
-                    {
-                        "type": "file",
-                        "file": {
-                            "url": "http://murphy.com/",
-                            "expiry_time": "1981-01-21T13:19:06.159888",
-                        },
-                        "name": "Dana Parker",
-                    }
-                ]
-            },
-        ),
-        (
-            TxPropertyValue,
-            TxMultiSelectPropertyValue,
-            {"multi_select": [{"name": "Melissa Allen"}]},
-        ),
-        (
-            TxPropertyValue,
-            TxNumberPropertyValue,
-            {"number": 44336787},
-        ),
-        (
-            TxPropertyValue,
-            TxPeoplePropertyValue,
-            {
-                "people": [
-                    {"object": "user", "id": "6c2dbd5b-ae3f-4351-bbac-ff4b4d07a7d7"}
-                ]
-            },
-        ),
-        (
-            TxPropertyValue,
-            TxPhoneNumberPropertyValue,
-            {"phone_number": "(997)545-1663"},
-        ),
-        (
-            TxPropertyValue,
-            TxRelationPropertyValue,
-            {
-                "relation": [
-                    "6288cb51-cd17-4499-9f78-062b49fcb11f",
-                    "08a7f08f-0940-4ead-ae34-ba7d290a39f0",
-                ]
-            },
-        ),
-        (
-            TxPropertyValue,
-            TxSelectPropertyValue,
-            {"select": {"name": "Kelly Palmer"}},
-        ),
-        (
-            TxPropertyValue,
-            TxStatusPropertyValue,
-            {"status": {"name": "Brenda Smith"}},
-        ),
-        (
-            TxPropertyValue,
-            TxUrlPropertyValue,
-            {"url": "https://www.holder-thomas.com/"},
-        ),
-    ],
-)
-def test_tx_property_value_discriminated_model(
-    annotated_clz: type, expected_clz: type, input_data: dict
-):
-    DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
-
-
-@pytest.mark.parametrize(
     "clz, test_data",
     [
         (
@@ -661,150 +556,229 @@ def test_formula_models_serialization(
                 {
                     'type': RollupValueType.ARRAY,
                     'array': [
-                        RxPeoplePropertyValue(
-                            id='a9974da7-7a88-49d5-a368-9a3737c2dfce',
-                            type=PropertyType.PEOPLE,
-                            people=[
-                                BotUser(
-                                    object=NotionObjectType.USER,
-                                    id=UUID('1cf52fc2-9bfe-4628-91e1-6aea031c46dc'),
-                                    name='Kevin Wagner',
-                                    avatar_url='https://oconnor.net/',
-                                    type=UserType.BOT,
-                                    bot=Bot(
-                                        owner=WorkspaceBotOwner(
-                                            type=BotOwnerType.WORKSPACE, workspace=True
+                        RxTitlePropertyValue(
+                            id='8dd68534-debe-4195-ae5c-5c351e5ffec0',
+                            type=PropertyType.TITLE,
+                            title=[
+                                RxMentionRichText(
+                                    annotations=Annotations(
+                                        bold=False,
+                                        italic=True,
+                                        strikethrough=False,
+                                        underline=False,
+                                        code=True,
+                                        color=BackgroundColor.YELLOW_BACKGROUND,
+                                    ),
+                                    plain_text='Where miss technology hand none hot second.',
+                                    href='http://orr.net/',
+                                    type=RichTextType.MENTION,
+                                    mention=RxUserMention(
+                                        type=MentionType.USER,
+                                        user=PersonUser(
+                                            object=NotionObjectType.USER,
+                                            id=UUID(
+                                                '75a23975-8797-43c5-80e2-a9febe61b545'
+                                            ),
+                                            name='Christopher Graham',
+                                            avatar_url='http://hogan-smith.com/',
+                                            type=UserType.PERSON,
+                                            person=Person(
+                                                email='andersonstanley@example.com'
+                                            ),
                                         ),
-                                        workspace_name='Sample Workspace',
                                     ),
                                 ),
-                                BotUser(
-                                    object=NotionObjectType.USER,
-                                    id=UUID('f224fb5a-5b55-496a-84e0-fe4b34c00c4e'),
-                                    name='Steven Mckee',
-                                    avatar_url='http://montgomery.com/',
-                                    type=UserType.BOT,
-                                    bot=Bot(
-                                        owner=WorkspaceBotOwner(
-                                            type=BotOwnerType.WORKSPACE, workspace=True
-                                        ),
-                                        workspace_name='Sample Workspace',
+                                RxEquationRichText(
+                                    annotations=Annotations(
+                                        bold=True,
+                                        italic=True,
+                                        strikethrough=True,
+                                        underline=False,
+                                        code=False,
+                                        color=BackgroundColor.YELLOW_BACKGROUND,
+                                    ),
+                                    plain_text='Perhaps market ask.',
+                                    href='http://smith.com/',
+                                    type=RichTextType.EQUATION,
+                                    equation=Equation(
+                                        expression='Pm possible boy fund per base require. Her edge administration particularly cultural tell. Save better tree note best.\nBoy or past one class. Board read human single.'
                                     ),
                                 ),
                             ],
                         )
                     ],
+                    'function': RollupFunction.UNCHECKED,
                 },
                 {
                     'type': RollupValueType.ARRAY,
                     'array': [
                         {
-                            'id': 'a9974da7-7a88-49d5-a368-9a3737c2dfce',
-                            'type': PropertyType.PEOPLE,
-                            'people': [
+                            'id': '8dd68534-debe-4195-ae5c-5c351e5ffec0',
+                            'type': PropertyType.TITLE,
+                            'title': [
                                 {
-                                    'object': NotionObjectType.USER,
-                                    'id': UUID('1cf52fc2-9bfe-4628-91e1-6aea031c46dc'),
-                                    'name': 'Kevin Wagner',
-                                    'avatar_url': 'https://oconnor.net/',
-                                    'type': UserType.BOT,
-                                    'bot': {
-                                        'owner': {
-                                            'type': BotOwnerType.WORKSPACE,
-                                            'workspace': True,
+                                    'annotations': {
+                                        'bold': False,
+                                        'italic': True,
+                                        'strikethrough': False,
+                                        'underline': False,
+                                        'code': True,
+                                        'color': BackgroundColor.YELLOW_BACKGROUND,
+                                    },
+                                    'plain_text': 'Where miss technology hand none hot second.',
+                                    'href': 'http://orr.net/',
+                                    'type': RichTextType.MENTION,
+                                    'mention': {
+                                        'type': MentionType.USER,
+                                        'user': {
+                                            'object': NotionObjectType.USER,
+                                            'id': UUID(
+                                                '75a23975-8797-43c5-80e2-a9febe61b545'
+                                            ),
+                                            'name': 'Christopher Graham',
+                                            'avatar_url': 'http://hogan-smith.com/',
+                                            'type': UserType.PERSON,
+                                            'person': {
+                                                'email': 'andersonstanley@example.com'
+                                            },
                                         },
-                                        'workspace_name': 'Sample Workspace',
                                     },
                                 },
                                 {
-                                    'object': NotionObjectType.USER,
-                                    'id': UUID('f224fb5a-5b55-496a-84e0-fe4b34c00c4e'),
-                                    'name': 'Steven Mckee',
-                                    'avatar_url': 'http://montgomery.com/',
-                                    'type': UserType.BOT,
-                                    'bot': {
-                                        'owner': {
-                                            'type': BotOwnerType.WORKSPACE,
-                                            'workspace': True,
-                                        },
-                                        'workspace_name': 'Sample Workspace',
+                                    'annotations': {
+                                        'bold': True,
+                                        'italic': True,
+                                        'strikethrough': True,
+                                        'underline': False,
+                                        'code': False,
+                                        'color': BackgroundColor.YELLOW_BACKGROUND,
+                                    },
+                                    'plain_text': 'Perhaps market ask.',
+                                    'href': 'http://smith.com/',
+                                    'type': RichTextType.EQUATION,
+                                    'equation': {
+                                        'expression': 'Pm possible boy fund per base require. Her edge administration particularly cultural tell. Save better tree note best.\nBoy or past one class. Board read human single.'
                                     },
                                 },
                             ],
                         }
                     ],
+                    'function': RollupFunction.UNCHECKED,
                 },
                 {
                     "type": "array",
                     "array": [
                         {
-                            "id": "a9974da7-7a88-49d5-a368-9a3737c2dfce",
-                            "type": "people",
-                            "people": [
+                            "id": "8dd68534-debe-4195-ae5c-5c351e5ffec0",
+                            "type": "title",
+                            "title": [
                                 {
-                                    "object": "user",
-                                    "id": "1cf52fc2-9bfe-4628-91e1-6aea031c46dc",
-                                    "name": "Kevin Wagner",
-                                    "avatar_url": "https://oconnor.net/",
-                                    "type": "bot",
-                                    "bot": {
-                                        "owner": {
-                                            "type": "workspace",
-                                            "workspace": True,
+                                    "annotations": {
+                                        "bold": False,
+                                        "italic": True,
+                                        "strikethrough": False,
+                                        "underline": False,
+                                        "code": True,
+                                        "color": "yellow_background",
+                                    },
+                                    "plain_text": "Where miss technology hand none hot second.",
+                                    "href": "http://orr.net/",
+                                    "type": "mention",
+                                    "mention": {
+                                        "type": "user",
+                                        "user": {
+                                            "object": "user",
+                                            "id": "75a23975-8797-43c5-80e2-a9febe61b545",
+                                            "name": "Christopher Graham",
+                                            "avatar_url": "http://hogan-smith.com/",
+                                            "type": "person",
+                                            "person": {
+                                                "email": "andersonstanley@example.com"
+                                            },
                                         },
-                                        "workspace_name": "Sample Workspace",
                                     },
                                 },
                                 {
-                                    "object": "user",
-                                    "id": "f224fb5a-5b55-496a-84e0-fe4b34c00c4e",
-                                    "name": "Steven Mckee",
-                                    "avatar_url": "http://montgomery.com/",
-                                    "type": "bot",
-                                    "bot": {
-                                        "owner": {
-                                            "type": "workspace",
-                                            "workspace": True,
-                                        },
-                                        "workspace_name": "Sample Workspace",
+                                    "annotations": {
+                                        "bold": True,
+                                        "italic": True,
+                                        "strikethrough": True,
+                                        "underline": False,
+                                        "code": False,
+                                        "color": "yellow_background",
+                                    },
+                                    "plain_text": "Perhaps market ask.",
+                                    "href": "http://smith.com/",
+                                    "type": "equation",
+                                    "equation": {
+                                        "expression": "Pm possible boy fund per base require. Her edge administration particularly cultural tell. Save better tree note best.\nBoy or past one class. Board read human single."
                                     },
                                 },
                             ],
                         }
                     ],
+                    "function": "unchecked",
                 },
             ),
         ),
         (
             DateRollupValue,
             (
-                {'type': RollupValueType.DATE, 'date': None},
-                {'type': RollupValueType.DATE},
-                {"type": "date"},
+                {
+                    'type': RollupValueType.DATE,
+                    'date': None,
+                    'function': RollupFunction.AVERAGE,
+                },
+                {'type': RollupValueType.DATE, 'function': RollupFunction.AVERAGE},
+                {"type": "date", "function": "average"},
             ),
         ),
         (
             IncompleteRollupValue,
             (
-                {'type': RollupValueType.INCOMPLETE, 'incomplete': {}},
-                {'type': RollupValueType.INCOMPLETE, 'incomplete': {}},
-                {"type": "incomplete", "incomplete": {}},
+                {
+                    'type': RollupValueType.INCOMPLETE,
+                    'incomplete': {},
+                    'function': RollupFunction.MAX,
+                },
+                {
+                    'type': RollupValueType.INCOMPLETE,
+                    'incomplete': {},
+                    'function': RollupFunction.MAX,
+                },
+                {"type": "incomplete", "incomplete": {}, "function": "max"},
             ),
         ),
         (
             NumberRollupValue,
             (
-                {'type': RollupValueType.NUMBER, 'number': 73591},
-                {'type': RollupValueType.NUMBER, 'number': 73591},
-                {"type": "number", "number": 73591},
+                {
+                    'type': RollupValueType.NUMBER,
+                    'number': 73,
+                    'function': RollupFunction.PERCENT_CHECKED,
+                },
+                {
+                    'type': RollupValueType.NUMBER,
+                    'number': 73,
+                    'function': RollupFunction.PERCENT_CHECKED,
+                },
+                {"type": "number", "number": 73, "function": "percent_checked"},
             ),
         ),
         (
             UnsupportedRollupValue,
             (
-                {'type': RollupValueType.UNSUPPORTED, 'unsupported': {}},
-                {'type': RollupValueType.UNSUPPORTED, 'unsupported': {}},
-                {"type": "unsupported", "unsupported": {}},
+                {
+                    'type': RollupValueType.UNSUPPORTED,
+                    'unsupported': {},
+                    'function': RollupFunction.NOT_EMPTY,
+                },
+                {
+                    'type': RollupValueType.UNSUPPORTED,
+                    'unsupported': {},
+                    'function': RollupFunction.NOT_EMPTY,
+                },
+                {"type": "unsupported", "unsupported": {}, "function": "not_empty"},
             ),
         ),
     ],
@@ -1195,19 +1169,23 @@ def test_rollup_models_serialization(
                 {
                     'id': '36c1b911-0bb0-4e65-86f3-687c47aab2b3',
                     'type': PropertyType.RELATION,
-                    'relation': [UUID('d0f23faa-35c8-41dc-985b-55091f14c36d')],
+                    'relation': [
+                        NotionObjectIdWrapper(
+                            id=UUID('d0f23faa-35c8-41dc-985b-55091f14c36d')
+                        )
+                    ],
                     'has_more': True,
                 },
                 {
                     'id': '36c1b911-0bb0-4e65-86f3-687c47aab2b3',
                     'type': PropertyType.RELATION,
-                    'relation': [UUID('d0f23faa-35c8-41dc-985b-55091f14c36d')],
+                    'relation': [{'id': UUID('d0f23faa-35c8-41dc-985b-55091f14c36d')}],
                     'has_more': True,
                 },
                 {
                     "id": "36c1b911-0bb0-4e65-86f3-687c47aab2b3",
                     "type": "relation",
-                    "relation": ["d0f23faa-35c8-41dc-985b-55091f14c36d"],
+                    "relation": [{"id": "d0f23faa-35c8-41dc-985b-55091f14c36d"}],
                     "has_more": True,
                 },
             ),
@@ -1233,7 +1211,7 @@ def test_rollup_models_serialization(
                             type=RichTextType.TEXT,
                             text=Text(
                                 content='Structure dinner data notice cover.',
-                                link=NotionUrlObject(url='http://www.pratt.com/'),
+                                link=NotionUrlWrapper(url='http://www.pratt.com/'),
                             ),
                         )
                     ],
@@ -1292,17 +1270,24 @@ def test_rollup_models_serialization(
                 {
                     'id': '5f2eb176-b7cd-4be7-ac89-65aab0941490',
                     'type': PropertyType.ROLLUP,
-                    'rollup': DateRollupValue(type=RollupValueType.DATE, date=None),
+                    'rollup': DateRollupValue(
+                        type=RollupValueType.DATE,
+                        date=None,
+                        function=RollupFunction.SUM,
+                    ),
                 },
                 {
                     'id': '5f2eb176-b7cd-4be7-ac89-65aab0941490',
                     'type': PropertyType.ROLLUP,
-                    'rollup': {'type': RollupValueType.DATE},
+                    'rollup': {
+                        'type': RollupValueType.DATE,
+                        'function': RollupFunction.SUM,
+                    },
                 },
                 {
                     "id": "5f2eb176-b7cd-4be7-ac89-65aab0941490",
                     "type": "rollup",
-                    "rollup": {"type": "date"},
+                    "rollup": {"type": "date", "function": "sum"},
                 },
             ),
         ),
@@ -1518,26 +1503,26 @@ def test_rx_property_value_models_serialization(
     [
         (
             TxCheckboxPropertyValue,
-            ({'checkbox': True}, {'checkbox': True}, {"checkbox": True}),
+            ({'checkbox': False}, {'checkbox': False}, {"checkbox": False}),
         ),
         (
             TxDatePropertyValue,
             (
                 {
                     'date': NotionDate(
-                        start=datetime(1988, 8, 6, 6, 30, 44), end=None, time_zone=None
+                        start=datetime(1982, 9, 21, 14, 9, 43), end=None, time_zone=None
                     )
                 },
-                {'date': {'start': datetime(1988, 8, 6, 6, 30, 44)}},
-                {"date": {"start": "1988-08-06T06:30:44"}},
+                {'date': {'start': datetime(1982, 9, 21, 14, 9, 43)}},
+                {"date": {"start": "1982-09-21T14:09:43"}},
             ),
         ),
         (
             TxEmailPropertyValue,
             (
-                {'email': 'jesusevans@example.net'},
-                {'email': 'jesusevans@example.net'},
-                {"email": "jesusevans@example.net"},
+                {'email': 'abbottbrian@example.net'},
+                {'email': 'abbottbrian@example.net'},
+                {"email": "abbottbrian@example.net"},
             ),
         ),
         (
@@ -1545,54 +1530,54 @@ def test_rx_property_value_models_serialization(
             (
                 {
                     'files': [
+                        ExternalFileWithName(
+                            type=FileType.EXTERNAL,
+                            external=ExternalFileObject(url='http://frederick.com/'),
+                            name='Lauren Young',
+                        ),
                         HostedFileWithName(
                             type=FileType.FILE,
                             file=HostedFileObject(
-                                url='https://www.hunt.org/',
-                                expiry_time=datetime(2018, 4, 21, 8, 8, 37, 21627),
+                                url='http://silva.info/',
+                                expiry_time=datetime(1994, 10, 21, 2, 11, 53, 777070),
                             ),
-                            name='Gregory Short',
-                        ),
-                        ExternalFileWithName(
-                            type=FileType.EXTERNAL,
-                            external=ExternalFileObject(
-                                url='http://www.thomas-smith.com/'
-                            ),
-                            name='Sarah Smith',
+                            name='Thomas Holmes',
                         ),
                     ]
                 },
                 {
                     'files': [
                         {
-                            'type': FileType.FILE,
-                            'file': {
-                                'url': 'https://www.hunt.org/',
-                                'expiry_time': datetime(2018, 4, 21, 8, 8, 37, 21627),
-                            },
-                            'name': 'Gregory Short',
+                            'type': FileType.EXTERNAL,
+                            'external': {'url': 'http://frederick.com/'},
+                            'name': 'Lauren Young',
                         },
                         {
-                            'type': FileType.EXTERNAL,
-                            'external': {'url': 'http://www.thomas-smith.com/'},
-                            'name': 'Sarah Smith',
+                            'type': FileType.FILE,
+                            'file': {
+                                'url': 'http://silva.info/',
+                                'expiry_time': datetime(
+                                    1994, 10, 21, 2, 11, 53, 777070
+                                ),
+                            },
+                            'name': 'Thomas Holmes',
                         },
                     ]
                 },
                 {
                     "files": [
                         {
-                            "type": "file",
-                            "file": {
-                                "url": "https://www.hunt.org/",
-                                "expiry_time": "2018-04-21T08:08:37.021627",
-                            },
-                            "name": "Gregory Short",
+                            "type": "external",
+                            "external": {"url": "http://frederick.com/"},
+                            "name": "Lauren Young",
                         },
                         {
-                            "type": "external",
-                            "external": {"url": "http://www.thomas-smith.com/"},
-                            "name": "Sarah Smith",
+                            "type": "file",
+                            "file": {
+                                "url": "http://silva.info/",
+                                "expiry_time": "1994-10-21T02:11:53.777070",
+                            },
+                            "name": "Thomas Holmes",
                         },
                     ]
                 },
@@ -1601,14 +1586,29 @@ def test_rx_property_value_models_serialization(
         (
             TxMultiSelectPropertyValue,
             (
-                {'multi_select': [TxOptionValue(name='Taylor Woodard')]},
-                {'multi_select': [{'name': 'Taylor Woodard'}]},
-                {"multi_select": [{"name": "Taylor Woodard"}]},
+                {
+                    'multi_select': [
+                        TxOptionValue(name='Joshua Obrien'),
+                        TxOptionValue(name='Allison Robertson'),
+                    ]
+                },
+                {
+                    'multi_select': [
+                        {'name': 'Joshua Obrien'},
+                        {'name': 'Allison Robertson'},
+                    ]
+                },
+                {
+                    "multi_select": [
+                        {"name": "Joshua Obrien"},
+                        {"name": "Allison Robertson"},
+                    ]
+                },
             ),
         ),
         (
             TxNumberPropertyValue,
-            ({'number': 214540}, {'number': 214540}, {"number": 214540}),
+            ({'number': None}, {}, {}),
         ),
         (
             TxPeoplePropertyValue,
@@ -1617,13 +1617,13 @@ def test_rx_property_value_models_serialization(
                     'people': [
                         UserRef(
                             object=NotionObjectType.USER,
-                            id=UUID('00e6bfd6-a3c1-4495-86da-7cb32f3d52a2'),
+                            id=UUID('25216906-8a9e-48ab-a63d-92f48e1e1cfa'),
                         ),
                         BotUser(
                             object=NotionObjectType.USER,
-                            id=UUID('79aeca41-0dce-4263-aeb0-54920e251cca'),
-                            name='Jennifer Oliver',
-                            avatar_url='https://page.net/',
+                            id=UUID('a1625f93-3c3b-4450-9508-108b5ea00080'),
+                            name='Keith Schaefer',
+                            avatar_url='https://www.hernandez.com/',
                             type=UserType.BOT,
                             bot=Bot(
                                 owner=WorkspaceBotOwner(
@@ -1638,11 +1638,11 @@ def test_rx_property_value_models_serialization(
                     'people': [
                         {
                             'object': NotionObjectType.USER,
-                            'id': UUID('00e6bfd6-a3c1-4495-86da-7cb32f3d52a2'),
+                            'id': UUID('25216906-8a9e-48ab-a63d-92f48e1e1cfa'),
                         },
                         {
                             'object': NotionObjectType.USER,
-                            'id': UUID('79aeca41-0dce-4263-aeb0-54920e251cca'),
+                            'id': UUID('a1625f93-3c3b-4450-9508-108b5ea00080'),
                         },
                     ]
                 },
@@ -1650,11 +1650,11 @@ def test_rx_property_value_models_serialization(
                     "people": [
                         {
                             "object": "user",
-                            "id": "00e6bfd6-a3c1-4495-86da-7cb32f3d52a2",
+                            "id": "25216906-8a9e-48ab-a63d-92f48e1e1cfa",
                         },
                         {
                             "object": "user",
-                            "id": "79aeca41-0dce-4263-aeb0-54920e251cca",
+                            "id": "a1625f93-3c3b-4450-9508-108b5ea00080",
                         },
                     ]
                 },
@@ -1663,9 +1663,9 @@ def test_rx_property_value_models_serialization(
         (
             TxPhoneNumberPropertyValue,
             (
-                {'phone_number': '5554586668'},
-                {'phone_number': '5554586668'},
-                {"phone_number": "5554586668"},
+                {'phone_number': '951-754-5310'},
+                {'phone_number': '951-754-5310'},
+                {"phone_number": "951-754-5310"},
             ),
         ),
         (
@@ -1673,22 +1673,13 @@ def test_rx_property_value_models_serialization(
             (
                 {
                     'relation': [
-                        UUID('a13b2f23-9f51-4774-aa0d-baba3c17efbe'),
-                        UUID('f7ea4ab1-0244-409d-8631-5772cd52c2fb'),
+                        NotionObjectIdWrapper(
+                            id=UUID('67237716-e823-4918-84bc-1572142296b6')
+                        )
                     ]
                 },
-                {
-                    'relation': [
-                        UUID('a13b2f23-9f51-4774-aa0d-baba3c17efbe'),
-                        UUID('f7ea4ab1-0244-409d-8631-5772cd52c2fb'),
-                    ]
-                },
-                {
-                    "relation": [
-                        "a13b2f23-9f51-4774-aa0d-baba3c17efbe",
-                        "f7ea4ab1-0244-409d-8631-5772cd52c2fb",
-                    ]
-                },
+                {'relation': [{'id': UUID('67237716-e823-4918-84bc-1572142296b6')}]},
+                {"relation": [{"id": "67237716-e823-4918-84bc-1572142296b6"}]},
             ),
         ),
         (
@@ -1696,28 +1687,14 @@ def test_rx_property_value_models_serialization(
             (
                 {
                     'rich_text': [
-                        TxEquationRichText(
-                            annotations=Annotations(
-                                bold=True,
-                                italic=False,
-                                strikethrough=False,
-                                underline=True,
-                                code=False,
-                                color=Color.YELLOW,
-                            ),
-                            type=RichTextType.EQUATION,
-                            equation=Equation(
-                                expression='Best boy carry assume firm of according. Friend bad western push if treatment. Citizen always trial. Expert receive discover itself yes.'
-                            ),
-                        ),
                         TxMentionRichText(
                             annotations=Annotations(
-                                bold=True,
-                                italic=False,
-                                strikethrough=False,
-                                underline=False,
+                                bold=False,
+                                italic=True,
+                                strikethrough=True,
+                                underline=True,
                                 code=True,
-                                color=Color.YELLOW,
+                                color=Color.DEFAULT,
                             ),
                             type=RichTextType.MENTION,
                             mention=TemplateMention(
@@ -1728,31 +1705,36 @@ def test_rx_property_value_models_serialization(
                                 ),
                             ),
                         ),
+                        TxMentionRichText(
+                            annotations=Annotations(
+                                bold=True,
+                                italic=False,
+                                strikethrough=False,
+                                underline=True,
+                                code=False,
+                                color=Color.DEFAULT,
+                            ),
+                            type=RichTextType.MENTION,
+                            mention=TxUserMention(
+                                type=MentionType.USER,
+                                user=UserRef(
+                                    object=NotionObjectType.USER,
+                                    id=UUID('a709328c-61f1-481e-8353-ed4690b084e4'),
+                                ),
+                            ),
+                        ),
                     ]
                 },
                 {
                     'rich_text': [
                         {
                             'annotations': {
-                                'bold': True,
-                                'italic': False,
-                                'strikethrough': False,
+                                'bold': False,
+                                'italic': True,
+                                'strikethrough': True,
                                 'underline': True,
-                                'code': False,
-                                'color': Color.YELLOW,
-                            },
-                            'equation': {
-                                'expression': 'Best boy carry assume firm of according. Friend bad western push if treatment. Citizen always trial. Expert receive discover itself yes.'
-                            },
-                        },
-                        {
-                            'annotations': {
-                                'bold': True,
-                                'italic': False,
-                                'strikethrough': False,
-                                'underline': False,
                                 'code': True,
-                                'color': Color.YELLOW,
+                                'color': Color.DEFAULT,
                             },
                             'mention': {
                                 'type': MentionType.TEMPLATE_MENTION,
@@ -1762,21 +1744,42 @@ def test_rx_property_value_models_serialization(
                                 },
                             },
                         },
+                        {
+                            'annotations': {
+                                'bold': True,
+                                'italic': False,
+                                'strikethrough': False,
+                                'underline': True,
+                                'code': False,
+                                'color': Color.DEFAULT,
+                            },
+                            'mention': {
+                                'type': MentionType.USER,
+                                'user': {
+                                    'object': NotionObjectType.USER,
+                                    'id': UUID('a709328c-61f1-481e-8353-ed4690b084e4'),
+                                },
+                            },
+                        },
                     ]
                 },
                 {
                     "rich_text": [
                         {
                             "annotations": {
-                                "bold": True,
-                                "italic": False,
-                                "strikethrough": False,
+                                "bold": False,
+                                "italic": True,
+                                "strikethrough": True,
                                 "underline": True,
-                                "code": False,
-                                "color": "yellow",
+                                "code": True,
+                                "color": "default",
                             },
-                            "equation": {
-                                "expression": "Best boy carry assume firm of according. Friend bad western push if treatment. Citizen always trial. Expert receive discover itself yes."
+                            "mention": {
+                                "type": "template_mention",
+                                "template_mention": {
+                                    "type": "template_mention_date",
+                                    "template_mention_date": "now",
+                                },
                             },
                         },
                         {
@@ -1784,15 +1787,15 @@ def test_rx_property_value_models_serialization(
                                 "bold": True,
                                 "italic": False,
                                 "strikethrough": False,
-                                "underline": False,
-                                "code": True,
-                                "color": "yellow",
+                                "underline": True,
+                                "code": False,
+                                "color": "default",
                             },
                             "mention": {
-                                "type": "template_mention",
-                                "template_mention": {
-                                    "type": "template_mention_date",
-                                    "template_mention_date": "now",
+                                "type": "user",
+                                "user": {
+                                    "object": "user",
+                                    "id": "a709328c-61f1-481e-8353-ed4690b084e4",
                                 },
                             },
                         },
@@ -1803,17 +1806,17 @@ def test_rx_property_value_models_serialization(
         (
             TxSelectPropertyValue,
             (
-                {'select': TxOptionValue(name='Jennifer Williams')},
-                {'select': {'name': 'Jennifer Williams'}},
-                {"select": {"name": "Jennifer Williams"}},
+                {'select': TxOptionValue(name='David Gonzales')},
+                {'select': {'name': 'David Gonzales'}},
+                {"select": {"name": "David Gonzales"}},
             ),
         ),
         (
             TxStatusPropertyValue,
             (
-                {'status': TxOptionValue(name='Kimberly Potts')},
-                {'status': {'name': 'Kimberly Potts'}},
-                {"status": {"name": "Kimberly Potts"}},
+                {'status': TxOptionValue(name='Christopher Schmidt')},
+                {'status': {'name': 'Christopher Schmidt'}},
+                {"status": {"name": "Christopher Schmidt"}},
             ),
         ),
         (
@@ -1823,35 +1826,37 @@ def test_rx_property_value_models_serialization(
                     'title': [
                         TxMentionRichText(
                             annotations=Annotations(
-                                bold=True,
+                                bold=False,
                                 italic=True,
                                 strikethrough=True,
-                                underline=True,
-                                code=True,
-                                color=Color.YELLOW,
+                                underline=False,
+                                code=False,
+                                color=Color.DEFAULT,
                             ),
                             type=RichTextType.MENTION,
-                            mention=DateMention(
-                                type=MentionType.DATE,
-                                date=NotionDate(
-                                    start=datetime(2006, 10, 14, 13, 22, 32),
-                                    end=None,
-                                    time_zone=None,
+                            mention=TemplateMention(
+                                type=MentionType.TEMPLATE_MENTION,
+                                template_mention=TemplateMentionDate(
+                                    type=TemplateMentionType.TEMPLATE_MENTION_DATE,
+                                    template_mention_date='now',
                                 ),
                             ),
                         ),
-                        TxEquationRichText(
+                        TxTextRichText(
                             annotations=Annotations(
-                                bold=False,
+                                bold=True,
                                 italic=False,
-                                strikethrough=False,
-                                underline=False,
-                                code=True,
-                                color=Color.YELLOW,
+                                strikethrough=True,
+                                underline=True,
+                                code=False,
+                                color=Color.DEFAULT,
                             ),
-                            type=RichTextType.EQUATION,
-                            equation=Equation(
-                                expression='Provide seven TV citizen ahead. Traditional carry bit central way.\nWill moment keep opportunity open employee control another. Attorney baby school form church.'
+                            type=RichTextType.TEXT,
+                            text=Text(
+                                content='Sing street possible.',
+                                link=NotionUrlWrapper(
+                                    url='https://www.good-flynn.com/'
+                                ),
                             ),
                         ),
                     ]
@@ -1860,33 +1865,33 @@ def test_rx_property_value_models_serialization(
                     'title': [
                         {
                             'annotations': {
-                                'bold': True,
+                                'bold': False,
                                 'italic': True,
                                 'strikethrough': True,
-                                'underline': True,
-                                'code': True,
-                                'color': Color.YELLOW,
+                                'underline': False,
+                                'code': False,
+                                'color': Color.DEFAULT,
                             },
                             'mention': {
-                                'type': MentionType.DATE,
-                                'date': {
-                                    'start': datetime(2006, 10, 14, 13, 22, 32),
-                                    'end': None,
-                                    'time_zone': None,
+                                'type': MentionType.TEMPLATE_MENTION,
+                                'template_mention': {
+                                    'type': TemplateMentionType.TEMPLATE_MENTION_DATE,
+                                    'template_mention_date': 'now',
                                 },
                             },
                         },
                         {
                             'annotations': {
-                                'bold': False,
+                                'bold': True,
                                 'italic': False,
-                                'strikethrough': False,
-                                'underline': False,
-                                'code': True,
-                                'color': Color.YELLOW,
+                                'strikethrough': True,
+                                'underline': True,
+                                'code': False,
+                                'color': Color.DEFAULT,
                             },
-                            'equation': {
-                                'expression': 'Provide seven TV citizen ahead. Traditional carry bit central way.\nWill moment keep opportunity open employee control another. Attorney baby school form church.'
+                            'text': {
+                                'content': 'Sing street possible.',
+                                'link': {'url': 'https://www.good-flynn.com/'},
                             },
                         },
                     ]
@@ -1895,33 +1900,33 @@ def test_rx_property_value_models_serialization(
                     "title": [
                         {
                             "annotations": {
-                                "bold": True,
+                                "bold": False,
                                 "italic": True,
                                 "strikethrough": True,
-                                "underline": True,
-                                "code": True,
-                                "color": "yellow",
+                                "underline": False,
+                                "code": False,
+                                "color": "default",
                             },
                             "mention": {
-                                "type": "date",
-                                "date": {
-                                    "start": "2006-10-14T13:22:32",
-                                    "end": None,
-                                    "time_zone": None,
+                                "type": "template_mention",
+                                "template_mention": {
+                                    "type": "template_mention_date",
+                                    "template_mention_date": "now",
                                 },
                             },
                         },
                         {
                             "annotations": {
-                                "bold": False,
+                                "bold": True,
                                 "italic": False,
-                                "strikethrough": False,
-                                "underline": False,
-                                "code": True,
-                                "color": "yellow",
+                                "strikethrough": True,
+                                "underline": True,
+                                "code": False,
+                                "color": "default",
                             },
-                            "equation": {
-                                "expression": "Provide seven TV citizen ahead. Traditional carry bit central way.\nWill moment keep opportunity open employee control another. Attorney baby school form church."
+                            "text": {
+                                "content": "Sing street possible.",
+                                "link": {"url": "https://www.good-flynn.com/"},
                             },
                         },
                     ]
@@ -1931,9 +1936,9 @@ def test_rx_property_value_models_serialization(
         (
             TxUrlPropertyValue,
             (
-                {'url': 'https://bradford.info/'},
-                {'url': 'https://bradford.info/'},
-                {"url": "https://bradford.info/"},
+                {'url': 'https://www.alexander.biz/'},
+                {'url': 'https://www.alexander.biz/'},
+                {"url": "https://www.alexander.biz/"},
             ),
         ),
     ],
