@@ -1,56 +1,59 @@
 from enum import Enum
-from typing import Literal, Annotated, Optional
+from typing import Literal, Annotated, Optional, Union
 
 from pydantic import (
     Field,
     model_validator,
-    Discriminator,
-    Tag,
     BeforeValidator,
 )
 
+from pynotion.models.object import NotionObjectType, NotionObjectId
 from ._internal import (
     BaseNotionModel,
     validate_url,
     validate_email,
 )
-from .object import (
-    NotionObjectType,
-    NotionObjectId,
-)
+from ._internal.utils import discriminate_field
+
+__all__ = [
+    "UserType",
+    "BotOwnerType",
+    "WorkspaceBotOwner",
+    "UserBotOwner",
+    "Bot",
+    "Person",
+    "PersonUser",
+    "BotUser",
+    "UserRef",
+    "BotOwner",
+    "NotionUser",
+    "BOT_OWNER_CLASS_MAP",
+    "USER_CLASS_MAP",
+]
 
 
 class UserType(str, Enum):
-    """Defined user types in Notion.
-
-    Attributes:
-        PERSON: represents a user type for a person.
-        BOT: represents a user type for a bot.
-
-    References:
-        https://developers.notion.com/reference/user#all-users
-    """
+    """Defined user types in Notion."""
 
     PERSON = "person"
     BOT = "bot"
 
 
 class BotOwnerType(str, Enum):
-    """Defined bot owner types in Notion.
-
-    Attributes:
-        WORKSPACE: represents a bot owner type for a workspace.
-        USER: represents a bot owner type for an individual user.
-
-    References:
-        https://developers.notion.com/reference/user#bots
-    """
+    """Defined bot owner types in Notion."""
 
     WORKSPACE = "workspace"
     USER = "user"
 
 
 class WorkspaceBotOwner(BaseNotionModel):
+    """Represents a bot owner for a workspace in Notion.
+
+    Attributes:
+        type: Always "workspace".
+        workspace: Always True
+    """
+
     type: Literal[BotOwnerType.WORKSPACE] = Field(
         default=BotOwnerType.WORKSPACE, frozen=True
     )
@@ -58,12 +61,24 @@ class WorkspaceBotOwner(BaseNotionModel):
 
 
 class UserBotOwner(BaseNotionModel):
+    """Represents a bot owner for a user in Notion.
+
+    Attributes:
+        type: Always "user".
+    """
+
     type: Literal[BotOwnerType.USER] = Field(default=BotOwnerType.USER, frozen=True)
 
 
+BOT_OWNER_CLASS_MAP: dict[str, str] = {
+    BotOwnerType.WORKSPACE: "WorkspaceBotOwner",
+    BotOwnerType.USER: "UserBotOwner",
+}
+
+
 BotOwner = Annotated[
-    WorkspaceBotOwner | UserBotOwner,
-    Field(discriminator="type"),
+    Union[tuple(BOT_OWNER_CLASS_MAP.values())],
+    BeforeValidator(lambda v: discriminate_field(v, "type", BOT_OWNER_CLASS_MAP)),
 ]
 
 
@@ -72,9 +87,6 @@ class Person(BaseNotionModel):
 
     Attributes:
         email: The email address of the person.
-
-    References:
-        https://developers.notion.com/reference/user#people
     """
 
     email: Annotated[str, BeforeValidator(validate_email)]
@@ -86,13 +98,9 @@ class Bot(BaseNotionModel):
     Attributes:
         owner: The owner of the bot.
         workspace_name: The name of the workspace if the bot belongs to a workspace.
-
-    References:
-        https://developers.notion.com/reference/user#bots
     """
 
-    owner: Optional[BotOwner] = None
-
+    owner: Union[None, BotOwner] = None
     workspace_name: Optional[str] = None
 
     @model_validator(mode="after")
@@ -122,7 +130,7 @@ class Bot(BaseNotionModel):
 
 class UserRef(BaseNotionModel):
     """
-    Represents a minimal user reference when a full User object isn't needed.
+    Represents a minimal user reference when a full NotionUser object isn't needed.
 
     This is often used in created_by and last_edited_by fields.
 
@@ -134,7 +142,7 @@ class UserRef(BaseNotionModel):
     object: Literal[NotionObjectType.USER] = Field(
         default=NotionObjectType.USER, frozen=True
     )
-    id: NotionObjectId = Field(frozen=True)
+    id: NotionObjectId
 
 
 class _BaseUser(UserRef):
@@ -157,7 +165,7 @@ class PersonUser(_BaseUser):
     """
 
     type: Literal[UserType.PERSON] = Field(default=UserType.PERSON)
-    person: Person
+    person: "Person"
 
 
 class BotUser(_BaseUser):
@@ -173,30 +181,17 @@ class BotUser(_BaseUser):
     """
 
     type: Literal[UserType.BOT] = Field(default=UserType.BOT)
-    bot: Bot
+    bot: "Bot"
 
 
-def model_user_discriminator(v):
-    from ._internal.utils import get_value_for_discriminator
-
-    type_value = get_value_for_discriminator(v, "type")
-
-    match type_value:
-        case None:
-            return "ref"
-        case UserType.PERSON:
-            return "person"
-        case UserType.BOT:
-            return "bot"
-
-    raise ValueError(f"Unknown user type: {v}")
+USER_CLASS_MAP: dict[Optional[str], str] = {
+    UserType.PERSON: "PersonUser",
+    UserType.BOT: "BotUser",
+    None: "UserRef",
+}
 
 
-User = Annotated[
-    (
-        Annotated[UserRef, Tag("ref")]
-        | Annotated[PersonUser, Tag("person")]
-        | Annotated[BotUser, Tag("bot")]
-    ),
-    Discriminator(model_user_discriminator),
+NotionUser = Annotated[
+    Union[tuple(USER_CLASS_MAP.values())],
+    BeforeValidator(lambda v: discriminate_field(v, "type", USER_CLASS_MAP)),
 ]

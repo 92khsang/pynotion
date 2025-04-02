@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError, BaseModel, UUID4
 
-from pynotion.models.user import *
+from pynotion.models import *
 from tests.models.model_test_utils import (
     PydanticModelTester,
     DiscriminatedModelTester,
@@ -141,13 +141,13 @@ def test_bot_model_invalid_workspace_name(
     ],
 )
 def test_user_model_without_data(clz, user_type: UserType, expected_error):
-    """Test User model validation rules for type and type_object consistency."""
+    """Test NotionUser model validation rules for type and type_object consistency."""
     with pytest.raises(ValidationError, match=expected_error):
         clz(
             object="user",
             id=str(uuid4()),
             type=user_type,
-            name="Test User",
+            name="Test NotionUser",
             avatar_url="https://example.com/avatar.png",
             **{user_type.value: None},
         )
@@ -157,7 +157,7 @@ def test_user_model_without_data(clz, user_type: UserType, expected_error):
     "annotated_clz, expected_clz, input_data",
     [
         (
-            User,
+            NotionUser,
             UserRef,
             {
                 "object": "user",
@@ -165,19 +165,19 @@ def test_user_model_without_data(clz, user_type: UserType, expected_error):
             },
         ),
         (
-            User,
+            NotionUser,
             PersonUser,
             {
                 "object": "user",
                 "id": str(uuid4()),
                 "type": UserType.PERSON,
-                "name": "Test User",
+                "name": "Test NotionUser",
                 "avatar_url": "https://example.com/avatar.png",
                 "person": Person(email="user@example.com"),
             },
         ),
         (
-            User,
+            NotionUser,
             BotUser,
             {
                 "object": "user",
@@ -194,7 +194,7 @@ def test_user_model_without_data(clz, user_type: UserType, expected_error):
     ],
 )
 def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data: dict):
-    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    """Test valid NotionUser model instantiation with the type 'person' or 'bot'."""
     DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
 
 
@@ -255,7 +255,7 @@ def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data
                 "object": "user",
                 "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
                 "type": "person",
-                "name": "Test User",
+                "name": "Test NotionUser",
                 "avatar_url": "https://example.com/avatar.png",
                 "person": {"email": "user@example.com"},
             },
@@ -263,7 +263,7 @@ def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data
                 "object": "user",
                 "id": UUID4("d7db80bd-b3e3-4394-b134-a21b05412c7c"),
                 "type": UserType.PERSON,
-                "name": "Test User",
+                "name": "Test NotionUser",
                 "avatar_url": "https://example.com/avatar.png",
                 "person": {"email": "user@example.com"},
             },
@@ -271,7 +271,7 @@ def test_discriminated_model(annotated_clz: type, expected_clz: type, input_data
                 "object": "user",
                 "id": "d7db80bd-b3e3-4394-b134-a21b05412c7c",
                 "type": "person",
-                "name": "Test User",
+                "name": "Test NotionUser",
                 "avatar_url": "https://example.com/avatar.png",
                 "person": {"email": "user@example.com"},
             },
