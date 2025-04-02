@@ -6,7 +6,7 @@ from pydantic import ValidationError, BaseModel
 
 from pynotion.models.types import (
     NotionDate,
-    NotionUrlObject,
+    NotionUrlWrapper,
     NotionDatetime,
     NotionEquation,
 )
@@ -51,9 +51,9 @@ def test_notion_datetime_invalid(invalid_input):
 def test_notion_link(test_input, should_raise):
     if should_raise:
         with pytest.raises(ValidationError):
-            NotionUrlObject(url=test_input)
+            NotionUrlWrapper(url=test_input)
     else:
-        valid_link = NotionUrlObject(url=test_input)
+        valid_link = NotionUrlWrapper(url=test_input)
         assert valid_link.url == test_input
 
 
@@ -111,7 +111,7 @@ def test_notion_date(
     "model_class, test_data",
     [
         (
-            NotionUrlObject,
+            NotionUrlWrapper,
             (
                 {"url": "https://notion.so"},
                 {"url": "https://notion.so"},
@@ -217,9 +217,9 @@ def test_notion_date(input_data, should_raise):
 def test_notion_url_object(url, should_raise):
     if should_raise:
         with pytest.raises(ValidationError):
-            NotionUrlObject(url=url)
+            NotionUrlWrapper(url=url)
     else:
-        notion_url = NotionUrlObject(url=url)
+        notion_url = NotionUrlWrapper(url=url)
         assert notion_url.url == url
 
 
@@ -238,7 +238,7 @@ def test_notion_url_object(url, should_raise):
             ),
         ),
         (
-            NotionUrlObject,
+            NotionUrlWrapper,
             (
                 {"url": "https://example.com"},
                 {"url": "https://example.com"},

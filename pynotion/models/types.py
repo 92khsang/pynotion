@@ -8,12 +8,22 @@ from zoneinfo import ZoneInfo
 from pydantic import BeforeValidator, Field, model_validator
 
 from ._internal import (
-    validate_timezone,
-    validate_datetime,
     BaseNotionModel,
-    validate_url,
+    validate_datetime,
     validate_empty_dict,
+    validate_timezone,
+    validate_url,
 )
+
+__all__ = [
+    "BackgroundColor",
+    "Color",
+    "NotionDate",
+    "NotionDatetime",
+    "NotionEmptyDict",
+    "NotionEquation",
+    "NotionUrlWrapper",
+]
 
 NotionEmptyDict = Annotated[dict, BeforeValidator(validate_empty_dict)]
 
@@ -57,7 +67,7 @@ class NotionEquation(BaseNotionModel):
     expression: str
 
 
-class NotionUrlObject(BaseNotionModel):
+class NotionUrlWrapper(BaseNotionModel):
     """Represents a URL object in Notion.
 
     Attributes:
