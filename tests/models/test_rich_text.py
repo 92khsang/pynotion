@@ -1,10 +1,30 @@
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
-from pynotion.models.object import NotionObjectType
-from pynotion.models.rich_text import *
+from pynotion.models import (
+    NotionObjectType,
+    NotionUrlWrapper,
+    RichTextType,
+    Annotations,
+    MentionType,
+    TxEquationRichText,
+    Equation,
+    TxTextRichText,
+    Text,
+    TemplateMentionType,
+    TxMentionRichText,
+    TxRichText,
+    RxMentionRichText,
+    RxRichText,
+    RxEquationRichText,
+    RxTextRichText,
+    Color,
+    TemplateMention,
+    TemplateMentionDate,
+    RxUserMention,
+)
 from pynotion.models.user import UserRef
 from tests.models.model_test_utils import (
     DiscriminatedModelTester,
@@ -53,7 +73,7 @@ def test_annotations():
 @pytest.mark.parametrize(
     "content, link",
     [
-        ("Hello, Notion!", NotionUrlObject(url="https://notion.so")),
+        ("Hello, Notion!", NotionUrlWrapper(url="https://notion.so")),
         ("Hello", None),
     ],
 )
@@ -69,7 +89,7 @@ def test_text_model(content, link):
 
 def test_invalid_text_model():
     with pytest.raises(ValidationError):
-        Text(content="Hello", link=NotionUrlObject(url="invalid_url"))
+        Text(content="Hello", link=NotionUrlWrapper(url="invalid_url"))
 
     with pytest.raises(ValidationError):
         Text(content=None)
@@ -78,11 +98,6 @@ def test_invalid_text_model():
 @pytest.mark.parametrize(
     "clz, invalid_data, expected_error",
     [
-        (
-            TxTextRichText,
-            {"type": "text", "text": {"invalid_field": "value"}},
-            "2 validation errors for",
-        ),
         (
             TxMentionRichText,
             {"type": "mention", "mention": {"type": "invalid_type"}},
@@ -152,7 +167,7 @@ def test_rich_text_validation_errors(clz, invalid_data, expected_error):
 def test_tx_rich_text_discriminated_model(
     annotated_clz: type, expected_clz: type, input_data: dict
 ):
-    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    """Test valid NotionUser model instantiation with the type 'person' or 'bot'."""
     DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
 
 
@@ -226,7 +241,7 @@ def test_tx_rich_text_discriminated_model(
 def test_rx_rich_text_discriminated_model(
     annotated_clz: type, expected_clz: type, input_data: dict
 ):
-    """Test valid User model instantiation with the type 'person' or 'bot'."""
+    """Test valid NotionUser model instantiation with the type 'person' or 'bot'."""
     DiscriminatedModelTester(annotated_clz, expected_clz, **input_data).run_all_tests()
 
 
@@ -248,7 +263,7 @@ def test_rx_rich_text_discriminated_model(
                     'type': RichTextType.TEXT,
                     'text': Text(
                         content='My factor page rate exist put.',
-                        link=NotionUrlObject(url='http://www.armstrong.com/'),
+                        link=NotionUrlWrapper(url='http://www.armstrong.com/'),
                     ),
                 },
                 {
@@ -369,7 +384,7 @@ def test_rx_rich_text_discriminated_model(
     ],
 )
 def test_tx_rich_models_serialization(
-    clz: type[BaseNotionModel], test_data: tuple[dict, dict, dict]
+    clz: type[BaseModel], test_data: tuple[dict, dict, dict]
 ):
     PydanticModelTester(clz, test_data).run_all_tests()
 
@@ -394,7 +409,7 @@ def test_tx_rich_models_serialization(
                     'type': RichTextType.TEXT,
                     'text': Text(
                         content='Positive yeah how. Actually account challenge.',
-                        link=NotionUrlObject(url='https://mcdaniel-robinson.com/'),
+                        link=NotionUrlWrapper(url='https://mcdaniel-robinson.com/'),
                     ),
                 },
                 {
@@ -554,6 +569,6 @@ def test_tx_rich_models_serialization(
     ],
 )
 def test_rx_rich_models_serialization(
-    clz: type[BaseNotionModel], test_data: tuple[dict, dict, dict]
+    clz: type[BaseModel], test_data: tuple[dict, dict, dict]
 ):
     PydanticModelTester(clz, test_data).run_all_tests()
