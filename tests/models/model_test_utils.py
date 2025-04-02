@@ -1,8 +1,10 @@
 import json
-from typing import Any, TypeAlias
+import types
+from importlib import import_module
+from typing import Any, TypeAlias, Annotated, Union, get_args, ForwardRef, get_origin
 
 import pytest
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, create_model
 
 # Type aliases for better readability
 Diffdict: TypeAlias = dict[str, Any]
@@ -203,21 +205,47 @@ class DiscriminatedModelTester:
         self.expected_class = expected_class
         self.input_data = input_data
 
+    @staticmethod
+    def _resolve_forward_union(typ: type) -> type:
+        """
+        Resolves forward refs like:
+        Annotated["A | B | C", Field(discriminator="type")] -> Annotated[Union[A, B, C], Field(...)]
+        """
+        if get_origin(typ) is Annotated:
+            union, field_info = get_args(typ)
+
+            if union.__origin__ in [Union, types.UnionType]:
+                union_args = get_args(union)
+            else:
+                union_args = [union]
+
+            resolved_union_args = []
+            for union_arg in union_args:
+                if isinstance(union_arg, ForwardRef):
+                    forward_str = union_arg.__forward_arg__
+                    type_names = [name.strip() for name in forward_str.split("|")]
+
+                    models_mod = import_module("pynotion.models")
+                    resolved_union_args.extend(
+                        getattr(models_mod, name) for name in type_names
+                    )
+                else:
+                    resolved_union_args.append(union_arg)
+
+            real_union = Union[*resolved_union_args]
+            return Annotated[real_union, field_info]
+
+        return typ
+
     def _instantiate_model(self):
-        annotated_class = self.annotated_class
+        real_type = self._resolve_forward_union(self.annotated_class)
 
-        class ModelWrapper(BaseModel):
-            real_model: annotated_class
+        ModelWrapper = create_model("ModelWrapper", real_model=(real_type, ...))
 
-            def __init__(self, /, **data):
-                field_data = {}
-                for k, v in list(data.items()):
-                    field_data[k] = data.pop(k)
+        # Let Pydantic trigger forward resolution internally
+        ModelWrapper.model_rebuild(force=True)
 
-                data["real_model"] = field_data
-                super().__init__(**data)
-
-        self.model_instance = ModelWrapper(**self.input_data).real_model
+        self.model_instance = ModelWrapper(real_model=self.input_data).real_model
 
     def _validate_model_attrs(self):
         assert type(self.model_instance) is self.expected_class
