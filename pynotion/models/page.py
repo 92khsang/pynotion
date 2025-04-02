@@ -1,45 +1,79 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, TYPE_CHECKING
 
 from pydantic import Field, model_validator
 
+from pynotion.models.object import NotionObjectType, NotionObjectId
 from ._internal import BaseNotionModel, FrozenNotionModel
-from .block import TxBlock
-from .emoji import Emoji
-from .file import File, ExternalFile
-from .object import NotionObjectType, NotionObjectId
-from .parent import Parent, ParentType
-from .properties import RxPropertyValue, TxPropertyValue
-from .types import NotionDatetime
-from .user import UserRef
+
+if TYPE_CHECKING:
+    from pynotion.models.block.tx import TxBlock
+    from pynotion.models.file import NotionFile
+    from pynotion.models.parent import NotionParent
+    from pynotion.models.property.rx import RxPropertyValue
+    from pynotion.models.property.tx import TxPropertyValue
+    from pynotion.models.types import NotionDatetime
+    from pynotion.models.user import UserRef
+
+
+__all__ = ["RxPage", "TxPage"]
 
 
 class RxPage(FrozenNotionModel):
+    """Represents a Notion page.
+
+    Attributes:
+        object: The type of the object. Always "page".
+        id: The ID of the page.
+        created_time: The creation time of the page.
+        created_by: The user who created the page.
+        last_edited_time: The last time the page was edited.
+        last_edited_by: The user who last edited the page.
+        archived: Whether the page is archived.
+        in_trash: Whether the page is in the trash.
+        icon: The icon of the page.
+        cover: The cover of the page.
+        properties: The properties of the page.
+        parent: The parent of the page.
+        url: The URL of the page.
+        public_url: The public URL of the page.
+    """
+
     object: Literal[NotionObjectType.PAGE] = NotionObjectType.PAGE
     id: NotionObjectId
-    created_time: Optional[NotionDatetime] = None
-    created_by: Optional[UserRef] = None
-    last_edited_time: Optional[NotionDatetime] = None
-    last_edited_by: Optional[UserRef] = None
+    created_time: Optional["NotionDatetime"] = None
+    created_by: Optional["UserRef"] = None
+    last_edited_time: Optional["NotionDatetime"] = None
+    last_edited_by: Optional["UserRef"] = None
     archived: Optional[bool] = None
     in_trash: Optional[bool] = None
-    icon: Optional[File | Emoji] = None
-    cover: Optional[File] = None
-    properties: Optional[dict[str, RxPropertyValue]] = None
-    parent: Optional[Parent] = None
+    icon: Optional["NotionFile | NotionEmoji"] = None
+    cover: Optional["NotionFile"] = None
+    properties: Optional[dict[str, "RxPropertyValue"]] = None
+    parent: Optional["NotionParent"] = None
     url: Optional[str] = None
     public_url: Optional[str] = None
 
 
 class TxPage(BaseNotionModel):
-    parent: Parent
-    properties: dict[str, TxPropertyValue] = Field(default_factory=dict)
-    children: Optional[list[TxBlock]] = None
-    icon: Optional[ExternalFile | Emoji] = None
-    cover: Optional[File] = None
+    """Model for creating or updating a page in Notion.
+
+    Attributes:
+        parent: The parent of the page.
+        properties: The properties of the page.
+        children: The children of the page.
+        icon: The icon of the page.
+        cover: The cover of the page.
+    """
+
+    parent: "NotionParent"
+    properties: dict[str, "TxPropertyValue"] = Field(default_factory=dict)
+    children: Optional[list["TxBlock"]] = None
+    icon: Optional["ExternalFile | NotionEmoji"] = None
+    cover: Optional["NotionFile"] = None
 
     @model_validator(mode="after")
     def _validate_properties(self):
-        if self.parent.type == ParentType.PAGE_ID:
+        if self.parent.type.value == "page_id":
             allowed_keys = {"title"}
             actual_keys = set(self.properties.keys())
 
