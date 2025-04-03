@@ -254,11 +254,13 @@ class RxHeading(FrozenNotionModel):
         rich_text: The rich texts in the heading.
         color: The color of the heading.
         is_toggleable: Whether the heading is toggleable.
+        children: The nested child blocks.
     """
 
     rich_text: "RxRichTexts"
     color: "Color | BackgroundColor"
     is_toggleable: bool
+    children: Optional[list["RxBlock"]] = None
 
 
 class RxNumberedListItem(_RxTextBaseBlockObject):

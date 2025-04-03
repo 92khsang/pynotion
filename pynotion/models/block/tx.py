@@ -6,6 +6,7 @@ from pydantic import (
     Tag,
     Discriminator,
     model_serializer,
+    model_validator,
 )
 
 from pynotion.models.block.common import model_synced_discriminator
@@ -242,11 +243,19 @@ class TxHeading(BaseNotionModel):
         rich_text: The rich texts in the heading.
         color: The color of the heading.
         is_toggleable: Whether the heading is toggleable.
+        children: The nested child blocks.
     """
 
     rich_text: "TxRichTexts"
     color: "TxColor" = None
     is_toggleable: Optional[bool] = None
+    children: Optional[list["TxBlock"]] = None
+
+    @model_validator(mode="after")
+    def _validate_properties(self):
+        if not self.is_toggleable and self.children:
+            raise ValueError("is_toggleable must be True when children are present.")
+        return self
 
 
 class TxNumberedListItem(_TxTextBaseBlockObject):
