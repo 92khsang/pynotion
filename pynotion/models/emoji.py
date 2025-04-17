@@ -1,16 +1,12 @@
 from __future__ import annotations as _annotations
 
 from enum import Enum
-from typing import Literal, Annotated, Union
+from typing import Literal, Annotated, Union, TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import Field, ConfigDict, BeforeValidator
 
-from ._internal import (
-    BaseNotionModel,
-    validate_uuid4,
-    validate_url,
-)
+from ._internal import BaseNotionModel, validate_url
 from ._internal.utils import discriminate_field
 
 __all__ = [
@@ -46,7 +42,7 @@ class CustomEmojiObject(BaseNotionModel):
 
     model_config = ConfigDict(**BaseNotionModel.model_config, frozen=True)
 
-    id: Annotated[str | int | bytes | UUID, BeforeValidator(validate_uuid4)]
+    id: UUID
     name: str
     url: Annotated[str, BeforeValidator(validate_url)]
 
@@ -83,7 +79,10 @@ EMOJI_CLASS_MAP = {
 }
 
 
-NotionEmoji = Annotated[
-    Union[tuple(EMOJI_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", EMOJI_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    NotionEmoji = Annotated[
+        Union[tuple(EMOJI_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", EMOJI_CLASS_MAP)),
+    ]
+else:
+    NotionEmoji = Union[SingleEmoji, CustomEmoji]

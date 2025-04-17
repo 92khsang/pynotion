@@ -1,18 +1,23 @@
 from typing import Literal, Optional, Annotated, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import Field, BeforeValidator
 
-from pynotion.models.object import NotionObjectType, NotionObjectId
+from pynotion.models.object import NotionObjectType
 from ._internal import FrozenNotionModel, BaseNotionModel
 
 if TYPE_CHECKING:
-    from pynotion.models.parent import PageParent
-    from pynotion.models.property.rx import Property
-    from pynotion.models.property.tx import PropertySchema
-    from pynotion.models.types import NotionDatetime
-    from pynotion.models.user import UserRef
-    from pynotion.models.rich_text.rx import RxRichText
-    from pynotion.models.rich_text.tx import TxRichText
+    from pynotion.models import (
+        PageParent,
+        Property,
+        PropertySchema,
+        NotionDatetime,
+        UserRef,
+        RxRichText,
+        TxRichText,
+        NotionEmoji,
+        NotionFile,
+    )
 
 __all__ = ["RxDatabase", "CreateDatabase", "UpdateDatabase"]
 
@@ -40,15 +45,15 @@ class RxDatabase(FrozenNotionModel):
     """
 
     object: Literal[NotionObjectType.DATABASE] = NotionObjectType.DATABASE
-    id: NotionObjectId
+    id: UUID
     created_time: Optional["NotionDatetime"] = None
     created_by: Optional["UserRef"] = None
     last_edited_time: Optional["NotionDatetime"] = None
     last_edited_by: Optional["UserRef"] = None
     title: Optional[list["RxRichText"]] = None
     description: Optional[list["RxRichText"]] = None
-    icon: Union["None | NotionFile | NotionEmoji"] = None
-    cover: Union["None | NotionFile"] = None
+    icon: Optional[Union["NotionFile", "NotionEmoji"]] = None
+    cover: Optional["NotionFile"] = None
     properties: Optional[dict[str, "Property"]] = None
     parent: Optional["PageParent"] = None
     url: Optional[str] = Field(default=None, frozen=True)
@@ -68,8 +73,8 @@ class CreateDatabase(BaseNotionModel):
     """
 
     parent: Annotated[
-        "str | PageParent",
-        BeforeValidator(lambda v: PageParent(page_id=v) if isinstance(v, str) else v),
+        Union[UUID, "PageParent"],
+        BeforeValidator(lambda v: PageParent(page_id=v) if isinstance(v, UUID) else v),
     ]
     title: Optional[list["TxRichText"]]
     properties: dict[str, "PropertySchema"]

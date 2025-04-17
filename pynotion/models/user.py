@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Literal, Annotated, Optional, Union
+from typing import Literal, Annotated, Optional, Union, TYPE_CHECKING
+from uuid import UUID
 
 from pydantic import (
     Field,
@@ -7,7 +8,7 @@ from pydantic import (
     BeforeValidator,
 )
 
-from pynotion.models.object import NotionObjectType, NotionObjectId
+from pynotion.models.object import NotionObjectType
 from ._internal import (
     BaseNotionModel,
     validate_url,
@@ -142,7 +143,7 @@ class UserRef(BaseNotionModel):
     object: Literal[NotionObjectType.USER] = Field(
         default=NotionObjectType.USER, frozen=True
     )
-    id: NotionObjectId
+    id: UUID
 
 
 class _BaseUser(UserRef):
@@ -190,8 +191,10 @@ USER_CLASS_MAP: dict[Optional[str], str] = {
     None: "UserRef",
 }
 
-
-NotionUser = Annotated[
-    Union[tuple(USER_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", USER_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    NotionUser = Annotated[
+        Union[tuple(USER_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", USER_CLASS_MAP)),
+    ]
+else:
+    NotionUser = Union[PersonUser, BotUser, UserRef]

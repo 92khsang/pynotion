@@ -112,7 +112,12 @@ TX_RICH_TEXT_CLASS_MAP = {
     RichTextType.MENTION: "TxMentionRichText",
 }
 
-TxRichText = Annotated[
-    Union[tuple(TX_RICH_TEXT_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", TX_RICH_TEXT_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    TxRichText = Annotated[
+        Union[tuple(TX_RICH_TEXT_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(v, "type", TX_RICH_TEXT_CLASS_MAP)
+        ),
+    ]
+else:
+    TxRichText = Union[TxTextRichText, TxEquationRichText, TxMentionRichText]

@@ -38,4 +38,4 @@ class NotionSyncClient(BaseClient):
             response = self._client.request(method, self.build_url(path), **kwargs)
             return handle_response(response)
         except Exception as e:
-            handle_http_error(e)
+            raise handle_http_error(e)

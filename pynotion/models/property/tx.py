@@ -1,4 +1,5 @@
-from typing import Optional, Annotated, TYPE_CHECKING
+from typing import Optional, Annotated, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import (
     Field,
@@ -9,7 +10,6 @@ from pydantic import (
     model_serializer,
 )
 
-from pynotion.models.object import NotionObjectId
 from .._internal import (
     BaseNotionModel,
     validate_email,
@@ -18,16 +18,18 @@ from .._internal import (
 )
 
 if TYPE_CHECKING:
-    from pynotion.models.object import NotionObjectIdWrapper
-    from pynotion.models.types import (
+    from pynotion.models import (
         Color,
-        NotionEquation,
-        NotionEmptyDict,
         NotionDate,
+        NotionEmptyDict,
+        NotionEquation,
+        NotionFileWithName,
+        NotionObjectIdWrapper,
+        NumberFormat,
+        RollupFunction,
+        TxRichText,
+        UserRef,
     )
-    from pynotion.models.user import UserRef
-    from pynotion.models.rich_text.tx import TxRichText
-    from pynotion.models.property.types import NumberFormat, RollupFunction
 
 __all__ = [
     # Property values
@@ -252,7 +254,22 @@ class TxUrlPropertyValue(BaseNotionModel):
     url: Annotated[str, BeforeValidator(validate_url)]
 
 
-TxPropertyValue = "TxCheckboxPropertyValue | TxDatePropertyValue | TxEmailPropertyValue | TxFilesPropertyValue | TxMultiSelectPropertyValue | TxNumberPropertyValue | TxPeoplePropertyValue | TxPhoneNumberPropertyValue | TxRelationPropertyValue | TxRichTextPropertyValue | TxSelectPropertyValue | TxStatusPropertyValue | TxTitlePropertyValue | TxUrlPropertyValue"
+TxPropertyValue = Union[
+    "TxCheckboxPropertyValue",
+    "TxDatePropertyValue",
+    "TxEmailPropertyValue",
+    "TxFilesPropertyValue",
+    "TxMultiSelectPropertyValue",
+    "TxNumberPropertyValue",
+    "TxPeoplePropertyValue",
+    "TxPhoneNumberPropertyValue",
+    "TxRelationPropertyValue",
+    "TxRichTextPropertyValue",
+    "TxSelectPropertyValue",
+    "TxStatusPropertyValue",
+    "TxTitlePropertyValue",
+    "TxUrlPropertyValue",
+]
 
 
 class NumberSchema(BaseNotionModel):
@@ -266,14 +283,14 @@ class NumberSchema(BaseNotionModel):
 
 
 class DualRelationSchema(BaseNotionModel):
-    """Represents a dual relation property schema.
+    """Represents a dual-relation property schema.
 
     Attributes:
         database_id: The ID of the database.
         dual_property: Empty dict.
     """
 
-    database_id: NotionObjectId
+    database_id: UUID
     dual_property: "NotionEmptyDict" = Field(default_factory=dict)
 
 
@@ -285,7 +302,7 @@ class SingleRelationSchema(BaseNotionModel):
         single_property: Empty dict.
     """
 
-    database_id: NotionObjectId
+    database_id: UUID
     single_property: "NotionEmptyDict" = Field(default_factory=dict)
 
 
@@ -532,4 +549,24 @@ class LastEditedByPropertySchema(BaseNotionModel):
     last_edited_by: "NotionEmptyDict" = Field(default_factory=dict)
 
 
-PropertySchema = "TitlePropertySchema | RichTextPropertySchema | NumberPropertySchema | SelectPropertySchema | MultiSelectPropertySchema | DatePropertySchema | PeoplePropertySchema | FilesPropertySchema | CheckboxPropertySchema | UrlPropertySchema | EmailPropertySchema | PhoneNumberPropertySchema | FormulaPropertySchema | RelationPropertySchema | RollupPropertySchema | CreatedTimePropertySchema | CreatedByPropertySchema | LastEditedTimePropertySchema | LastEditedByPropertySchema"
+PropertySchema = Union[
+    "TitlePropertySchema",
+    "RichTextPropertySchema",
+    "NumberPropertySchema",
+    "SelectPropertySchema",
+    "MultiSelectPropertySchema",
+    "DatePropertySchema",
+    "PeoplePropertySchema",
+    "FilesPropertySchema",
+    "CheckboxPropertySchema",
+    "UrlPropertySchema",
+    "EmailPropertySchema",
+    "PhoneNumberPropertySchema",
+    "FormulaPropertySchema",
+    "RelationPropertySchema",
+    "RollupPropertySchema",
+    "CreatedTimePropertySchema",
+    "CreatedByPropertySchema",
+    "LastEditedTimePropertySchema",
+    "LastEditedByPropertySchema",
+]

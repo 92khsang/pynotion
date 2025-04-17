@@ -2,15 +2,18 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from pydantic import Field
 
-from pynotion.models.object import NotionObjectId, NotionObjectType
+from pynotion.models.object import NotionObjectType
 from ._internal import FrozenNotionModel, BaseNotionModel
 
 if TYPE_CHECKING:
-    from pynotion.models.parent import PageParent, NotionParent
-    from pynotion.models.rich_text.rx import RxRichText
-    from pynotion.models.rich_text.tx import TxRichText
-    from pynotion.models.types import NotionDatetime
-    from pynotion.models.user import UserRef
+    from pynotion.models import (
+        PageParent,
+        NotionParent,
+        RxRichText,
+        TxRichText,
+        NotionDatetime,
+        UserRef,
+    )
 
 __all__ = ["RxComment", "TxCommentWithParent", "TxCommentWithDiscussionId"]
 
@@ -30,9 +33,9 @@ class RxComment(FrozenNotionModel):
     """
 
     object: Literal[NotionObjectType.COMMENT] = NotionObjectType.COMMENT
-    id: NotionObjectId
+    id: UUID
     parent: "NotionParent"
-    discussion_id: NotionObjectId
+    discussion_id: UUID
     created_time: "NotionDatetime"
     created_by: "UserRef"
     last_edited_time: Optional["NotionDatetime"] = None
@@ -47,7 +50,7 @@ class TxCommentWithDiscussionId(BaseNotionModel):
         rich_text: Rich text content of the comment.
     """
 
-    discussion_id: NotionObjectId
+    discussion_id: UUID
     rich_text: list["TxRichText"] = Field(default_factory=list)
 
 

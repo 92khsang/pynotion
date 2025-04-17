@@ -1,30 +1,33 @@
 from typing import Annotated, Optional, Literal, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import BeforeValidator, Tag, Discriminator, ConfigDict
 
 from pynotion.models.block.types import BlockType
 from pynotion.models.file import FileType
-from pynotion.models.object import NotionObjectId, NotionObjectType
+from pynotion.models.object import NotionObjectType
 from .common import model_synced_discriminator
 from .._internal import FrozenNotionModel, validate_url
 from .._internal.utils import discriminate_field
 
 if TYPE_CHECKING:
-    from pynotion.models.file import (
-        NotionFile,
-        HostedFileObject,
+    from pynotion.models import (
+        BackgroundColor,
+        Color,
         ExternalFileObject,
-    )
-    from pynotion.models.types import (
-        NotionUrlWrapper,
+        HostedFileObject,
         NotionDatetime,
-        NotionEquation,
         NotionEmptyDict,
+        NotionEquation,
+        NotionFile,
+        NotionParent,
+        NotionEmoji,
+        NotionUrlWrapper,
+        ProgrammingLanguage,
+        RxRichText,
+        TableOfContents,
+        UserRef,
     )
-    from pynotion.models.parent import NotionParent
-    from pynotion.models.user import UserRef
-    from pynotion.models.block.types import ProgrammingLanguage
-    from pynotion.models.block.common import TableOfContents
 
 __all__ = [
     "ChildDatabase",
@@ -84,9 +87,6 @@ __all__ = [
     "RX_BLOCK_CLASS_MAP",
 ]
 
-RxRichTexts = list["RxRichText"]
-RxCaption = Optional[list["RxRichText"]]
-
 
 class ChildDatabase(FrozenNotionModel):
     """Represents a child database.
@@ -117,9 +117,9 @@ class _RxTextBaseBlockObject(FrozenNotionModel):
         color: The color of the block.
     """
 
-    rich_text: "RxRichTexts"
+    rich_text: list["RxRichText"]
     children: Optional[list["RxBlock"]] = None
-    color: "Color | BackgroundColor"
+    color: Union["Color", "BackgroundColor"]
 
 
 class RxBookmark(FrozenNotionModel):
@@ -130,7 +130,7 @@ class RxBookmark(FrozenNotionModel):
         url: The link for the bookmark.
     """
 
-    caption: "RxCaption" = None
+    caption: Optional[list["RxRichText"]] = None
     url: Annotated[str, BeforeValidator(validate_url)]
 
 
@@ -150,9 +150,9 @@ class RxCallout(FrozenNotionModel):
         color: the color of the block.
     """
 
-    rich_text: "RxRichTexts"
-    icon: Optional["NotionEmoji | NotionFile"]
-    color: "Color | BackgroundColor"
+    rich_text: list["RxRichText"]
+    icon: Optional[Union["NotionEmoji", "NotionFile"]]
+    color: Union["Color", "BackgroundColor"]
 
 
 class RxCode(FrozenNotionModel):
@@ -164,8 +164,8 @@ class RxCode(FrozenNotionModel):
         language: The language of the code contained in the code block.
     """
 
-    caption: "RxCaption" = None
-    rich_text: "RxRichTexts"
+    caption: Optional[list["RxRichText"]] = None
+    rich_text: list["RxRichText"]
     language: "ProgrammingLanguage"
 
 
@@ -180,7 +180,7 @@ class RxCaptionHostedFile(FrozenNotionModel):
 
     type: Literal[FileType.FILE] = FileType.FILE
     file: "HostedFileObject"
-    caption: "RxCaption" = None
+    caption: Optional[list["RxRichText"]] = None
 
 
 class RxCaptionExternalFile(FrozenNotionModel):
@@ -194,7 +194,7 @@ class RxCaptionExternalFile(FrozenNotionModel):
 
     type: Literal[FileType.EXTERNAL] = FileType.EXTERNAL
     external: "ExternalFileObject"
-    caption: "RxCaption" = None
+    caption: Optional[list["RxRichText"]] = None
 
 
 RX_CAPTION_FILE_CLASS_MAP = {
@@ -257,8 +257,8 @@ class RxHeading(FrozenNotionModel):
         children: The nested child blocks.
     """
 
-    rich_text: "RxRichTexts"
-    color: "Color | BackgroundColor"
+    rich_text: list["RxRichText"]
+    color: Union["Color", "BackgroundColor"]
     is_toggleable: bool
     children: Optional[list["RxBlock"]] = None
 
@@ -307,7 +307,7 @@ class RxTableRow(FrozenNotionModel):
         cells: the rich texts in the cell.
     """
 
-    cells: Optional[list["RxRichTexts"]] = None
+    cells: Optional[list[list["RxRichText"]]] = None
 
 
 class RxTable(FrozenNotionModel):
@@ -357,8 +357,8 @@ class _RxBaseBlock(FrozenNotionModel):
         has_children: Whether the block has children.
     """
 
-    object: "Literal[NotionObjectType.BLOCK]" = "block"
-    id: NotionObjectId
+    object: Literal[NotionObjectType.BLOCK] = NotionObjectType.BLOCK
+    id: UUID
     parent: Optional["NotionParent"] = None
     created_time: Optional["NotionDatetime"] = None
     last_edited_time: Optional["NotionDatetime"] = None
@@ -658,7 +658,7 @@ class RxTableRowBlock(_RxBaseBlock):
 
 
 class RxTableContentBlock(_RxBaseBlock):
-    """Represents a table of contents block.
+    """Represents a table-of-contents block.
 
     Attributes:
         type: the type of the block.
@@ -753,7 +753,40 @@ RX_BLOCK_CLASS_MAP = {
     BlockType.UNSUPPORTED: "RxUnsupportedBlock",
 }
 
-RxBlock = Annotated[
-    Union[tuple(RX_BLOCK_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", RX_BLOCK_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    RxBlock = Annotated[
+        Union[tuple(RX_BLOCK_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", RX_BLOCK_CLASS_MAP)),
+    ]
+else:
+    RxBlock = Union[
+        RxBookmarkBlock,
+        RxBreadcrumbBlock,
+        RxBulletListItemBlock,
+        RxCalloutBlock,
+        RxChildDatabaseBlock,
+        RxChildPageBlock,
+        RxCodeBlock,
+        RxColumnBlock,
+        RxColumnListBlock,
+        RxDividerBlock,
+        RxEmbedBlock,
+        RxEquationBlock,
+        RxFileBlock,
+        RxHeadingOneBlock,
+        RxHeadingTwoBlock,
+        RxHeadingThreeBlock,
+        RxImageBlock,
+        RxNumberedListItemBlock,
+        RxParagraphBlock,
+        RxPdfBlock,
+        RxQuoteBlock,
+        RxSyncedBlock,
+        RxTableBlock,
+        RxTableRowBlock,
+        RxTableContentBlock,
+        RxToDoBlock,
+        RxToggleBlock,
+        RxVideoBlock,
+        RxUnsupportedBlock,
+    ]

@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, Literal, TYPE_CHECKING, Any
+from typing import Annotated, Optional, Literal, TYPE_CHECKING, Any, Union
 
 from pydantic import Field, BeforeValidator
 
@@ -7,11 +7,11 @@ from .._internal import BaseNotionModel, validate_enum
 from .._internal.utils import discriminate_field
 
 if TYPE_CHECKING:
-    from pynotion.models.object import NotionObjectIdWrapper
-    from pynotion.models.types import (
-        Color,
+    from pynotion.models import (
         BackgroundColor,
+        Color,
         NotionDate,
+        NotionObjectIdWrapper,
         NotionUrlWrapper,
     )
 
@@ -53,7 +53,7 @@ class Annotations(BaseNotionModel):
     underline: bool = False
     code: bool = False
     color: Annotated[
-        "Color | BackgroundColor | str",
+        Union["Color", "BackgroundColor", "str"],
         BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
     ] = "default"
 

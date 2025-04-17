@@ -7,7 +7,6 @@ from pydantic import (
     Tag,
 )
 
-from pynotion.models.object import NotionObjectId
 from pynotion.models.property.types import (
     NumberFormat,
     RollupFunction,
@@ -16,7 +15,6 @@ from pynotion.models.property.types import (
 )
 from .._internal import (
     FrozenNotionModel,
-    validate_uuid4,
     validate_email,
     validate_url,
     validate_phone,
@@ -182,7 +180,7 @@ class DualRelation(FrozenNotionModel):
         dual_property: The synced property.
     """
 
-    database_id: NotionObjectId
+    database_id: UUID
     dual_property: "SyncRelation"
 
 
@@ -194,7 +192,7 @@ class SingleRelation(FrozenNotionModel):
         single_property: The synced property.
     """
 
-    database_id: NotionObjectId
+    database_id: UUID
     single_property: "SyncRelation"
 
 
@@ -250,9 +248,7 @@ class GroupOption(FrozenNotionModel):
         option_ids: The IDs of the options in the group.
     """
 
-    option_ids: list[
-        Annotated[str | int | bytes | UUID, BeforeValidator(validate_uuid4)]
-    ]
+    option_ids: list[UUID]
 
 
 class _BaseProperty(FrozenNotionModel):
@@ -376,11 +372,11 @@ class LastEditedTimeProperty(_BaseProperty):
 
 
 class MultiSelectProperty(_BaseProperty):
-    """Represents a multi select property.
+    """Represents a multi-select property.
 
     Attributes:
         type: The type of the property.
-        multi_select: The options for the multi select property.
+        multi_select: The options for the multi-select property.
     """
 
     type: Literal[PropertyType.MULTI_SELECT] = PropertyType.MULTI_SELECT
@@ -400,7 +396,7 @@ class NumberProperty(_BaseProperty):
 
 
 class PeopleProperty(_BaseProperty):
-    """Represents a people property.
+    """Represents a "people" property.
 
     Attributes:
         type: The type of the property.
@@ -532,10 +528,34 @@ PROPERTY_CLASS_MAP = {
     PropertyType.URL: "UrlProperty",
 }
 
-Property = Annotated[
-    Union[tuple(PROPERTY_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", PROPERTY_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    Property = Annotated[
+        Union[tuple(PROPERTY_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", PROPERTY_CLASS_MAP)),
+    ]
+else:
+    Property = Union[
+        CheckboxProperty,
+        CreatedByProperty,
+        CreatedTimeProperty,
+        DateProperty,
+        EmailProperty,
+        FilesProperty,
+        FormulaProperty,
+        LastEditedByProperty,
+        LastEditedTimeProperty,
+        MultiSelectProperty,
+        NumberProperty,
+        PeopleProperty,
+        PhoneNumberProperty,
+        RelationProperty,
+        RichTextProperty,
+        RollupProperty,
+        SelectProperty,
+        StatusProperty,
+        TitleProperty,
+        UrlProperty,
+    ]
 
 
 class ArrayRollupValue(FrozenNotionModel):
@@ -792,7 +812,7 @@ class RxEmailPropertyValue(_RxBasePropertyValue):
 
 
 class RxFilesPropertyValue(_RxBasePropertyValue):
-    """Represents a files property value.
+    """Represents a "files" property value.
 
     Attributes:
         type: The type of the property value.
@@ -804,11 +824,11 @@ class RxFilesPropertyValue(_RxBasePropertyValue):
 
 
 class RxMultiSelectPropertyValue(_RxBasePropertyValue):
-    """Represents a multi select property value.
+    """Represents a multi-select property value.
 
     Attributes:
         type: The type of the property value.
-        multi_select: The multi select property value.
+        multi_select: The multi-select property value.
     """
 
     type: Literal[PropertyType.MULTI_SELECT] = PropertyType.MULTI_SELECT
@@ -828,7 +848,7 @@ class RxNumberPropertyValue(_RxBasePropertyValue):
 
 
 class RxPeoplePropertyValue(_RxBasePropertyValue):
-    """Represents people property value.
+    """Represents 'people' property value.
 
     Attributes:
         type: The type of the property value.
@@ -950,12 +970,38 @@ RX_PROPERTY_VALUE_CLASS_MAP = {
     PropertyType.VERIFICATION: "VerificationPropertyValue",
 }
 
-RxPropertyValue = Annotated[
-    Union[tuple(RX_PROPERTY_VALUE_CLASS_MAP.values())],
-    BeforeValidator(
-        lambda v: discriminate_field(v, "type", RX_PROPERTY_VALUE_CLASS_MAP)
-    ),
-]
+if not TYPE_CHECKING:
+    RxPropertyValue = Annotated[
+        Union[tuple(RX_PROPERTY_VALUE_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(v, "type", RX_PROPERTY_VALUE_CLASS_MAP)
+        ),
+    ]
+else:
+    RxPropertyValue = Union[
+        RxCheckboxPropertyValue,
+        CreatedByPropertyValue,
+        CreatedTimePropertyValue,
+        RxDatePropertyValue,
+        RxEmailPropertyValue,
+        RxFilesPropertyValue,
+        FormulaPropertyValue,
+        LastEditedByPropertyValue,
+        LastEditedTimePropertyValue,
+        RxMultiSelectPropertyValue,
+        RxNumberPropertyValue,
+        RxPeoplePropertyValue,
+        RxPhoneNumberPropertyValue,
+        RxRelationPropertyValue,
+        RxRichTextPropertyValue,
+        RollupPropertyValue,
+        RxSelectPropertyValue,
+        RxStatusPropertyValue,
+        RxTitlePropertyValue,
+        RxUrlPropertyValue,
+        UniqueIdPropertyValue,
+        VerificationPropertyValue,
+    ]
 
 
 class RxPaginatedTitlePropertyItem(_RxBasePropertyValue):
@@ -1013,12 +1059,22 @@ RX_PAGINATED_PROPERTY_ITEM_CLASS_MAP = {
     PropertyType.PEOPLE: "RxPaginatedPeoplePropertyItem",
 }
 
-RxPaginatedPropertyItem = Annotated[
-    Union[tuple(RX_PAGINATED_PROPERTY_ITEM_CLASS_MAP.values())],
-    BeforeValidator(
-        lambda v: discriminate_field(v, "type", RX_PAGINATED_PROPERTY_ITEM_CLASS_MAP)
-    ),
-]
+if not TYPE_CHECKING:
+    RxPaginatedPropertyItem = Annotated[
+        Union[tuple(RX_PAGINATED_PROPERTY_ITEM_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(
+                v, "type", RX_PAGINATED_PROPERTY_ITEM_CLASS_MAP
+            )
+        ),
+    ]
+else:
+    RxPaginatedPropertyItem = Union[
+        RxPaginatedTitlePropertyItem,
+        RxPaginatedRichTextPropertyItem,
+        RxPaginatedRelationPropertyItem,
+        RxPaginatedPeoplePropertyItem,
+    ]
 
 
 class _RxBasePropertyItem(_RxBasePropertyValue):
@@ -1068,7 +1124,7 @@ class RxRelationPropertyItem(_RxBasePropertyItem):
 
 
 class RxPeoplePropertyItem(_RxBasePropertyItem):
-    """Represents a people property item.
+    """Represents a "people" property item.
 
     Attributes:
         type: The type of the property item.
@@ -1099,9 +1155,18 @@ RX_PROPERTY_ITEM_CLASS_MAP = {
     PropertyType.ROLLUP: "RxRollupPropertyItem",
 }
 
-RxPropertyItem = Annotated[
-    Union[tuple(RX_PROPERTY_ITEM_CLASS_MAP.values())],
-    BeforeValidator(
-        lambda v: discriminate_field(v, "type", RX_PROPERTY_ITEM_CLASS_MAP)
-    ),
-]
+if not TYPE_CHECKING:
+    RxPropertyItem = Annotated[
+        Union[tuple(RX_PROPERTY_ITEM_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(v, "type", RX_PROPERTY_ITEM_CLASS_MAP)
+        ),
+    ]
+else:
+    RxPropertyItem = Union[
+        RxTitlePropertyItem,
+        RxRichTextPropertyItem,
+        RxRelationPropertyItem,
+        RxPeoplePropertyItem,
+        RxRollupPropertyItem,
+    ]

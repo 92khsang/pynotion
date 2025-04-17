@@ -40,4 +40,4 @@ class NotionAsyncClient(BaseClient):
             )
             return handle_response(response)
         except Exception as e:
-            handle_http_error(e)
+            raise handle_http_error(e)

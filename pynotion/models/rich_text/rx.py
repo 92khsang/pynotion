@@ -2,18 +2,18 @@ from typing import Annotated, Optional, Literal, TYPE_CHECKING, Union
 
 from pydantic import Field, BeforeValidator
 
+from pynotion.models.rich_text.types import MentionType, RichTextType
 from .._internal import BaseNotionModel, FrozenNotionModel, validate_url
 from .._internal.utils import discriminate_field
 
 if TYPE_CHECKING:
-    from pynotion.models.user import NotionUser
-    from pynotion.models.rich_text.common import (
+    from pynotion.models import (
+        NotionUser,
         Annotations,
         Text,
         Equation,
     )
 
-from pynotion.models.rich_text.types import MentionType, RichTextType
 
 __all__ = [
     "RxMention",
@@ -114,7 +114,12 @@ RX_RICH_TEXT_CLASS_MAP = {
     RichTextType.MENTION: "RxMentionRichText",
 }
 
-RxRichText = Annotated[
-    Union[tuple(RX_RICH_TEXT_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", RX_RICH_TEXT_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    RxRichText = Annotated[
+        Union[tuple(RX_RICH_TEXT_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(v, "type", RX_RICH_TEXT_CLASS_MAP)
+        ),
+    ]
+else:
+    RxRichText = Union[RxTextRichText, RxEquationRichText, RxMentionRichText]

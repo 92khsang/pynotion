@@ -3,10 +3,7 @@ from typing import Literal, Annotated, TYPE_CHECKING, Union
 
 from pydantic import Field, BeforeValidator
 
-from ._internal import (
-    BaseNotionModel,
-    validate_url,
-)
+from ._internal import BaseNotionModel, validate_url
 from ._internal.utils import discriminate_field
 
 if TYPE_CHECKING:
@@ -119,19 +116,24 @@ FILE_CLASS_MAP = {
     FileType.EXTERNAL: "ExternalFile",
 }
 
-
-NotionFile = Annotated[
-    Union[tuple(FILE_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", FILE_CLASS_MAP)),
-]
-
 File_WITH_NAME_CLASS_MAP = {
     FileType.FILE: "HostedFileWithName",
     FileType.EXTERNAL: "ExternalFileWithName",
 }
 
 
-NotionFileWithName = Annotated[
-    Union[tuple(File_WITH_NAME_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", File_WITH_NAME_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    NotionFile = Annotated[
+        Union[tuple(FILE_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", FILE_CLASS_MAP)),
+    ]
+
+    NotionFileWithName = Annotated[
+        Union[tuple(File_WITH_NAME_CLASS_MAP.values())],
+        BeforeValidator(
+            lambda v: discriminate_field(v, "type", File_WITH_NAME_CLASS_MAP)
+        ),
+    ]
+else:
+    NotionFile = Union[HostedFile, ExternalFile]
+    NotionFileWithName = Union[HostedFileWithName, ExternalFileWithName]

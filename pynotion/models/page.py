@@ -1,18 +1,22 @@
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import Field, model_validator
 
-from pynotion.models.object import NotionObjectType, NotionObjectId
+from pynotion.models.object import NotionObjectType
 from ._internal import BaseNotionModel, FrozenNotionModel
 
 if TYPE_CHECKING:
-    from pynotion.models.block.tx import TxBlock
-    from pynotion.models.file import NotionFile
-    from pynotion.models.parent import NotionParent
-    from pynotion.models.property.rx import RxPropertyValue
-    from pynotion.models.property.tx import TxPropertyValue
-    from pynotion.models.types import NotionDatetime
-    from pynotion.models.user import UserRef
+    from pynotion.models import (
+        NotionDatetime,
+        NotionEmoji,
+        NotionFile,
+        NotionParent,
+        RxPropertyValue,
+        TxBlock,
+        TxPropertyValue,
+        UserRef,
+    )
 
 
 __all__ = ["RxPage", "TxPage"]
@@ -39,14 +43,14 @@ class RxPage(FrozenNotionModel):
     """
 
     object: Literal[NotionObjectType.PAGE] = NotionObjectType.PAGE
-    id: NotionObjectId
+    id: UUID
     created_time: Optional["NotionDatetime"] = None
     created_by: Optional["UserRef"] = None
     last_edited_time: Optional["NotionDatetime"] = None
     last_edited_by: Optional["UserRef"] = None
     archived: Optional[bool] = None
     in_trash: Optional[bool] = None
-    icon: Optional["NotionFile | NotionEmoji"] = None
+    icon: Optional[Union["NotionFile", "NotionEmoji"]] = None
     cover: Optional["NotionFile"] = None
     properties: Optional[dict[str, "RxPropertyValue"]] = None
     parent: Optional["NotionParent"] = None
@@ -68,7 +72,7 @@ class TxPage(BaseNotionModel):
     parent: "NotionParent"
     properties: dict[str, "TxPropertyValue"] = Field(default_factory=dict)
     children: Optional[list["TxBlock"]] = None
-    icon: Optional["ExternalFile | NotionEmoji"] = None
+    icon: Optional[Union["NotionFile", "NotionEmoji"]] = None
     cover: Optional["NotionFile"] = None
 
     @model_validator(mode="after")

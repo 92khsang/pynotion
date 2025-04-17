@@ -8,13 +8,14 @@ from pynotion.models.property.rx import RX_PROPERTY_VALUE_CLASS_MAP
 
 if TYPE_CHECKING:
     from pynotion.models import (
+        ExternalFile,
+        NotionEmoji,
         PropertyItemPagination,
         RxPage,
         RxPropertyValue,
-        TxPagination,
         TxPage,
+        TxPagination,
         TxPropertyValue,
-        ExternalFile,
     )
 
 
@@ -78,7 +79,7 @@ class PageSyncEndPoint:
             f"/pages/{page_id}/properties/{property_id}", params=params
         )
 
-        type_value = data.get("type", None)
+        type_value: Optional[str] = data.get("type", None)
         if type_value not in __property_item_mapping__:
             raise ValueError(f"Invalid type: {type_value}")
 
@@ -91,7 +92,7 @@ class PageSyncEndPoint:
         /,
         page_id: UUID4,
         properties: Optional[dict[str, "TxPropertyValue"]] = None,
-        icon: Optional["ExternalFile | NotionEmoji"] = None,
+        icon: Optional[Union["ExternalFile", "NotionEmoji"]] = None,
         cover: Optional["ExternalFile"] = None,
     ) -> "RxPage":
         """

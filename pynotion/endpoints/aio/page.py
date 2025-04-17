@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         TxPage,
         TxPropertyValue,
         ExternalFile,
+        NotionEmoji,
     )
 
 
@@ -76,7 +77,7 @@ class PageAsyncEndPoint:
             f"/pages/{page_id}/properties/{property_id}", params=params
         )
 
-        type_value = data.get("type", None)
+        type_value: Optional[str] = data.get("type", None)
         if type_value not in __property_item_mapping__:
             raise ValueError(f"Invalid type: {type_value}")
 
@@ -88,7 +89,7 @@ class PageAsyncEndPoint:
         self,
         page_id: UUID4,
         properties: Optional[dict[str, "TxPropertyValue"]] = None,
-        icon: Optional["ExternalFile | NotionEmoji"] = None,
+        icon: Optional[Union["ExternalFile", "NotionEmoji"]] = None,
         cover: Optional["ExternalFile"] = None,
     ) -> "RxPage":
         """

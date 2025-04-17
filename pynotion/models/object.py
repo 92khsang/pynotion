@@ -1,22 +1,9 @@
 from enum import Enum
-from typing import Annotated
 from uuid import UUID
 
-from pydantic import BeforeValidator
+from ._internal import BaseNotionModel
 
-from ._internal import (
-    validate_uuid4,
-    BaseNotionModel,
-)
-
-__all__ = [
-    "NotionObjectId",
-    "NotionObjectType",
-    "NotionObjectIdWrapper",
-]
-
-
-NotionObjectId = Annotated[str | int | bytes | UUID, BeforeValidator(validate_uuid4)]
+__all__ = ["NotionObjectType", "NotionObjectIdWrapper"]
 
 
 class NotionObjectType(str, Enum):
@@ -36,4 +23,4 @@ class NotionObjectIdWrapper(BaseNotionModel):
         id: The ID of the object.
     """
 
-    id: NotionObjectId
+    id: UUID

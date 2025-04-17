@@ -1,11 +1,11 @@
 from enum import Enum
-from typing import Literal, Annotated
+from typing import Literal, Annotated, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import Field, BeforeValidator
 
 from ._internal import BaseNotionModel
 from ._internal.utils import discriminate_field
-from .object import NotionObjectId
 
 __all__ = [
     "ParentType",
@@ -36,7 +36,7 @@ class DatabaseParent(BaseNotionModel):
     """
 
     type: Literal[ParentType.DATABASE_ID] = ParentType.DATABASE_ID
-    database_id: NotionObjectId
+    database_id: UUID
 
 
 class PageParent(BaseNotionModel):
@@ -48,7 +48,7 @@ class PageParent(BaseNotionModel):
     """
 
     type: Literal[ParentType.PAGE_ID] = ParentType.PAGE_ID
-    page_id: NotionObjectId
+    page_id: UUID
 
 
 class BlockParent(BaseNotionModel):
@@ -60,7 +60,7 @@ class BlockParent(BaseNotionModel):
     """
 
     type: Literal[ParentType.BLOCK_ID] = ParentType.BLOCK_ID
-    block_id: NotionObjectId
+    block_id: UUID
 
 
 class WorkspaceParent(BaseNotionModel):
@@ -82,8 +82,10 @@ PARENT_CLASS_MAP = {
     ParentType.WORKSPACE: "WorkspaceParent",
 }
 
-
-NotionParent = Annotated[
-    dict | BaseNotionModel,
-    BeforeValidator(lambda v: discriminate_field(v, "type", PARENT_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    NotionParent = Annotated[
+        dict | BaseNotionModel,
+        BeforeValidator(lambda v: discriminate_field(v, "type", PARENT_CLASS_MAP)),
+    ]
+else:
+    NotionParent = Union[DatabaseParent, PageParent, BlockParent, WorkspaceParent]

@@ -1,21 +1,25 @@
 from __future__ import annotations as _annotations
 
 from enum import Enum
-from typing import Optional, Literal, TypeVar, Any, Annotated, TYPE_CHECKING
+from typing import Optional, Literal, TypeVar, Any, Annotated, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import Field
 
 from ._internal import BaseNotionModel, FrozenNotionModel
 
 if TYPE_CHECKING:
-    from pynotion.models.block.rx import RxBlock
-    from pynotion.models.comment import RxComment
-    from pynotion.models.database import RxDatabase
-    from pynotion.models.object import NotionObjectId
-    from pynotion.models.page import RxPage
-    from pynotion.models.property.rx import RxPropertyItem, RxPaginatedPropertyItem
-    from pynotion.models.types import NotionDatetime, NotionEmptyDict
-    from pynotion.models.user import NotionUser
+    from pynotion.models import (
+        RxBlock,
+        RxComment,
+        RxDatabase,
+        RxPage,
+        RxPropertyItem,
+        RxPaginatedPropertyItem,
+        NotionDatetime,
+        NotionEmptyDict,
+        NotionUser,
+    )
 
 __all__ = [
     # Pagination
@@ -164,7 +168,9 @@ class PageOrDatabasePagination(_RxBasePagination):
 
     type: Literal[PaginationType.PAGE_OR_DATABASE] = PaginationType.PAGE_OR_DATABASE
     page_or_database: Any = None
-    results: list[Annotated["RxPage | RxDatabase", Field(discriminator="object")]]
+    results: list[
+        Annotated[Union["RxPage", "RxDatabase"], Field(discriminator="object")]
+    ]
 
 
 class PropertyItemPagination(_RxBasePagination):
@@ -288,7 +294,7 @@ class DateCondition(BaseNotionModel):
 
 
 class FilesCondition(BaseNotionModel):
-    """Model for a files condition.
+    """Model for a 'files' condition.
 
     Attributes:
         is_empty: Whether the files are empty.
@@ -340,7 +346,7 @@ class NumberCondition(BaseNotionModel):
 
 
 class PersonCondition(BaseNotionModel):
-    """Model for a person condition.
+    """Model for a 'person' condition.
 
     Attributes:
         contains: The person to contain.
@@ -349,8 +355,8 @@ class PersonCondition(BaseNotionModel):
         is_not_empty: Whether the person is not empty.
     """
 
-    contains: Optional[NotionObjectId]
-    does_not_contain: Optional[NotionObjectId]
+    contains: Optional[UUID]
+    does_not_contain: Optional[UUID]
     is_empty: Optional[bool]
     is_not_empty: Optional[bool]
 
@@ -365,8 +371,8 @@ class RelationCondition(BaseNotionModel):
         is_not_empty: Whether the relation is not empty.
     """
 
-    contains: Optional[NotionObjectId]
-    does_not_contain: Optional[NotionObjectId]
+    contains: Optional[UUID]
+    does_not_contain: Optional[UUID]
     is_empty: Optional[bool]
     is_not_empty: Optional[bool]
 
@@ -376,7 +382,7 @@ class RichTextCondition(BaseNotionModel):
 
     Attributes:
         contains: The text to contain.
-        does_not_contain: The text to not contain.
+        does_not_contain: The text does not contain.
         equals: The text to equal.
         does_not_equal: The text to not equal.
         is_empty: Whether the rich text is empty.
@@ -467,7 +473,7 @@ class RollupCondition(BaseNotionModel):
     """Model for a rollup condition.
 
     Attributes:
-        any: The any condition.
+        any: Any condition.
         every: The every condition.
         none: The none condition.
         date: The date condition.
@@ -481,7 +487,21 @@ class RollupCondition(BaseNotionModel):
     number: Optional["NumberCondition"]
 
 
-FilterCondition = "CheckboxCondition | DateCondition | FilesCondition | MultiSelectCondition | NumberCondition | PersonCondition | RelationCondition | RichTextCondition | SelectCondition | StatusCondition | UniqueIdCondition | FormulaCondition | RollupCondition"
+FilterCondition = Union[
+    "CheckboxCondition",
+    "DateCondition",
+    "FilesCondition",
+    "MultiSelectCondition",
+    "NumberCondition",
+    "PersonCondition",
+    "RelationCondition",
+    "RichTextCondition",
+    "SelectCondition",
+    "StatusCondition",
+    "UniqueIdCondition",
+    "FormulaCondition",
+    "RollupCondition",
+]
 
 
 class _BasePropertyFilter(BaseNotionModel):
@@ -525,10 +545,10 @@ class DateFilter(_BasePropertyFilter):
 
 
 class FilesFilter(_BasePropertyFilter):
-    """Model for files filter.
+    """Model for 'files' filter.
 
     Attributes:
-        files: The files condition
+        files: The 'files' condition
     """
 
     files: "FilesCondition"
@@ -674,7 +694,25 @@ class OrPropertyFilter(BaseNotionModel):
     filters: list["PropertyFilter"]
 
 
-PropertyFilter = "CheckboxFilter | DateFilter | FilesFilter | FormulaFilter | MultiSelectFilter | NumberFilter | PeopleFilter | RelationFilter | RichTextFilter | RollupFilter | SelectFilter | StatusFilter | UniqueIdFilter | CreatedTimeFilter | LastEditedTimeFilter | AndPropertyFilter | OrPropertyFilter"
+PropertyFilter = Union[
+    "CheckboxFilter",
+    "DateFilter",
+    "FilesFilter",
+    "FormulaFilter",
+    "MultiSelectFilter",
+    "NumberFilter",
+    "PeopleFilter",
+    "RelationFilter",
+    "RichTextFilter",
+    "RollupFilter",
+    "SelectFilter",
+    "StatusFilter",
+    "UniqueIdFilter",
+    "CreatedTimeFilter",
+    "LastEditedTimeFilter",
+    "AndPropertyFilter",
+    "OrPropertyFilter",
+]
 
 
 class ObjectFilter(BaseNotionModel):

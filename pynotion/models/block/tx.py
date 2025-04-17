@@ -1,10 +1,10 @@
 from typing import Annotated, Optional, Literal, TYPE_CHECKING, Union
 
 from pydantic import (
-    Field,
     BeforeValidator,
-    Tag,
     Discriminator,
+    Field,
+    Tag,
     model_serializer,
     model_validator,
 )
@@ -17,26 +17,24 @@ from .._internal import validate_url, validate_enum, BaseNotionModel
 from .._internal.utils import discriminate_field
 
 if TYPE_CHECKING:
-    from pynotion.models.types import Color, BackgroundColor
-    from pynotion.models.file import (
-        NotionFile,
-        HostedFileObject,
+    from pynotion.models import (
+        BackgroundColor,
+        Color,
         ExternalFileObject,
-    )
-    from pynotion.models.types import (
-        NotionUrlWrapper,
-        NotionEquation,
+        HostedFileObject,
         NotionEmptyDict,
+        NotionEquation,
+        NotionEmoji,
+        NotionFile,
+        NotionUrlWrapper,
+        TableOfContents,
+        TxRichText,
     )
 
-    from pynotion.models.block.common import TableOfContents
-
-TxRichTexts = list["TxRichText"]
-TxCaption = Optional[list["TxRichText"]]
 
 TxColor = Optional[
     Annotated[
-        "str | Color | BackgroundColor",
+        Union["str", "Color", "BackgroundColor"],
         BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
     ]
 ]
@@ -106,7 +104,7 @@ class _TxTextBaseBlockObject(BaseNotionModel):
         color: The color of the block.
     """
 
-    rich_text: "TxRichTexts" = Field(default_factory=list)
+    rich_text: list["TxRichText"] = Field(default_factory=list)
     children: Optional[list["TxBlock"]] = None
     color: "TxColor" = None
 
@@ -119,7 +117,7 @@ class TxBookmark(BaseNotionModel):
         url: The link for the bookmark.
     """
 
-    caption: "TxCaption" = None
+    caption: Optional[list["TxRichText"]] = None
     url: Annotated[str, BeforeValidator(validate_url)]
 
 
@@ -139,8 +137,8 @@ class TxCallout(BaseNotionModel):
         color: the color of the block.
     """
 
-    rich_text: "TxRichTexts"
-    icon: Union["None | NotionEmoji | NotionFile"] = None
+    rich_text: list["TxRichText"]
+    icon: Optional[Union["NotionEmoji", "NotionFile"]] = None
     color: "TxColor" = None
 
 
@@ -153,8 +151,8 @@ class TxCode(BaseNotionModel):
         language: The language of the code contained in the code block.
     """
 
-    caption: "TxCaption" = None
-    rich_text: "TxRichTexts"
+    caption: Optional[list["TxRichText"]] = None
+    rich_text: list["TxRichText"]
     language: "ProgrammingLanguage"
 
 
@@ -169,7 +167,7 @@ class TxCaptionHostedFile(BaseNotionModel):
 
     type: Literal[FileType.FILE] = FileType.FILE
     file: "HostedFileObject"
-    caption: "TxCaption" = None
+    caption: Optional[list["TxRichText"]] = None
 
 
 class TxCaptionExternalFile(BaseNotionModel):
@@ -183,7 +181,7 @@ class TxCaptionExternalFile(BaseNotionModel):
 
     type: Literal[FileType.EXTERNAL] = FileType.EXTERNAL
     external: "ExternalFileObject"
-    caption: "TxCaption" = None
+    caption: Optional[list["TxRichText"]] = None
 
 
 TX_CAPTION_FILE_CLASS_MAP = {
@@ -246,7 +244,7 @@ class TxHeading(BaseNotionModel):
         children: The nested child blocks.
     """
 
-    rich_text: "TxRichTexts"
+    rich_text: list["TxRichText"]
     color: "TxColor" = None
     is_toggleable: Optional[bool] = None
     children: Optional[list["TxBlock"]] = None
@@ -309,7 +307,7 @@ class TxTableRow(BaseNotionModel):
         cells: the cells
     """
 
-    cells: list["TxRichTexts"]
+    cells: list[list["TxRichText"]]
 
 
 class TxTable(BaseNotionModel):
@@ -638,7 +636,7 @@ class TxTableRowBlock(_TxBaseBlock):
 
 
 class TxTableContentBlock(_TxBaseBlock):
-    """Represents a table of contents block.
+    """Represents a table-of-contents block.
 
     Attributes:
         type: the type of the block.
@@ -714,7 +712,37 @@ TX_BLOCK_CLASS_MAP = {
     BlockType.VIDEO: "TxVideoBlock",
 }
 
-TxBlock = Annotated[
-    Union[tuple(TX_BLOCK_CLASS_MAP.values())],
-    BeforeValidator(lambda v: discriminate_field(v, "type", TX_BLOCK_CLASS_MAP)),
-]
+if not TYPE_CHECKING:
+    TxBlock = Annotated[
+        Union[tuple(TX_BLOCK_CLASS_MAP.values())],
+        BeforeValidator(lambda v: discriminate_field(v, "type", TX_BLOCK_CLASS_MAP)),
+    ]
+else:
+    TxBlock = Union[
+        TxBookmarkBlock,
+        TxBreadcrumbBlock,
+        TxBulletListItemBlock,
+        TxCalloutBlock,
+        TxCodeBlock,
+        TxColumnBlock,
+        TxColumnListBlock,
+        TxDividerBlock,
+        TxEmbedBlock,
+        TxEquationBlock,
+        TxFileBlock,
+        TxHeadingOneBlock,
+        TxHeadingTwoBlock,
+        TxHeadingThreeBlock,
+        TxImageBlock,
+        TxNumberedListItemBlock,
+        TxParagraphBlock,
+        TxPdfBlock,
+        TxQuoteBlock,
+        TxSyncedBlock,
+        TxTableBlock,
+        TxTableRowBlock,
+        TxTableContentBlock,
+        TxToDoBlock,
+        TxToggleBlock,
+        TxVideoBlock,
+    ]

@@ -1,8 +1,8 @@
-from typing import Optional, Annotated, TYPE_CHECKING
+from typing import Optional, Annotated, TYPE_CHECKING, Union
+from uuid import UUID
 
 from pydantic import BeforeValidator
 
-from pynotion.models.object import NotionObjectId
 from .._internal import BaseNotionModel, validate_enum
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class SyncedFrom(BaseNotionModel):
         block_id: An identifier for the original synced_block.
     """
 
-    block_id: NotionObjectId
+    block_id: UUID
 
 
 class DuplicateSynced(BaseNotionModel):
@@ -59,7 +59,7 @@ class TableOfContents(BaseNotionModel):
 
     color: Optional[
         Annotated[
-            "str | Color | BackgroundColor",
+            Union["str", "Color", "BackgroundColor"],
             BeforeValidator(lambda v: validate_enum(v, (Color, BackgroundColor))),
         ]
     ]
