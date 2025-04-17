@@ -1,4 +1,5 @@
 from typing import Literal, Optional, TYPE_CHECKING
+from uuid import UUID
 
 from pydantic import Field
 

@@ -8,13 +8,13 @@ from ._internal import BaseNotionModel
 from ._internal.utils import discriminate_field
 
 __all__ = [
-    "ParentType",
-    "DatabaseParent",
-    "PageParent",
     "BlockParent",
-    "WorkspaceParent",
+    "DatabaseParent",
     "NotionParent",
     "PARENT_CLASS_MAP",
+    "PageParent",
+    "ParentType",
+    "WorkspaceParent",
 ]
 
 
@@ -84,7 +84,7 @@ PARENT_CLASS_MAP = {
 
 if not TYPE_CHECKING:
     NotionParent = Annotated[
-        dict | BaseNotionModel,
+        Union[tuple(PARENT_CLASS_MAP.values())],
         BeforeValidator(lambda v: discriminate_field(v, "type", PARENT_CLASS_MAP)),
     ]
 else:
