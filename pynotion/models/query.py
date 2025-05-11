@@ -242,7 +242,7 @@ class TimestampSort(BaseNotionModel):
     direction: "SortDirection"
 
 
-NotionSort = PropertySort | TimestampSort
+NotionSort = Union[PropertySort, TimestampSort]
 
 
 class CheckboxCondition(BaseNotionModel):
@@ -253,8 +253,8 @@ class CheckboxCondition(BaseNotionModel):
         does_not_equal: Whether the checkbox is not checked.
     """
 
-    equals: Optional[bool]
-    does_not_equal: Optional[bool]
+    equals: Optional[bool] = None
+    does_not_equal: Optional[bool] = None
 
 
 class DateCondition(BaseNotionModel):
@@ -277,20 +277,20 @@ class DateCondition(BaseNotionModel):
         this_week: The current week.
     """
 
-    before: Optional["NotionDatetime"]
-    after: Optional["NotionDatetime"]
-    equals: Optional["NotionDatetime"]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
-    next_month: Optional["NotionEmptyDict"]
-    next_week: Optional["NotionEmptyDict"]
-    next_year: Optional["NotionEmptyDict"]
-    on_or_before: Optional["NotionDatetime"]
-    on_or_after: Optional["NotionDatetime"]
-    past_month: Optional["NotionEmptyDict"]
-    past_week: Optional["NotionEmptyDict"]
-    past_year: Optional["NotionEmptyDict"]
-    this_week: Optional["NotionEmptyDict"]
+    before: Optional["NotionDatetime"] = None
+    after: Optional["NotionDatetime"] = None
+    equals: Optional["NotionDatetime"] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
+    next_month: Optional["NotionEmptyDict"] = None
+    next_week: Optional["NotionEmptyDict"] = None
+    next_year: Optional["NotionEmptyDict"] = None
+    on_or_before: Optional["NotionDatetime"] = None
+    on_or_after: Optional["NotionDatetime"] = None
+    past_month: Optional["NotionEmptyDict"] = None
+    past_week: Optional["NotionEmptyDict"] = None
+    past_year: Optional["NotionEmptyDict"] = None
+    this_week: Optional["NotionEmptyDict"] = None
 
 
 class FilesCondition(BaseNotionModel):
@@ -301,8 +301,8 @@ class FilesCondition(BaseNotionModel):
         is_not_empty: Whether the files are not empty.
     """
 
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class MultiSelectCondition(BaseNotionModel):
@@ -315,10 +315,10 @@ class MultiSelectCondition(BaseNotionModel):
         is_not_empty: Whether the multi-select is not empty.
     """
 
-    contains: Optional[str]
-    does_not_contain: Optional[str]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    contains: Optional[str] = None
+    does_not_contain: Optional[str] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class NumberCondition(BaseNotionModel):
@@ -335,14 +335,14 @@ class NumberCondition(BaseNotionModel):
         is_not_empty: Whether the number is not empty.
     """
 
-    does_not_equal: Optional[float | int]
-    equals: Optional[float | int]
-    greater_than: Optional[float | int]
-    greater_than_or_equal_to: Optional[float | int]
-    less_than: Optional[float | int]
-    less_than_or_equal_to: Optional[float | int]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    does_not_equal: Optional[float | int] = None
+    equals: Optional[float | int] = None
+    greater_than: Optional[float | int] = None
+    greater_than_or_equal_to: Optional[float | int] = None
+    less_than: Optional[float | int] = None
+    less_than_or_equal_to: Optional[float | int] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class PersonCondition(BaseNotionModel):
@@ -355,10 +355,10 @@ class PersonCondition(BaseNotionModel):
         is_not_empty: Whether the person is not empty.
     """
 
-    contains: Optional[UUID]
-    does_not_contain: Optional[UUID]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    contains: Optional[UUID] = None
+    does_not_contain: Optional[UUID] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class RelationCondition(BaseNotionModel):
@@ -371,10 +371,10 @@ class RelationCondition(BaseNotionModel):
         is_not_empty: Whether the relation is not empty.
     """
 
-    contains: Optional[UUID]
-    does_not_contain: Optional[UUID]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    contains: Optional[UUID] = None
+    does_not_contain: Optional[UUID] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class RichTextCondition(BaseNotionModel):
@@ -391,14 +391,14 @@ class RichTextCondition(BaseNotionModel):
         ends_with: The text to end with.
     """
 
-    contains: Optional[str]
-    does_not_contain: Optional[str]
-    equals: Optional[str]
-    does_not_equal: Optional[str]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
-    starts_with: Optional[str]
-    ends_with: Optional[str]
+    contains: Optional[str] = None
+    does_not_contain: Optional[str] = None
+    equals: Optional[str] = None
+    does_not_equal: Optional[str] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
+    starts_with: Optional[str] = None
+    ends_with: Optional[str] = None
 
 
 class SelectCondition(BaseNotionModel):
@@ -411,10 +411,10 @@ class SelectCondition(BaseNotionModel):
         is_not_empty: Whether the select is not empty.
     """
 
-    equals: Optional[str]
-    does_not_equal: Optional[str]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    equals: Optional[str] = None
+    does_not_equal: Optional[str] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class StatusCondition(BaseNotionModel):
@@ -427,10 +427,10 @@ class StatusCondition(BaseNotionModel):
         is_not_empty: Whether the status is not empty.
     """
 
-    equals: Optional[str]
-    does_not_equal: Optional[str]
-    is_empty: Optional[bool]
-    is_not_empty: Optional[bool]
+    equals: Optional[str] = None
+    does_not_equal: Optional[str] = None
+    is_empty: Optional[bool] = None
+    is_not_empty: Optional[bool] = None
 
 
 class UniqueIdCondition(BaseNotionModel):
@@ -445,12 +445,12 @@ class UniqueIdCondition(BaseNotionModel):
         less_than_or_equal_to: The value to be less than or equal to.
     """
 
-    equals: Optional[str]
-    does_not_equal: Optional[str]
-    greater_than: Optional[float | int]
-    greater_than_or_equal_to: Optional[float | int]
-    less_than: Optional[float | int]
-    less_than_or_equal_to: Optional[float | int]
+    equals: Optional[str] = None
+    does_not_equal: Optional[str] = None
+    greater_than: Optional[float | int] = None
+    greater_than_or_equal_to: Optional[float | int] = None
+    less_than: Optional[float | int] = None
+    less_than_or_equal_to: Optional[float | int] = None
 
 
 class FormulaCondition(BaseNotionModel):
@@ -463,10 +463,10 @@ class FormulaCondition(BaseNotionModel):
         string: The string condition.
     """
 
-    checkbox: Optional["CheckboxCondition"]
-    date: Optional["DateCondition"]
-    number: Optional["NumberCondition"]
-    string: Optional["RichTextCondition"]
+    checkbox: Optional["CheckboxCondition"] = None
+    date: Optional["DateCondition"] = None
+    number: Optional["NumberCondition"] = None
+    string: Optional["RichTextCondition"] = None
 
 
 class RollupCondition(BaseNotionModel):
@@ -480,11 +480,11 @@ class RollupCondition(BaseNotionModel):
         number: The number condition.
     """
 
-    any: Optional[list["FilterCondition"]]
-    every: Optional[list["FilterCondition"]]
-    none: Optional[list["FilterCondition"]]
-    date: Optional["DateCondition"]
-    number: Optional["NumberCondition"]
+    any: Optional[list["FilterCondition"]] = None
+    every: Optional[list["FilterCondition"]] = None
+    none: Optional[list["FilterCondition"]] = None
+    date: Optional["DateCondition"] = None
+    number: Optional["NumberCondition"] = None
 
 
 FilterCondition = Union[
