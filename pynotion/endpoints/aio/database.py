@@ -38,7 +38,7 @@ class DatabaseAsyncEndPoint:
     async def query_databases(
         self,
         database_id: UUID4,
-        property_filters: Optional[list["PropertyFilter"]] = None,
+        property_filter: Optional["PropertyFilter"] = None,
         sort: Optional[list["NotionSort"]] = None,
         pagination: Optional["TxPagination"] = None,
     ) -> "PageOrDatabasePagination":
@@ -47,7 +47,7 @@ class DatabaseAsyncEndPoint:
 
         Args:
             database_id: The id of the database to query.
-            property_filters: A list of filters to apply to the query.
+            property_filter: A list of filters to apply to the query.
             sort: A list of sorts to apply to the query.
             pagination: A pagination object to control the results.
 
@@ -56,8 +56,8 @@ class DatabaseAsyncEndPoint:
         """
         body = {}
 
-        if property_filters:
-            body["filter"] = [dump_tx(f) for f in property_filters]
+        if property_filter:
+            body["filter"] = dump_tx(property_filter)
         if sort:
             body["sorts"] = [dump_tx(s) for s in sort]
         if pagination:
