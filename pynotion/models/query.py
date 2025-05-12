@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional, Literal, TypeVar, Any, Annotated, TYPE_CHECKING, Union
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_serializer
 
 from ._internal import BaseNotionModel, FrozenNotionModel
 
@@ -683,6 +683,13 @@ class AndPropertyFilter(BaseNotionModel):
 
     filters: list["PropertyFilter"]
 
+    @model_serializer(mode="wrap", when_used="json-unless-none")
+    def _serialize_filters(self, handler):
+        outputs = handler(self)
+        if outputs and "filters" in outputs:
+            outputs["and"] = outputs.pop("filters")
+        return outputs
+
 
 class OrPropertyFilter(BaseNotionModel):
     """Model for an or property filter.
@@ -692,6 +699,13 @@ class OrPropertyFilter(BaseNotionModel):
     """
 
     filters: list["PropertyFilter"]
+
+    @model_serializer(mode="wrap", when_used="json-unless-none")
+    def _serialize_filters(self, handler):
+        outputs = handler(self)
+        if outputs and "filters" in outputs:
+            outputs["or"] = outputs.pop("filters")
+        return outputs
 
 
 PropertyFilter = Union[
